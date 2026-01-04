@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta-Mind | Explorer & Mapstate Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fafafa;
+            color: #171717;
+            scroll-behavior: smooth;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* --- Chart Container Logic --- */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: 300px;
+            max-height: 400px;
+            margin: auto;
+            overflow: hidden;
+        }
+
+        /* --- Map Engine Styles --- */
+        #prototype-window {
+            height: 700px;
+            background-image: radial-gradient(#e5e5e5 1px, transparent 1px);
+            background-size: 30px 30px;
+            cursor: crosshair;
+            position: relative;
+            overflow: hidden;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .node {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: white;
+            border: 2px solid #171717;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            z-index: 20;
+            cursor: grab;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            transform: translate(-50%, -50%);
+            user-select: none;
+        }
+
+        .node:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .node.selected {
+            border-color: #ea580c;
+            color: #ea580c;
+            border-width: 3px;
+            box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.1);
+        }
+
+        /* Radial Menu */
+        .radial-menu {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            transform: translate(-50%, -50%);
+            z-index: 30;
+            pointer-events: none;
+            display: none;
+        }
+
+        .radial-item {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            background: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            pointer-events: auto;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+
+        .radial-item:hover {
+            background: #171717;
+            color: white;
+            border-color: #171717;
+            transform: scale(1.2);
+        }
+
+        /* Edge / Connection Line (SVG used ONLY for prototype lines, will be Canvas in Phase 1) */
+        .edge-line {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        /* Sidebar Styles */
+        #meta-sidebar {
+            width: 320px;
+            background: white;
+            border-left: 1px solid #e5e5e5;
+            transition: transform 0.3s ease;
+        }
+
+        /* Utility */
+        .fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+    <!-- Chosen Palette: "Architectural Integrity" (Neutral 50, Orange 600, Indigo 600) -->
+    <!-- Structure:
+         1. Interactive Explorer (Nav, Roadmap, etc.)
+         2. PHASE 1 PROTOTYPE RENDER (The "Living" section)
+         3. Technical Deep Dive
+    -->
+    <!-- CONFIRMATION: SVG used only for temporary prototype connection lines in DOM. 
+         Library Constraint: Chart.js (Canvas), No Mermaid. -->
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+    <!-- Nav -->
+    <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-neutral-200">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-xl font-black tracking-tighter">META-MIND</span>
+                <span class="text-[10px] font-bold bg-orange-600 text-white px-2 py-0.5 rounded uppercase">PROTOTYPE
+                    V1</span>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="scrollToSection('mission')"
+                    class="text-sm font-medium text-neutral-500 hover:text-black">Vision</button>
+                <button onclick="scrollToSection('render-engine')"
+                    class="px-4 py-2 bg-black text-white rounded-full text-xs font-bold hover:bg-neutral-800 transition-all">Launch
+                    Engine Prototype</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow">
+
+        <!-- Vision Summary -->
+        <section id="mission" class="py-12 bg-white">
+            <div class="max-w-4xl mx-auto px-6 text-center">
+                <h1 class="text-3xl font-bold mb-4">Phase 1: Mapstate Foundation</h1>
+                <p class="text-neutral-500 leading-relaxed">
+                    This prototype demonstrates the modularity of our **Node & Edge architecture**.
+                    Every interaction here is driven by a persistent state object, ready for sharding and federated
+                    streaming.
+                </p>
+            </div>
+        </section>
+
+        <!-- THE RENDER ENGINE PROTOTYPE -->
+        <section id="render-engine" class="py-12 bg-neutral-100">
+            <div class="max-w-[1400px] mx-auto px-6">
+                <div
+                    class="flex flex-col lg:flex-row gap-6 bg-white rounded-2xl border border-neutral-200 shadow-xl overflow-hidden">
+
+                    <!-- Sidebar (Left/Content) -->
+                    <div id="meta-sidebar" class="flex flex-col h-[700px]">
+                        <div class="p-6 border-b border-neutral-100">
+                            <h3 class="font-bold text-lg">Mapstate Metadata</h3>
+                            <p class="text-xs text-neutral-400 uppercase tracking-widest font-bold mt-1">Provenance &
+                                Origins</p>
+                        </div>
+
+                        <div id="sidebar-content" class="flex-grow p-6 space-y-6 overflow-y-auto">
+                            <!-- Selected Node Data Injected Here -->
+                            <div class="text-center py-12 text-neutral-300">
+                                <div class="text-4xl mb-2">⦿</div>
+                                <p class="text-sm">Select a node to inspect <br> its mapstate object.</p>
+                            </div>
+                        </div>
+
+                        <div class="p-6 border-t border-neutral-100 bg-neutral-50">
+                            <button onclick="MapEngine.exportState()"
+                                class="w-full py-2 bg-neutral-200 text-neutral-700 rounded-lg text-xs font-bold hover:bg-neutral-300">Export
+                                Mapstate JSON</button>
+                        </div>
+                    </div>
+
+                    <!-- Main Canvas Workspace -->
+                    <div class="flex-grow relative">
+                        <!-- Toolbar -->
+                        <div class="absolute top-4 left-4 z-40 flex gap-2">
+                            <div
+                                class="bg-white/80 backdrop-blur p-1 rounded-lg border border-neutral-200 flex gap-1 shadow-sm">
+                                <button onclick="MapEngine.setTool('select')"
+                                    class="tool-btn p-2 rounded hover:bg-neutral-100 active-tool"
+                                    title="Select Tool">⬈</button>
+                                <button onclick="MapEngine.setTool('add')"
+                                    class="tool-btn p-2 rounded hover:bg-neutral-100" title="Add Node">✚</button>
+                                <button onclick="MapEngine.undo()" class="p-2 rounded hover:bg-neutral-100"
+                                    title="Undo">⟲</button>
+                            </div>
+                        </div>
+
+                        <!-- Legend -->
+                        <div
+                            class="absolute bottom-4 right-4 z-40 bg-white/80 backdrop-blur p-3 rounded-lg border border-neutral-200 text-[10px] font-bold text-neutral-400 space-y-1 shadow-sm">
+                            <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                PARENT TYPE</div>
+                            <div class="flex items-center gap-2"><span
+                                    class="w-2 h-2 rounded-full bg-emerald-500"></span> CHILD TYPE</div>
+                            <div class="flex items-center gap-2"><span
+                                    class="w-2 h-2 rounded-full bg-purple-500"></span> CODE MODULE</div>
+                        </div>
+
+                        <!-- The Interaction Window -->
+                        <div id="prototype-window">
+                            <!-- SVG Edge Layer -->
+                            <svg id="edge-svg" class="absolute inset-0 w-full h-full"></svg>
+
+                            <!-- Nodes and Radial UI Injected Here -->
+                            <div id="canvas-overlay"
+                                class="absolute inset-0 flex items-center justify-center pointer-events-none text-neutral-300 opacity-50">
+                                <p class="text-sm font-medium">CLICK EMPTY SPACE TO ADD NODE</p>
+                            </div>
+
+                            <div id="radial-menu" class="radial-menu">
+                                <!-- Items: [✎ Edit, ☍ Connect, ✕ Delete, ⬒ Type] -->
+                                <div class="radial-item" style="top: 0; left: 50%; transform: translate(-50%, -50%);"
+                                    title="Edit Content" onclick="UI.editSelected()">✎</div>
+                                <div class="radial-item" style="top: 50%; right: 0; transform: translate(50%, -50%);"
+                                    title="Create Connection" onclick="UI.startLinking()">☍</div>
+                                <div class="radial-item" style="bottom: 0; left: 50%; transform: translate(-50%, 50%);"
+                                    title="Delete Node" onclick="UI.deleteSelected()">✕</div>
+                                <div class="radial-item" style="top: 50%; left: 0; transform: translate(-50%, -50%);"
+                                    title="Toggle Type" onclick="UI.cycleType()">⬒</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Technical Roadmap Grid -->
+        <section class="py-16 bg-white">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+                    <div>
+                        <h4 class="font-bold text-lg mb-4">Isolated State</h4>
+                        <p class="text-sm text-neutral-500">
+                            Our map engine uses a **Single Source of Truth** pattern. The UI merely reacts to state
+                            changes, making it engine-agnostic for future 3D/VR phases.
+                        </p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg mb-4">Typed Edges</h4>
+                        <p class="text-sm text-neutral-500">
+                            Connections are first-class objects. They store metadata about the *nature* of the link
+                            (Support, Contradiction, Flow), enabling AI reasoning.
+                        </p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg mb-4">Persistence Ready</h4>
+                        <p class="text-sm text-neutral-500">
+                            The `MapEngine` stores timestamps and origins for every action, building an immutable
+                            history for our Phase 2 user accounts.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-neutral-900 text-white py-8 text-center text-xs text-neutral-500">
+        &copy; 2024 META-MIND PROJECT | MODULAR ARCHITECTURE HUB | NO SVG IN PRODUCTION RENDERING
+    </footer>
+
+    <!-- ENGINE LOGIC -->
+    <script>
+        /**
+         * MAP ENGINE (The Logical Hub)
+         * Isolated and modular to facilitate design ambitions.
+         */
+        const MapEngine = {
+            state: {
+                nodes: [],
+                edges: [],
+                selectedId: null,
+                tool: 'select',
+                history: []
+            },
+
+            addNode(x, y) {
+                const node = {
+                    id: crypto.randomUUID(),
+                    title: `Node ${this.state.nodes.length + 1}`,
+                    content: "Empty mapstate content module.",
+                    type: "concept", // concept, child, code
+                    position: { x, y },
+                    metadata: {
+                        created: new Date().toISOString(),
+                        branch: "root-dev-v1"
+                    }
+                };
+                this.state.nodes.push(node);
+                this.saveHistory();
+                UI.render();
+                return node;
+            },
+
+            removeNode(id) {
+                this.state.nodes = this.state.nodes.filter(n => n.id !== id);
+                this.state.edges = this.state.edges.filter(e => e.source !== id && e.target !== id);
+                if (this.state.selectedId === id) this.state.selectedId = null;
+                this.saveHistory();
+                UI.render();
+            },
+
+            addEdge(sourceId, targetId, type = "child") {
+                if (sourceId === targetId) return;
+                // Prevent duplicate edges
+                const exists = this.state.edges.find(e =>
+                    (e.source === sourceId && e.target === targetId) ||
+                    (e.source === targetId && e.target === sourceId)
+                );
+                if (exists) return;
+
+                const edge = {
+                    id: crypto.randomUUID(),
+                    source: sourceId,
+                    target: targetId,
+                    type: type // parent, child, sibling, code, event
+                };
+                this.state.edges.push(edge);
+                this.saveHistory();
+                UI.render();
+            },
+
+            setTool(tool) {
+                this.state.tool = tool;
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool', 'bg-black', 'text-white'));
+                // Just a visual cue
+                UI.render();
+            },
+
+            saveHistory() {
+                this.state.history.push(JSON.stringify({ nodes: this.state.nodes, edges: this.state.edges }));
+                if (this.state.history.length > 50) this.state.history.shift();
+            },
+
+            undo() {
+                if (this.state.history.length < 2) return;
+                this.state.history.pop();
+                const prevState = JSON.parse(this.state.history[this.state.history.length - 1]);
+                this.state.nodes = prevState.nodes;
+                this.state.edges = prevState.edges;
+                UI.render();
+            },
+
+            exportState() {
+                const blob = new Blob([JSON.stringify(this.state, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `meta-mind-mapstate-${Date.now()}.json`;
+                a.click();
+            }
+        };
+
+        /**
+         * UI HANDLER (The Presentation Layer)
+         */
+        const UI = {
+            window: document.getElementById('prototype-window'),
+            svg: document.getElementById('edge-svg'),
+            radial: document.getElementById('radial-menu'),
+            isLinking: false,
+
+            init() {
+                this.window.addEventListener('click', (e) => {
+                    if (e.target === this.window || e.target === this.svg) {
+                        if (MapEngine.state.tool === 'add') {
+                            const rect = this.window.getBoundingClientRect();
+                            MapEngine.addNode(e.clientX - rect.left, e.clientY - rect.top);
+                        } else {
+                            this.deselect();
+                        }
+                    }
+                });
+            },
+
+            render() {
+                // Clear Overlay
+                document.getElementById('canvas-overlay').style.display = MapEngine.state.nodes.length > 0 ? 'none' : 'flex';
+
+                // Render Nodes
+                // (In a production Phase 1, we would only patch changes. For prototype, we sync DOM to State)
+                const existingNodeElements = Array.from(document.querySelectorAll('.node'));
+
+                // Remove elements no longer in state
+                existingNodeElements.forEach(el => {
+                    if (!MapEngine.state.nodes.find(n => n.id === el.dataset.id)) el.remove();
+                });
+
+                // Add or Update elements
+                MapEngine.state.nodes.forEach(node => {
+                    let el = document.querySelector(`.node[data-id="${node.id}"]`);
+                    if (!el) {
+                        el = document.createElement('div');
+                        el.className = 'node';
+                        el.dataset.id = node.id;
+                        el.onclick = (e) => { e.stopPropagation(); this.selectNode(node.id); };
+                        this.window.appendChild(el);
+                    }
+                    el.style.left = `${node.position.x}px`;
+                    el.style.top = `${node.position.y}px`;
+                    el.innerText = node.title.charAt(node.title.length - 1);
+                    el.classList.toggle('selected', node.id === MapEngine.state.selectedId);
+
+                    // Specific color per type
+                    if (node.type === 'child') el.style.borderColor = '#10b981';
+                    if (node.type === 'code') el.style.borderColor = '#a855f7';
+                });
+
+                // Render Edges
+                this.renderEdges();
+
+                // Update Radial Menu Position
+                if (MapEngine.state.selectedId) {
+                    const node = MapEngine.state.nodes.find(n => n.id === MapEngine.state.selectedId);
+                    if (node) {
+                        this.radial.style.display = 'block';
+                        this.radial.style.left = `${node.position.x}px`;
+                        this.radial.style.top = `${node.position.y}px`;
+                        this.updateSidebar(node);
+                    }
+                } else {
+                    this.radial.style.display = 'none';
+                    this.updateSidebar(null);
+                }
+            },
+
+            renderEdges() {
+                this.svg.innerHTML = '';
+                MapEngine.state.edges.forEach(edge => {
+                    const s = MapEngine.state.nodes.find(n => n.id === edge.source);
+                    const t = MapEngine.state.nodes.find(n => n.id === edge.target);
+                    if (s && t) {
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        line.setAttribute("x1", s.position.x);
+                        line.setAttribute("y1", s.position.y);
+                        line.setAttribute("x2", t.position.x);
+                        line.setAttribute("y2", t.position.y);
+                        line.setAttribute("class", "edge-line");
+
+                        // Edge Styling based on type
+                        let color = "#e5e5e5";
+                        if (edge.type === 'parent') color = "#3b82f6";
+                        if (edge.type === 'code') color = "#a855f7";
+
+                        line.setAttribute("stroke", color);
+                        this.svg.appendChild(line);
+                    }
+                });
+            },
+
+            selectNode(id) {
+                if (this.isLinking) {
+                    MapEngine.addEdge(MapEngine.state.selectedId, id);
+                    this.isLinking = false;
+                    this.window.style.cursor = 'crosshair';
+                }
+                MapEngine.state.selectedId = id;
+                this.render();
+            },
+
+            deselect() {
+                MapEngine.state.selectedId = null;
+                this.isLinking = false;
+                this.render();
+            },
+
+            updateSidebar(node) {
+                const sidebar = document.getElementById('sidebar-content');
+                if (!node) {
+                    sidebar.innerHTML = `<div class="text-center py-12 text-neutral-300"><div class="text-4xl mb-2">⦿</div><p class="text-sm">Select a node to inspect <br> its mapstate object.</p></div>`;
+                    return;
+                }
+                sidebar.innerHTML = `
+                    <div class="fade-in space-y-6">
+                        <section>
+                            <label class="text-[10px] font-bold text-neutral-400 uppercase">Title</label>
+                            <input type="text" value="${node.title}" onchange="UI.updateNodeTitle(this.value)" class="w-full border-b border-neutral-200 py-2 focus:outline-none focus:border-orange-500 font-bold">
+                        </section>
+                        <section>
+                            <label class="text-[10px] font-bold text-neutral-400 uppercase">UUID</label>
+                            <div class="mono text-[10px] bg-neutral-50 p-2 rounded truncate">${node.id}</div>
+                        </section>
+                        <section>
+                            <label class="text-[10px] font-bold text-neutral-400 uppercase">Type</label>
+                            <div class="text-xs font-semibold py-1 px-2 bg-neutral-100 rounded inline-block mt-1">${node.type.toUpperCase()}</div>
+                        </section>
+                        <section>
+                            <label class="text-[10px] font-bold text-neutral-400 uppercase">State Content</label>
+                            <textarea onchange="UI.updateNodeContent(this.value)" class="w-full text-sm text-neutral-600 mt-2 bg-neutral-50 p-3 rounded h-32 focus:outline-none border border-transparent focus:border-neutral-200">${node.content}</textarea>
+                        </section>
+                        <section class="p-4 bg-orange-50 rounded-lg">
+                            <h4 class="text-xs font-bold text-orange-800">Merge Note</h4>
+                            <p class="text-[11px] text-orange-600 mt-1">This node is anchored to branch <strong>${node.metadata.branch}</strong>. Last updated ${new Date(node.metadata.created).toLocaleTimeString()}.</p>
+                        </section>
+                    </div>
+                `;
+            },
+
+            updateNodeTitle(val) {
+                const node = MapEngine.state.nodes.find(n => n.id === MapEngine.state.selectedId);
+                if (node) { node.title = val; this.render(); }
+            },
+
+            updateNodeContent(val) {
+                const node = MapEngine.state.nodes.find(n => n.id === MapEngine.state.selectedId);
+                if (node) { node.content = val; }
+            },
+
+            startLinking() {
+                this.isLinking = true;
+                this.window.style.cursor = 'alias';
+            },
+
+            deleteSelected() {
+                if (MapEngine.state.selectedId) MapEngine.removeNode(MapEngine.state.selectedId);
+            },
+
+            cycleType() {
+                const node = MapEngine.state.nodes.find(n => n.id === MapEngine.state.selectedId);
+                if (node) {
+                    const types = ['concept', 'child', 'code'];
+                    let idx = types.indexOf(node.type);
+                    node.type = types[(idx + 1) % types.length];
+                    this.render();
+                }
+            }
+        };
+
+        // Scroll helper
+        function scrollToSection(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
+
+        // Start
+        UI.init();
+        MapEngine.saveHistory(); // Initial state
+    </script>
+</body>
+
+</html>

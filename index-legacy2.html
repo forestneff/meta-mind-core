@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta-Mind | Phase Render Engine Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fafafa;
+            color: #171717;
+            scroll-behavior: smooth;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* --- Tab System Styles --- */
+        .tab-active {
+            border-bottom: 2px solid #ea580c;
+            color: #ea580c;
+            font-weight: 700;
+        }
+
+        /* --- Map Engine Styles --- */
+        #render-viewport {
+            height: 650px;
+            position: relative;
+            overflow: hidden;
+            background-color: #ffffff;
+        }
+
+        #visual-canvas {
+            height: 100%;
+            background-image: radial-gradient(#e5e5e5 1px, transparent 1px);
+            background-size: 30px 30px;
+            cursor: crosshair;
+        }
+
+        .node {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            background: white;
+            border: 2px solid #171717;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 11px;
+            z-index: 20;
+            cursor: grab;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            transform: translate(-50%, -50%);
+        }
+
+        .node.selected {
+            border-color: #ea580c;
+            color: #ea580c;
+            border-width: 3px;
+            box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.1);
+        }
+
+        /* --- Interpretive Tree Styles --- */
+        #textual-engine {
+            height: 100%;
+            overflow-y: auto;
+            padding: 2rem;
+            background-color: #fff;
+        }
+
+        .tree-item {
+            padding: 4px 0;
+            border-left: 1px solid #e5e5e5;
+            margin-left: 12px;
+            padding-left: 16px;
+        }
+
+        .tree-node-label {
+            cursor: pointer;
+            transition: color 0.2s;
+            font-size: 14px;
+        }
+
+        .tree-node-label:hover {
+            color: #ea580c;
+        }
+
+        .tree-node-label.active {
+            font-weight: 800;
+            color: #ea580c;
+        }
+
+        .radial-menu {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            transform: translate(-50%, -50%);
+            z-index: 30;
+            pointer-events: none;
+            display: none;
+        }
+
+        .radial-item {
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            background: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            pointer-events: auto;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+
+        .radial-item:hover {
+            background: #171717;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .radial-btn:nth-child(1) {
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .radial-btn:nth-child(2) {
+            top: 50%;
+            right: 0;
+            transform: translate(50%, -50%);
+        }
+
+        .radial-btn:nth-child(3) {
+            bottom: 0;
+            left: 50%;
+            transform: translate(-50%, 50%);
+        }
+
+        .radial-btn:nth-child(4) {
+            top: 50%;
+            left: 0;
+            transform: translate(-50%, -50%);
+        }
+
+        .edge-line {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+            stroke-width: 2;
+        }
+
+        #meta-sidebar {
+            width: 340px;
+            background: white;
+            border-left: 1px solid #e5e5e5;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+    <nav class="sticky top-0 z-50 bg-white border-b border-neutral-200 h-14 flex items-center justify-between px-6">
+        <div class="flex items-center gap-2">
+            <span class="text-xl font-black tracking-tighter">META-MIND</span>
+            <span class="text-[9px] font-bold bg-neutral-900 text-white px-2 py-0.5 rounded">PHASE ENGINE V3</span>
+        </div>
+        <div class="flex items-center gap-6">
+            <button onclick="MapEngine.exportState()" class="text-xs font-bold text-neutral-400 hover:text-black">EXPORT
+                JSON</button>
+            <button onclick="scrollToSection('engine-core')"
+                class="bg-orange-600 text-white px-4 py-1.5 rounded-full text-[10px] font-bold">LIVE RENDER</button>
+        </div>
+    </nav>
+
+    <main class="flex-grow">
+
+        <section id="engine-core" class="py-12 bg-neutral-50">
+            <div class="max-w-[1500px] mx-auto px-6">
+                <div
+                    class="flex flex-col lg:flex-row bg-white rounded-2xl border border-neutral-200 shadow-2xl overflow-hidden min-h-[700px]">
+
+                    <!-- Main Interpretive Window -->
+                    <div class="flex-grow relative flex flex-col">
+
+                        <!-- Engine Phase Tabs -->
+                        <div class="h-12 border-b border-neutral-100 flex items-center px-4 gap-8 bg-neutral-50/50">
+                            <button onclick="UI.switchPhase('textual')" id="tab-textual"
+                                class="tab-active text-xs uppercase tracking-widest py-3">Textual Outline</button>
+                            <button onclick="UI.switchPhase('visual')" id="tab-visual"
+                                class="text-xs uppercase tracking-widest text-neutral-400 py-3">Mind Map</button>
+                            <div class="flex-grow"></div>
+                            <div class="flex gap-2">
+                                <button onclick="MapEngine.addNode(300, 300)"
+                                    class="text-[10px] font-bold bg-neutral-900 text-white px-3 py-1 rounded">ADD
+                                    ROOT</button>
+                                <button onclick="MapEngine.undo()"
+                                    class="text-[10px] font-bold border border-neutral-200 px-3 py-1 rounded">UNDO</button>
+                            </div>
+                        </div>
+
+                        <!-- Render Viewport -->
+                        <div id="render-viewport" class="flex-grow">
+
+                            <!-- Phase 1: Textual Render Engine -->
+                            <div id="textual-engine" class="fade-in">
+                                <div id="tree-root">
+                                    <!-- Dynamic Hierarchical Tree Injected Here -->
+                                </div>
+                            </div>
+
+                            <!-- Phase 2: Visual Render Engine -->
+                            <div id="visual-canvas" class="hidden relative fade-in">
+                                <svg id="edge-svg" class="absolute inset-0 w-full h-full"></svg>
+                                <div id="radial-menu" class="radial-menu">
+                                    <div class="radial-item radial-btn" title="Add Connection"
+                                        onclick="UI.startLinking()">☍</div>
+                                    <div class="radial-item radial-btn" title="Delete Node"
+                                        onclick="UI.deleteSelected()">✕</div>
+                                    <div class="radial-item radial-btn" title="Cycle Type" onclick="UI.cycleType()">⬒
+                                    </div>
+                                    <div class="radial-item radial-btn" title="Meta" onclick="switchTab('vision')">ⓘ
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- PERSISTENT SIDEBAR: Real-time linked command center -->
+                    <div id="meta-sidebar" class="flex flex-col border-l border-neutral-200">
+                        <div class="p-6 border-b border-neutral-100">
+                            <h3 class="font-bold text-sm tracking-tight">Active Mapstate</h3>
+                            <p class="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Real-time
+                                Node Metadata</p>
+                        </div>
+
+                        <div id="sidebar-content" class="flex-grow p-6 space-y-6 overflow-y-auto">
+                            <!-- Contextual Content -->
+                        </div>
+
+                        <div class="p-4 bg-neutral-50 border-t border-neutral-100">
+                            <div class="flex justify-between items-center text-[9px] font-mono text-neutral-400">
+                                <span>STATUS: FEDERATED_READY</span>
+                                <span id="node-counter">NODES: 0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ENGINE LOGIC -->
+    <script>
+        /**
+         * MAP ENGINE: The persistent state container.
+         */
+        const MapEngine = {
+            state: {
+                nodes: [],
+                edges: [],
+                selectedId: null,
+                currentPhase: 'textual', // textual, visual
+                history: []
+            },
+
+            addNode(x, y) {
+                const node = {
+                    id: crypto.randomUUID(),
+                    title: `Node ${this.state.nodes.length + 1}`,
+                    content: "Enter mapstate details here...",
+                    type: "concept",
+                    position: { x, y },
+                    metadata: { created: new Date().toISOString() }
+                };
+                this.state.nodes.push(node);
+                this.saveHistory();
+                UI.render();
+                this.selectNode(node.id);
+            },
+
+            selectNode(id) {
+                this.state.selectedId = id;
+                UI.render();
+            },
+
+            updateNode(id, updates) {
+                const node = this.state.nodes.find(n => n.id === id);
+                if (node) {
+                    Object.assign(node, updates);
+                    UI.render();
+                }
+            },
+
+            addEdge(sourceId, targetId) {
+                if (sourceId === targetId) return;
+                const exists = this.state.edges.find(e =>
+                    (e.source === sourceId && e.target === targetId)
+                );
+                if (exists) return;
+                this.state.edges.push({ id: crypto.randomUUID(), source: sourceId, target: targetId, type: 'child' });
+                this.saveHistory();
+                UI.render();
+            },
+
+            saveHistory() {
+                this.state.history.push(JSON.stringify({ nodes: this.state.nodes, edges: this.state.edges }));
+                if (this.state.history.length > 50) this.state.history.shift();
+            },
+
+            undo() {
+                if (this.state.history.length < 2) return;
+                this.state.history.pop();
+                const prev = JSON.parse(this.state.history[this.state.history.length - 1]);
+                this.state.nodes = prev.nodes;
+                this.state.edges = prev.edges;
+                UI.render();
+            },
+
+            exportState() {
+                const data = JSON.stringify(this.state, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `meta-mind-state.json`;
+                a.click();
+            }
+        };
+
+        /**
+         * TEXTUAL PHASE ENGINE: The Interpretive Outline logic.
+         */
+        const TextEngine = {
+            render() {
+                const container = document.getElementById('tree-root');
+                container.innerHTML = '';
+
+                // Find Root Nodes (Nodes that are not targets of any edge)
+                const targetIds = new Set(MapEngine.state.edges.map(e => e.target));
+                const rootNodes = MapEngine.state.nodes.filter(n => !targetIds.has(n.id));
+
+                if (rootNodes.length === 0 && MapEngine.state.nodes.length > 0) {
+                    // Fallback if it's a perfect cycle or single isolated node
+                    this.renderTreeNode(MapEngine.state.nodes[0], container);
+                } else {
+                    rootNodes.forEach(node => {
+                        this.renderTreeNode(node, container);
+                    });
+                }
+            },
+
+            renderTreeNode(node, parentEl) {
+                const div = document.createElement('div');
+                div.className = 'tree-item';
+
+                const label = document.createElement('div');
+                label.className = `tree-node-label ${MapEngine.state.selectedId === node.id ? 'active' : ''}`;
+                label.innerHTML = `<span class="opacity-30 mr-2">⦿</span> ${node.title}`;
+                label.onclick = (e) => { e.stopPropagation(); MapEngine.selectNode(node.id); };
+
+                div.appendChild(label);
+
+                // Find Children
+                const childEdges = MapEngine.state.edges.filter(e => e.source === node.id);
+                if (childEdges.length > 0) {
+                    const childrenContainer = document.createElement('div');
+                    childEdges.forEach(edge => {
+                        const childNode = MapEngine.state.nodes.find(n => n.id === edge.target);
+                        if (childNode) this.renderTreeNode(childNode, childrenContainer);
+                    });
+                    div.appendChild(childrenContainer);
+                }
+
+                parentEl.appendChild(div);
+            }
+        };
+
+        /**
+         * UI CONTROLLER
+         */
+        const UI = {
+            isLinking: false,
+
+            init() {
+                document.getElementById('visual-canvas').addEventListener('click', (e) => {
+                    if (e.target.id === 'visual-canvas' || e.target.id === 'edge-svg') {
+                        const rect = e.target.getBoundingClientRect();
+                        MapEngine.addNode(e.clientX - rect.left, e.clientY - rect.top);
+                    }
+                });
+            },
+
+            switchPhase(phase) {
+                MapEngine.state.currentPhase = phase;
+                document.getElementById('tab-textual').className = phase === 'textual' ? 'tab-active text-xs uppercase tracking-widest py-3' : 'text-xs uppercase tracking-widest text-neutral-400 py-3';
+                document.getElementById('tab-visual').className = phase === 'visual' ? 'tab-active text-xs uppercase tracking-widest py-3' : 'text-xs uppercase tracking-widest text-neutral-400 py-3';
+
+                document.getElementById('textual-engine').classList.toggle('hidden', phase !== 'textual');
+                document.getElementById('visual-canvas').classList.toggle('hidden', phase !== 'visual');
+                this.render();
+            },
+
+            render() {
+                // Update Sidebar
+                this.renderSidebar();
+
+                // Render Phase
+                if (MapEngine.state.currentPhase === 'textual') {
+                    TextEngine.render();
+                } else {
+                    this.renderVisual();
+                }
+
+                document.getElementById('node-counter').innerText = `NODES: ${MapEngine.state.nodes.length}`;
+            },
+
+            renderVisual() {
+                const canvas = document.getElementById('visual-canvas');
+                const svg = document.getElementById('edge-svg');
+                const radial = document.getElementById('radial-menu');
+
+                // Clean canvas
+                Array.from(document.querySelectorAll('.node')).forEach(n => n.remove());
+                svg.innerHTML = '';
+
+                // Render Edges
+                MapEngine.state.edges.forEach(edge => {
+                    const s = MapEngine.state.nodes.find(n => n.id === edge.source);
+                    const t = MapEngine.state.nodes.find(n => n.id === edge.target);
+                    if (s && t) {
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        line.setAttribute("x1", s.position.x); line.setAttribute("y1", s.position.y);
+                        line.setAttribute("x2", t.position.x); line.setAttribute("y2", t.position.y);
+                        line.setAttribute("stroke", "#e5e5e5"); line.setAttribute("class", "edge-line");
+                        svg.appendChild(line);
+                    }
+                });
+
+                // Render Nodes
+                MapEngine.state.nodes.forEach(node => {
+                    const el = document.createElement('div');
+                    el.className = `node ${MapEngine.state.selectedId === node.id ? 'selected' : ''}`;
+                    el.style.left = `${node.position.x}px`;
+                    el.style.top = `${node.position.y}px`;
+                    el.innerText = node.title.split(' ').pop();
+                    el.onclick = (e) => {
+                        e.stopPropagation();
+                        if (this.isLinking) {
+                            MapEngine.addEdge(MapEngine.state.selectedId, node.id);
+                            this.isLinking = false;
+                            canvas.style.cursor = 'crosshair';
+                        }
+                        MapEngine.selectNode(node.id);
+                    };
+                    canvas.appendChild(el);
+                });
+
+                // Position Radial
+                const sel = MapEngine.state.nodes.find(n => n.id === MapEngine.state.selectedId);
+                if (sel && MapEngine.state.currentPhase === 'visual') {
+                    radial.style.display = 'block';
+                    radial.style.left = `${sel.position.x}px`;
+                    radial.style.top = `${sel.position.y}px`;
+                } else {
+                    radial.style.display = 'none';
+                }
+            },
+
+            renderSidebar() {
+                const sidebar = document.getElementById('sidebar-content');
+                const node = MapEngine.state.nodes.find(n => n.id === MapEngine.state.selectedId);
+
+                if (!node) {
+                    sidebar.innerHTML = `<div class="text-center py-20 text-neutral-300 opacity-50"><p class="text-xs">Select a node to view its<br>mapstate properties.</p></div>`;
+                    return;
+                }
+
+                sidebar.innerHTML = `
+                    <div class="fade-in space-y-6">
+                        <section>
+                            <label class="text-[9px] font-bold text-neutral-400 uppercase tracking-widest">Node Label</label>
+                            <input type="text" id="node-title-input" value="${node.title}" class="w-full border-b border-neutral-200 py-2 focus:outline-none focus:border-orange-500 font-bold text-lg">
+                        </section>
+                        <section>
+                            <label class="text-[9px] font-bold text-neutral-400 uppercase tracking-widest">Mapstate Content</label>
+                            <textarea id="node-content-input" class="w-full text-sm text-neutral-600 mt-2 bg-neutral-50 p-4 rounded-xl min-h-[150px] focus:outline-none border border-transparent focus:border-neutral-100">${node.content}</textarea>
+                        </section>
+                        <div class="p-4 bg-neutral-50 rounded-xl border border-neutral-100">
+                             <div class="flex justify-between items-center mb-2">
+                                <span class="text-[9px] font-bold text-neutral-400 uppercase">UUID</span>
+                                <span class="text-[8px] mono text-neutral-300">${node.id.substring(0, 8)}...</span>
+                             </div>
+                             <div class="flex justify-between items-center">
+                                <span class="text-[9px] font-bold text-neutral-400 uppercase">BRANCH</span>
+                                <span class="text-[9px] font-bold text-neutral-700">ROOT_MAIN</span>
+                             </div>
+                        </div>
+                    </div>
+                `;
+
+                // Add real-time update listeners
+                document.getElementById('node-title-input').addEventListener('input', (e) => {
+                    MapEngine.updateNode(node.id, { title: e.target.value });
+                });
+                document.getElementById('node-content-input').addEventListener('input', (e) => {
+                    MapEngine.updateNode(node.id, { content: e.target.value });
+                });
+            },
+
+            startLinking() { this.isLinking = true; document.getElementById('visual-canvas').style.cursor = 'alias'; },
+            deleteSelected() {
+                MapEngine.state.nodes = MapEngine.state.nodes.filter(n => n.id !== MapEngine.state.selectedId);
+                MapEngine.state.edges = MapEngine.state.edges.filter(e => e.source !== MapEngine.state.selectedId && e.target !== MapEngine.state.selectedId);
+                MapEngine.state.selectedId = null;
+                this.render();
+            }
+        };
+
+        // Scroll helper
+        function scrollToSection(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
+
+        // Start
+        UI.init();
+        MapEngine.saveHistory();
+        // Add a starter node
+        MapEngine.addNode(300, 200);
+        UI.render();
+    </script>
+</body>
+
+</html>

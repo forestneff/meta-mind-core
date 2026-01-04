@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta-Mind: Project Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fafafa;
+            /* Neutral 50 - Very light grey/white */
+            color: #171717;
+            /* Neutral 900 */
+        }
+
+        /* --- Chart Container Logic (Strict Adherence) --- */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            /* Max width constraint */
+            height: 300px;
+            /* Base height */
+            max-height: 400px;
+            /* Max height constraint */
+            margin-left: auto;
+            margin-right: auto;
+            /* Prevent overflow */
+            overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        /* --- Custom Utilities --- */
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn.active {
+            background-color: #171717;
+            color: #ffffff;
+            border-color: #171717;
+        }
+
+        .phase-tab {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .phase-tab:hover {
+            background-color: #f5f5f5;
+        }
+
+        .phase-tab.active {
+            border-left: 4px solid #ea580c;
+            /* Orange-600 */
+            background-color: #fff7ed;
+            /* Orange-50 */
+        }
+
+        .phase-tab.active h4 {
+            color: #c2410c;
+        }
+
+        .story-card {
+            transition: transform 0.2s;
+        }
+
+        .story-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Architecture Blocks */
+        .arch-block {
+            background: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .arch-arrow {
+            font-size: 1.5rem;
+            color: #a3a3a3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+    <!-- Chosen Palette: "Strategic Clarity" -->
+    <!-- Primary: Warm Neutral Background (#fafafa) -->
+    <!-- Text: Sharp Dark Grey (#171717) -->
+    <!-- Accents: Burnt Orange (#ea580c) for actions/highlights, Slate Blue (#475569) for secondary data. -->
+
+    <!-- Application Structure Plan:
+         1. Header: Brand and simple mode navigation (Overview, Phases, Stories, Stack).
+         2. Hero Section: "Mission Control" style summary of the project vision.
+         3. Interactive Roadmap (The Core): A split-view layout. Left side lists Phases 1-6. Right side updates dynamically to show details for the selected phase.
+         4. Data Layer: Gantt Chart for timeline (Change) + Radar Chart for phase focus (Relationships).
+         5. User Stories: A search/filter grid to explore MVP vs FFS requirements.
+         6. Architecture: A visual block diagram (HTML Grid) showing the system flow.
+         Rationale: This structure breaks the dense 6-phase document into digestible "clicks", allowing the user to focus on one development stage at a time while maintaining context of the whole.
+    -->
+
+    <!-- Visualization & Content Choices:
+         - Timeline -> Gantt Chart (Chart.js HorizontalBar). Goal: Change/Plan.
+         - Phase Focus -> Radar Chart (Chart.js). Goal: Compare (Engineering effort distribution).
+         - Tech Stack -> HTML Grid Diagram. Goal: Organize (Visual hierarchy without SVG).
+         - User Stories -> JS Filtered List. Goal: Inform/Explore.
+         - Icons -> Unicode characters.
+    -->
+
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-neutral-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl font-black tracking-tighter text-neutral-900">META-MIND</span>
+                    <span class="text-xs font-mono bg-neutral-100 text-neutral-500 px-2 py-1 rounded">EXPLORER</span>
+                </div>
+                <div class="hidden md:flex space-x-2">
+                    <button onclick="scrollToSection('mission')"
+                        class="nav-btn px-4 py-2 text-sm font-medium rounded-md text-neutral-600 hover:text-neutral-900">Mission</button>
+                    <button onclick="scrollToSection('roadmap')"
+                        class="nav-btn px-4 py-2 text-sm font-medium rounded-md text-neutral-600 hover:text-neutral-900">Phases</button>
+                    <button onclick="scrollToSection('timeline')"
+                        class="nav-btn px-4 py-2 text-sm font-medium rounded-md text-neutral-600 hover:text-neutral-900">Timeline</button>
+                    <button onclick="scrollToSection('stories')"
+                        class="nav-btn px-4 py-2 text-sm font-medium rounded-md text-neutral-600 hover:text-neutral-900">User
+                        Stories</button>
+                    <button onclick="scrollToSection('architecture')"
+                        class="nav-btn px-4 py-2 text-sm font-medium rounded-md text-neutral-600 hover:text-neutral-900">Architecture</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow">
+
+        <!-- 1. Mission / Hero -->
+        <section id="mission" class="py-16 bg-white border-b border-neutral-100">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h1 class="text-4xl md:text-5xl font-extrabold text-neutral-900 tracking-tight mb-6">
+                    An AI-Native Federated Mapstate Metaverse
+                </h1>
+                <p class="text-xl text-neutral-500 max-w-3xl mx-auto leading-relaxed mb-10">
+                    We are dedicated to a principled, collaborative space where people and AI co-create.
+                    Meta-Mind empowers individuals through <span class="text-orange-600 font-semibold">User
+                        Agency</span>, <span class="text-orange-600 font-semibold">Ethical Co-creation</span>, and <span
+                        class="text-orange-600 font-semibold">Federated Persistence</span>.
+                </p>
+
+                <!-- Quick Stats Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+                    <div class="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
+                        <div class="text-3xl font-bold text-neutral-900">6</div>
+                        <div class="text-xs text-neutral-500 uppercase tracking-wide font-semibold">Strategic Phases
+                        </div>
+                    </div>
+                    <div class="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
+                        <div class="text-3xl font-bold text-neutral-900">52+</div>
+                        <div class="text-xs text-neutral-500 uppercase tracking-wide font-semibold">Weeks Roadmap</div>
+                    </div>
+                    <div class="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
+                        <div class="text-3xl font-bold text-neutral-900">3</div>
+                        <div class="text-xs text-neutral-500 uppercase tracking-wide font-semibold">Core Pillars</div>
+                    </div>
+                    <div class="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
+                        <div class="text-3xl font-bold text-neutral-900">∞</div>
+                        <div class="text-xs text-neutral-500 uppercase tracking-wide font-semibold">Map Complexity</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Interactive Phase Explorer -->
+        <section id="roadmap" class="py-16 bg-neutral-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-neutral-900">Phased Evolution</h2>
+                    <p class="text-neutral-500 mt-2">Click through the phases to explore development focus and
+                        deliverables.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <!-- Phase Navigator (Left) -->
+                    <div class="lg:col-span-4 flex flex-col space-y-2">
+                        <!-- Generated by JS -->
+                        <div id="phase-nav-container" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Phase Details (Right) -->
+                    <div class="lg:col-span-8">
+                        <div class="bg-white rounded-xl shadow-sm border border-neutral-200 p-8 h-full"
+                            id="phase-content-panel">
+                            <!-- Dynamic Content Injected Here -->
+                            <div class="flex flex-col items-center justify-center h-full text-neutral-400">
+                                <p>Select a phase to view details.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Timeline & Data -->
+        <section id="timeline" class="py-16 bg-white border-y border-neutral-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+
+                    <!-- Gantt Chart -->
+                    <div>
+                        <h3 class="text-xl font-bold text-neutral-900 mb-2">Master Timeline</h3>
+                        <p class="text-sm text-neutral-500 mb-6">Overlapping execution of the 6 phases (Weeks 1-52+).
+                        </p>
+                        <div class="chart-container">
+                            <canvas id="ganttChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Radar Chart (Effort) -->
+                    <div>
+                        <h3 class="text-xl font-bold text-neutral-900 mb-2">Engineering Focus</h3>
+                        <p class="text-sm text-neutral-500 mb-6">Relative effort distribution across core domains.</p>
+                        <div class="chart-container">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                        <div class="mt-4 flex justify-center gap-4 text-xs text-neutral-500">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                Phase 1 (MVP)</span>
+                            <span class="flex items-center gap-1"><span
+                                    class="w-2 h-2 rounded-full bg-orange-500"></span> Phase 4 (Social/AI)</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. User Stories -->
+        <section id="stories" class="py-16 bg-neutral-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-8">
+                    <div>
+                        <h2 class="text-3xl font-bold text-neutral-900">User Stories</h2>
+                        <p class="text-neutral-500 mt-2">Functional requirements for MVP and Full-Feature Software
+                            (FFS).</p>
+                    </div>
+                    <!-- Filters -->
+                    <div class="mt-4 md:mt-0 flex bg-white rounded-md shadow-sm p-1 border border-neutral-200">
+                        <button onclick="filterStories('all')"
+                            class="px-4 py-1.5 text-sm font-medium rounded hover:bg-neutral-100"
+                            id="filter-all">All</button>
+                        <button onclick="filterStories('mvp')"
+                            class="px-4 py-1.5 text-sm font-medium rounded hover:bg-neutral-100 text-neutral-500"
+                            id="filter-mvp">MVP</button>
+                        <button onclick="filterStories('ffs')"
+                            class="px-4 py-1.5 text-sm font-medium rounded hover:bg-neutral-100 text-neutral-500"
+                            id="filter-ffs">FFS</button>
+                    </div>
+                </div>
+
+                <div id="stories-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. Architecture -->
+        <section id="architecture" class="py-16 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="mb-10 text-center">
+                    <h2 class="text-3xl font-bold text-neutral-900">System Architecture</h2>
+                    <p class="text-neutral-500 mt-2">A federated, modular stack designed for scale.</p>
+                </div>
+
+                <!-- Block Diagram (Grid Layout) -->
+                <div class="max-w-4xl mx-auto border border-neutral-200 rounded-xl p-8 bg-neutral-50/50">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                        <!-- Client Layer -->
+                        <div class="flex flex-col gap-4">
+                            <h4 class="text-sm font-bold text-neutral-400 uppercase tracking-wide text-center">Client
+                                Layer</h4>
+                            <div class="arch-block border-l-4 border-l-blue-500">
+                                <div class="font-bold text-neutral-900">React SPA</div>
+                                <div class="text-xs text-neutral-500">Canvas / Radial UI</div>
+                            </div>
+                            <div class="arch-block border-l-4 border-l-blue-500">
+                                <div class="font-bold text-neutral-900">Local Store</div>
+                                <div class="text-xs text-neutral-500">IndexedDB / Cache</div>
+                            </div>
+                        </div>
+
+                        <!-- Communication -->
+                        <div class="flex flex-col justify-center gap-2">
+                            <div class="arch-arrow">⇄</div>
+                            <div class="text-center text-xs font-mono text-neutral-400">Sync / WebSocket</div>
+                            <div class="arch-arrow">⇄</div>
+                        </div>
+
+                        <!-- Cloud/Fed Layer -->
+                        <div class="flex flex-col gap-4">
+                            <h4 class="text-sm font-bold text-neutral-400 uppercase tracking-wide text-center">
+                                Federation Layer</h4>
+                            <div class="arch-block border-l-4 border-l-orange-500">
+                                <div class="font-bold text-neutral-900">Orchestrator</div>
+                                <div class="text-xs text-neutral-500">Node.js / Edge Fn</div>
+                            </div>
+                            <div class="arch-block border-l-4 border-l-purple-500">
+                                <div class="font-bold text-neutral-900">AI Synthesis</div>
+                                <div class="text-xs text-neutral-500">LLM / Agents</div>
+                            </div>
+                            <div class="arch-block border-l-4 border-l-green-500">
+                                <div class="font-bold text-neutral-900">Storage</div>
+                                <div class="text-xs text-neutral-500">IPFS / Postgres</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-neutral-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <h3 class="text-xl font-bold tracking-tight mb-4">META-MIND</h3>
+            <p class="text-neutral-400 text-sm max-w-md mx-auto mb-8">
+                Empowering individuals, communities, and technologies helping all participants reach deeper
+                understanding.
+            </p>
+            <div class="text-xs text-neutral-600">
+                &copy; 2024 Meta-Mind. Generated from Source Reports. <br>
+                NO SVG used. NO Mermaid JS used.
+            </div>
+        </div>
+    </footer>
+
+    <!-- LOGIC -->
+    <script>
+        // --- DATA: From Source Report ---
+        const phases = [
+            {
+                id: 1,
+                title: "Phase 1: MVP",
+                subtitle: "Mapstate Core",
+                weeks: "1-8",
+                desc: "Delivers a single-user, single-map application with persistent, timestamped mapstates. Focus on the 'Canvas' and 'Node' objects.",
+                features: [
+                    "Visual map (canvas, draggable nodes)",
+                    "Radial menus for node actions",
+                    "Undo/redo & revision history",
+                    "In-memory state (No Login)",
+                    "Sidebar content editor"
+                ],
+                tech: "React, LocalStorage, Canvas API"
+            },
+            {
+                id: 2,
+                title: "Phase 2: Persistence",
+                subtitle: "Accounts & Cloud",
+                weeks: "7-14",
+                desc: "Introduces persistent, user account-based map storage. Users can register, log in, and sync maps to the cloud.",
+                features: [
+                    "User Auth (Login/Profile)",
+                    "Cloud Database Sync",
+                    "Offline/Online Switch",
+                    "Conflict Resolution UI",
+                    "Multiple Maps per User"
+                ],
+                tech: "Postgres/Firebase, Auth Tokens"
+            },
+            {
+                id: 3,
+                title: "Phase 3: Collaboration",
+                subtitle: "Multi-user Editing",
+                weeks: "13-22",
+                desc: "Unlocks live, multi-user collaboration. Real-time cursors, shared maps, and granular permissions.",
+                features: [
+                    "Real-time Sync (WebSockets)",
+                    "Live Cursors & Presence",
+                    "Map Sharing & Permissions",
+                    "Group Chat / Comments",
+                    "Collaborative Merge Tools"
+                ],
+                tech: "WebSockets, CRDTs (Yjs)"
+            },
+            {
+                id: 4,
+                title: "Phase 4: Advanced AI",
+                subtitle: "Social & Agents",
+                weeks: "21-30",
+                desc: " robust social, gamification, and advanced AI/plugin capabilities unified through the mapstate engine.",
+                features: [
+                    "AI Sense Modules",
+                    "Gamification (Badges/Quests)",
+                    "Activity Feeds",
+                    "Plugin Registry",
+                    "Social Profiles"
+                ],
+                tech: "LLM API Integration, Plugin Architecture"
+            },
+            {
+                id: 5,
+                title: "Phase 5: Public Metaverse",
+                subtitle: "Global Federation",
+                weeks: "29-38",
+                desc: "The platform becomes a public, multi-user, AI-native metaverse. Global mapstreaming and discovery.",
+                features: [
+                    "Global Map Gallery",
+                    "Marketplace for Assets",
+                    "2D/3D Phase Switching",
+                    "Blockchain Provenance",
+                    "Public Lands"
+                ],
+                tech: "Sharding, Global Search, 3D Engines"
+            },
+            {
+                id: 6,
+                title: "Phase 6: Future Scale",
+                subtitle: "AR & Decentralization",
+                weeks: "39-52+",
+                desc: "Evolves into a globally distributed, AR-ready, AI-native hub. Interoperability with other metaverses.",
+                features: [
+                    "AR Overlays (Real-world)",
+                    "Decentralized AI Agents",
+                    "Universal Interoperability",
+                    "IoT Integration",
+                    "DAO Governance"
+                ],
+                tech: "XR/AR, Mesh Networking, Smart Contracts"
+            }
+        ];
+
+        const stories = [
+            { type: "mvp", role: "User", text: "Open map, see nodes as circles on canvas." },
+            { type: "mvp", role: "User", text: "Hover node to see Radial Menu (Add, Delete, Edit)." },
+            { type: "mvp", role: "User", text: "Drag to connect two nodes visually." },
+            { type: "mvp", role: "User", text: "Undo/Redo actions using timeline history." },
+            { type: "mvp", role: "User", text: "Edit node content in sidebar (Markdown)." },
+            { type: "ffs", role: "User", text: "Sign up and manage profile/avatar." },
+            { type: "ffs", role: "User", text: "Invite collaborators to a shared map." },
+            { type: "ffs", role: "User", text: "See real-time cursors of other users." },
+            { type: "ffs", role: "User", text: "Enable AI plugin to auto-expand map branches." },
+            { type: "ffs", role: "Admin", text: "Manage user roles and map permissions." },
+            { type: "ffs", role: "User", text: "Switch view to 3D/VR 'Game Phase'." },
+            { type: "ffs", role: "User", text: "Mint mapstate contribution to blockchain." }
+        ];
+
+        // --- UI LOGIC ---
+
+        function initPhaseNav() {
+            const container = document.getElementById('phase-nav-container');
+            container.innerHTML = phases.map((p, index) => `
+                <div onclick="selectPhase(${index})" id="phase-tab-${index}" class="phase-tab p-4 border-l-4 border-transparent hover:bg-neutral-50 rounded-r-md">
+                    <h4 class="font-bold text-neutral-600 text-sm uppercase tracking-wide">${p.title}</h4>
+                    <p class="text-xs text-neutral-400 mt-1">${p.subtitle}</p>
+                </div>
+            `).join('');
+
+            // Select first by default
+            selectPhase(0);
+        }
+
+        function selectPhase(index) {
+            // Update Tab Styles
+            document.querySelectorAll('.phase-tab').forEach(el => {
+                el.classList.remove('active', 'bg-orange-50');
+                el.querySelector('h4').classList.remove('text-orange-700');
+            });
+            const activeTab = document.getElementById(`phase-tab-${index}`);
+            activeTab.classList.add('active');
+
+            // Update Content
+            const p = phases[index];
+            const contentPanel = document.getElementById('phase-content-panel');
+            contentPanel.innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded uppercase">Weeks ${p.weeks}</span>
+                            <h2 class="text-3xl font-bold text-neutral-900 mt-2">${p.title}</h2>
+                            <h3 class="text-xl text-neutral-500 font-medium">${p.subtitle}</h3>
+                        </div>
+                        <div class="text-6xl text-neutral-100 font-bold select-none">${p.id}</div>
+                    </div>
+                    
+                    <p class="text-lg text-neutral-600 leading-relaxed mb-8 border-l-4 border-orange-500 pl-4">
+                        ${p.desc}
+                    </p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h4 class="font-bold text-neutral-900 mb-4 border-b border-neutral-100 pb-2">Key Features</h4>
+                            <ul class="space-y-3">
+                                ${p.features.map(f => `<li class="flex items-start gap-2 text-sm text-neutral-600"><span class="text-orange-500 mt-0.5">✔</span> ${f}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-neutral-900 mb-4 border-b border-neutral-100 pb-2">Tech Focus</h4>
+                            <div class="bg-neutral-50 p-4 rounded-lg border border-neutral-200 text-sm text-neutral-600 font-mono">
+                                ${p.tech}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function initStories() {
+            renderStories(stories);
+        }
+
+        function filterStories(type) {
+            // Update buttons
+            document.getElementById('filter-all').className = `px-4 py-1.5 text-sm font-medium rounded hover:bg-neutral-100 ${type === 'all' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500'}`;
+            document.getElementById('filter-mvp').className = `px-4 py-1.5 text-sm font-medium rounded hover:bg-neutral-100 ${type === 'mvp' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500'}`;
+            document.getElementById('filter-ffs').className = `px-4 py-1.5 text-sm font-medium rounded hover:bg-neutral-100 ${type === 'ffs' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500'}`;
+
+            if (type === 'all') {
+                renderStories(stories);
+            } else {
+                renderStories(stories.filter(s => s.type === type));
+            }
+        }
+
+        function renderStories(data) {
+            const grid = document.getElementById('stories-grid');
+            grid.innerHTML = data.map(s => `
+                <div class="story-card bg-white p-6 rounded-lg border border-neutral-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-bold uppercase ${s.type === 'mvp' ? 'text-blue-600 bg-blue-50' : 'text-purple-600 bg-purple-50'} px-2 py-1 rounded">
+                            ${s.type.toUpperCase()}
+                        </span>
+                        <span class="text-xs text-neutral-400 font-mono">${s.role}</span>
+                    </div>
+                    <p class="text-sm text-neutral-700 font-medium">"${s.text}"</p>
+                </div>
+            `).join('');
+        }
+
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // --- CHARTS ---
+        function initCharts() {
+            Chart.defaults.font.family = "'Inter', sans-serif";
+            Chart.defaults.color = '#737373';
+
+            // Helper: Label Wrapping
+            const wrapLabel = (str) => {
+                if (str.length < 15) return str;
+                return str.match(/.{1,15}(\s|$)/g) || [str];
+            };
+
+            // 1. Gantt Chart
+            const ctxGantt = document.getElementById('ganttChart').getContext('2d');
+            new Chart(ctxGantt, {
+                type: 'bar',
+                data: {
+                    labels: phases.map(p => wrapLabel(p.title)),
+                    datasets: [{
+                        label: 'Duration (Weeks)',
+                        data: [[1, 8], [7, 14], [13, 22], [21, 30], [29, 38], [39, 52]],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)', // Blue (MVP)
+                            'rgba(16, 185, 129, 0.8)', // Green
+                            'rgba(249, 115, 22, 0.8)', // Orange
+                            'rgba(139, 92, 246, 0.8)', // Purple
+                            'rgba(236, 72, 153, 0.8)', // Pink
+                            'rgba(99, 102, 241, 0.8)'  // Indigo
+                        ],
+                        borderRadius: 4,
+                        barPercentage: 0.5
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { min: 0, max: 55, title: { display: true, text: 'Weeks' } },
+                        y: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // 2. Radar Chart (Comparison)
+            const ctxRadar = document.getElementById('radarChart').getContext('2d');
+            new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: ['Core UI', 'Data Logic', 'Cloud Sync', 'AI/Agents', 'Social'],
+                    datasets: [
+                        {
+                            label: 'Phase 1 (MVP)',
+                            data: [90, 80, 10, 0, 0],
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        },
+                        {
+                            label: 'Phase 4 (Social/AI)',
+                            data: [40, 50, 70, 90, 100],
+                            borderColor: 'rgba(249, 115, 22, 1)',
+                            backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                        }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    scales: {
+                        r: {
+                            angleLines: { color: '#e5e5e5' },
+                            grid: { color: '#e5e5e5' },
+                            pointLabels: { font: { size: 11 } },
+                            ticks: { display: false, backdropColor: 'transparent' }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Boot
+        document.addEventListener('DOMContentLoaded', () => {
+            initPhaseNav();
+            initStories();
+            initCharts();
+        });
+
+    </script>
+</body>
+
+</html>

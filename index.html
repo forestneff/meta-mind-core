@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta-Mind | Sandbox v1.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --accent: #ea580c;
+            /* Orange 600 */
+            --bg-main: #ffffff;
+            --bg-alt: #fafafa;
+            --border: #e5e5e5;
+            --text-main: #171717;
+            --text-muted: #737373;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-alt);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* --- Layout --- */
+        #app-container {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+        }
+
+        @media (max-width: 1024px) {
+            #app-container {
+                flex-direction: column;
+            }
+        }
+
+        /* --- Viewport --- */
+        #viewport {
+            flex: 1;
+            background: var(--bg-main);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #render-target {
+            flex: 1;
+            position: relative;
+            overflow: auto;
+        }
+
+        /* --- Sidebar / Command Center --- */
+        #sidebar {
+            width: 380px;
+            border-left: 1px solid var(--border);
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+            transition: transform 0.3s ease;
+        }
+
+        @media (max-width: 1024px) {
+            #sidebar {
+                width: 100%;
+                height: 40%;
+                border-left: 0;
+                border-top: 1px solid var(--border);
+            }
+        }
+
+        /* --- Phase: Textual Outliner --- */
+        .outliner-node {
+            padding: 4px 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .outliner-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+
+        .outliner-row:hover {
+            background: #f4f4f5;
+        }
+
+        .outliner-row.active {
+            background: #fff7ed;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .outliner-children {
+            margin-left: 20px;
+            border-left: 1px solid var(--border);
+            padding-left: 12px;
+        }
+
+        .folder-toggle {
+            font-size: 10px;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            color: var(--text-muted);
+        }
+
+        .folder-toggle:hover {
+            background: #e5e5e5;
+            color: var(--text-main);
+        }
+
+        /* --- Phase: Visual Map --- */
+        #visual-canvas {
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(#e5e5e5 1px, transparent 1px);
+            background-size: 30px 30px;
+            cursor: crosshair;
+            position: relative;
+        }
+
+        .node {
+            position: absolute;
+            width: 52px;
+            height: 52px;
+            background: white;
+            border: 2px solid #171717;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 10px;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .node.selected {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 0 5px rgba(234, 88, 12, 0.15);
+            border-width: 3px;
+        }
+
+        .node-type-logic {
+            border-radius: 8px;
+            border-color: #8b5cf6;
+            color: #8b5cf6;
+        }
+
+        /* Purple */
+        .node-type-data {
+            border-radius: 4px;
+            border-color: #06b6d4;
+            color: #06b6d4;
+        }
+
+        /* Cyan */
+
+        .edge-path {
+            stroke: #d4d4d4;
+            stroke-width: 2;
+            fill: none;
+            transition: stroke 0.2s;
+        }
+
+        .edge-path.active {
+            stroke: var(--accent);
+        }
+
+        /* UI Helpers */
+        .tab-btn {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 12px 20px;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .control-btn {
+            font-size: 10px;
+            font-weight: 700;
+            background: #171717;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+        }
+
+        .control-btn:hover {
+            background: #3f3f46;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #e5e5e5;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header Navigation -->
+    <header class="h-14 border-b border-neutral-200 bg-white flex items-center justify-between px-6 shrink-0">
+        <div class="flex items-center gap-3">
+            <span class="text-xl font-black tracking-tighter">META-MIND</span>
+            <span class="text-[9px] font-bold bg-neutral-900 text-white px-2 py-0.5 rounded tracking-widest">SANDBOX
+                V1.0</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="MapEngine.undo()" class="text-xs font-bold text-neutral-400 hover:text-black">UNDO</button>
+            <button onclick="MapEngine.export()"
+                class="text-xs font-bold text-neutral-400 hover:text-black">EXPORT</button>
+            <div class="h-6 w-px bg-neutral-100"></div>
+            <div class="text-[10px] font-mono text-neutral-400">STATE: <span id="sync-status"
+                    class="text-emerald-500">STABLE</span></div>
+        </div>
+    </header>
+
+    <div id="app-container">
+
+        <!-- RENDER VIEWPORT -->
+        <main id="viewport">
+            <!-- Phase Switcher -->
+            <div class="h-12 border-b border-neutral-100 flex items-center px-4 gap-4 bg-white shrink-0">
+                <button onclick="UI.setPhase('textual')" id="tab-textual" class="tab-btn active">Textual Phase</button>
+                <button onclick="UI.setPhase('visual')" id="tab-visual" class="tab-btn">Visual Phase</button>
+                <div class="flex-grow"></div>
+                <button onclick="MapEngine.addNode(null, null, 'Root Node')" class="control-btn">✚ NEW ROOT</button>
+            </div>
+
+            <!-- Content Area -->
+            <div id="render-target">
+                <!-- Textual Engine -->
+                <div id="textual-view" class="p-8 max-w-4xl mx-auto h-full">
+                    <div id="tree-container" class="fade-in"></div>
+                </div>
+                <!-- Visual Engine -->
+                <div id="visual-view" class="hidden h-full">
+                    <div id="visual-canvas">
+                        <svg id="edge-svg" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- COMMAND SIDEBAR -->
+        <aside id="sidebar">
+            <div class="p-6 border-b border-neutral-100 shrink-0">
+                <h3 class="font-bold text-sm tracking-tight">Node Attributes</h3>
+                <p class="text-[9px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Real-time Mapstate
+                    Control</p>
+            </div>
+
+            <div id="sidebar-content" class="flex-grow p-6 space-y-8 overflow-y-auto">
+                <!-- Contextual content injected here -->
+            </div>
+
+            <div class="p-4 bg-neutral-50 border-t border-neutral-100">
+                <div class="flex justify-between items-center text-[9px] font-mono text-neutral-400">
+                    <span id="coord-display">POS: 0.0, 0.0</span>
+                    <span id="node-count">NODES: 0</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        /**
+         * MAP ENGINE v1.0
+         * Core relational logic and state management.
+         */
+        const MapEngine = {
+            state: {
+                nodes: [],
+                edges: [],
+                selectedId: null,
+                phase: 'textual',
+                folded: new Set(), // Set of IDs that are collapsed in tree
+                history: []
+            },
+
+            init() {
+                this.addNode(200, 200, "Core Mission");
+                this.saveHistory();
+                UI.render();
+            },
+
+            addNode(x, y, title = "New Concept") {
+                const id = crypto.randomUUID();
+                const node = {
+                    id,
+                    title,
+                    content: "",
+                    type: "concept", // concept, logic, data
+                    position: { x: x || 100 + Math.random() * 200, y: y || 100 + Math.random() * 200 },
+                    metadata: { branch: "MAIN", version: 1 }
+                };
+                this.state.nodes.push(node);
+                this.state.selectedId = id;
+                this.saveHistory();
+                UI.render();
+                return id;
+            },
+
+            addChild(parentId) {
+                const childId = this.addNode();
+                this.addEdge(parentId, childId, 'child');
+                this.state.selectedId = childId;
+                UI.render();
+            },
+
+            addEdge(source, target, type = 'child') {
+                if (source === target) return;
+                const exists = this.state.edges.find(e => e.source === source && e.target === target);
+                if (!exists) {
+                    this.state.edges.push({ id: crypto.randomUUID(), source, target, type });
+                    this.saveHistory();
+                }
+            },
+
+            deleteNode(id) {
+                this.state.nodes = this.state.nodes.filter(n => n.id !== id);
+                this.state.edges = this.state.edges.filter(e => e.source !== id && e.target !== id);
+                if (this.state.selectedId === id) this.state.selectedId = null;
+                this.saveHistory();
+                UI.render();
+            },
+
+            saveHistory() {
+                this.state.history.push(JSON.stringify({ nodes: this.state.nodes, edges: this.state.edges }));
+                if (this.state.history.length > 30) this.state.history.shift();
+            },
+
+            undo() {
+                if (this.state.history.length < 2) return;
+                this.state.history.pop();
+                const prev = JSON.parse(this.state.history[this.state.history.length - 1]);
+                this.state.nodes = prev.nodes;
+                this.state.edges = prev.edges;
+                UI.render();
+            },
+
+            export() {
+                const data = JSON.stringify(this.state, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'mapstate_v1.json'; a.click();
+            }
+        };
+
+        /**
+         * UI CONTROLLER
+         * Manages multi-modal rendering and interaction stabilization.
+         */
+        const UI = {
+            linkingId: null,
+
+            init() {
+                // Canvas Events
+                document.getElementById('visual-canvas').addEventListener('click', (e) => {
+                    if (e.target.id === 'visual-canvas' || e.target.tagName === 'svg') {
+                        const rect = e.target.getBoundingClientRect();
+                        MapEngine.addNode(e.clientX - rect.left, e.clientY - rect.top);
+                    }
+                });
+
+                // Global Shortcuts
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'Delete' && MapEngine.state.selectedId) MapEngine.deleteNode(MapEngine.state.selectedId);
+                });
+            },
+
+            setPhase(phase) {
+                MapEngine.state.phase = phase;
+                document.getElementById('tab-textual').classList.toggle('active', phase === 'textual');
+                document.getElementById('tab-visual').classList.toggle('active', phase === 'visual');
+                document.getElementById('textual-view').classList.toggle('hidden', phase !== 'textual');
+                document.getElementById('visual-view').classList.toggle('hidden', phase !== 'visual');
+                this.render();
+            },
+
+            render() {
+                this.renderSidebar();
+                if (MapEngine.state.phase === 'textual') this.renderTextual();
+                else this.renderVisual();
+
+                document.getElementById('node-count').innerText = `NODES: ${MapEngine.state.nodes.length}`;
+            },
+
+            renderTextual() {
+                const container = document.getElementById('tree-container');
+                container.innerHTML = '';
+
+                // Find roots (no incoming edges)
+                const targets = new Set(MapEngine.state.edges.map(e => e.target));
+                const roots = MapEngine.state.nodes.filter(n => !targets.has(n.id));
+
+                if (roots.length === 0 && MapEngine.state.nodes.length > 0) {
+                    this.buildTreeBranch(MapEngine.state.nodes[0], container, new Set());
+                } else {
+                    roots.forEach(n => this.buildTreeBranch(n, container, new Set()));
+                }
+            },
+
+            buildTreeBranch(node, parentEl, visited) {
+                if (visited.has(node.id)) return;
+                visited.add(node.id);
+
+                const div = document.createElement('div');
+                div.className = 'outliner-node';
+
+                const children = MapEngine.state.edges.filter(e => e.source === node.id);
+                const isFolded = MapEngine.state.folded.has(node.id);
+
+                const row = document.createElement('div');
+                row.className = `outliner-row ${MapEngine.state.selectedId === node.id ? 'active' : ''}`;
+
+                // Toggle Button
+                const toggle = document.createElement('div');
+                toggle.className = 'folder-toggle';
+                toggle.innerHTML = children.length > 0 ? (isFolded ? '▶' : '▼') : '•';
+                toggle.onclick = (e) => {
+                    e.stopPropagation();
+                    if (isFolded) MapEngine.state.folded.delete(node.id);
+                    else MapEngine.state.folded.add(node.id);
+                    this.render();
+                };
+
+                const label = document.createElement('span');
+                label.innerText = node.title || 'Untitled Node';
+                label.onclick = () => { MapEngine.state.selectedId = node.id; this.render(); };
+
+                row.appendChild(toggle);
+                row.appendChild(label);
+                div.appendChild(row);
+
+                if (children.length > 0 && !isFolded) {
+                    const childrenBox = document.createElement('div');
+                    childrenBox.className = 'outliner-children';
+                    children.forEach(edge => {
+                        const child = MapEngine.state.nodes.find(n => n.id === edge.target);
+                        if (child) this.buildTreeBranch(child, childrenBox, visited);
+                    });
+                    div.appendChild(childrenBox);
+                }
+
+                parentEl.appendChild(div);
+            },
+
+            renderVisual() {
+                const canvas = document.getElementById('visual-canvas');
+                const svg = document.getElementById('edge-svg');
+
+                Array.from(document.querySelectorAll('.node')).forEach(n => n.remove());
+                svg.innerHTML = '';
+
+                // Render Edges
+                MapEngine.state.edges.forEach(e => {
+                    const s = MapEngine.state.nodes.find(n => n.id === e.source);
+                    const t = MapEngine.state.nodes.find(n => n.id === e.target);
+                    if (s && t) {
+                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        const d = `M ${s.position.x} ${s.position.y} L ${t.position.x} ${t.position.y}`;
+                        path.setAttribute("d", d);
+                        path.setAttribute("class", `edge-path ${MapEngine.state.selectedId === s.id ? 'active' : ''}`);
+                        svg.appendChild(path);
+                    }
+                });
+
+                // Render Nodes
+                MapEngine.state.nodes.forEach(n => {
+                    const el = document.createElement('div');
+                    let typeClass = '';
+                    if (n.type === 'logic') typeClass = 'node-type-logic';
+                    if (n.type === 'data') typeClass = 'node-type-data';
+
+                    el.className = `node ${typeClass} ${MapEngine.state.selectedId === n.id ? 'selected' : ''}`;
+                    el.style.left = `${n.position.x}px`;
+                    el.style.top = `${n.position.y}px`;
+                    el.innerText = n.title ? n.title.substring(0, 3).toUpperCase() : '??';
+
+                    el.onclick = (e) => {
+                        e.stopPropagation();
+                        if (this.linkingId) {
+                            MapEngine.addEdge(this.linkingId, n.id);
+                            this.linkingId = null;
+                            canvas.style.cursor = 'crosshair';
+                        }
+                        MapEngine.state.selectedId = n.id;
+                        this.render();
+                    };
+
+                    canvas.appendChild(el);
+                });
+            },
+
+            renderSidebar() {
+                const container = document.getElementById('sidebar-content');
+                const node = MapEngine.state.nodes.find(n => n.id === MapEngine.state.selectedId);
+
+                if (!node) {
+                    container.innerHTML = `
+                        <div class="h-full flex flex-col items-center justify-center opacity-20 py-20">
+                            <div class="text-4xl mb-4">⦿</div>
+                            <p class="text-xs font-bold uppercase tracking-widest">Select a node to edit</p>
+                        </div>`;
+                    return;
+                }
+
+                // Node Type Options
+                const types = ['concept', 'logic', 'data'];
+                const typeOptions = types.map(t => `<option value="${t}" ${node.type === t ? 'selected' : ''}>${t.toUpperCase()}</option>`).join('');
+
+                container.innerHTML = `
+                    <div class="space-y-6 fade-in">
+                        <section>
+                            <label class="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Label</label>
+                            <input type="text" id="sb-title" value="${node.title}" class="w-full border-b border-neutral-200 py-3 font-bold text-xl focus:outline-none focus:border-orange-500 bg-transparent">
+                        </section>
+
+                        <section class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Type</label>
+                                <select id="sb-type" class="w-full mt-1 bg-neutral-100 border-0 rounded text-[10px] font-bold p-2 focus:ring-1 focus:ring-orange-500">
+                                    ${typeOptions}
+                                </select>
+                            </div>
+                             <div>
+                                <label class="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Branch</label>
+                                <div class="text-[10px] font-bold text-neutral-600 p-2 mt-1 bg-neutral-100 rounded">${node.metadata.branch}</div>
+                            </div>
+                        </section>
+
+                        <section>
+                            <label class="text-[9px] font-black text-neutral-400 uppercase tracking-widest">Content State</label>
+                            <textarea id="sb-content" class="w-full mt-2 bg-neutral-50 p-4 rounded-xl border border-transparent focus:border-neutral-200 focus:bg-white text-sm text-neutral-600 min-h-[160px] focus:outline-none">${node.content}</textarea>
+                        </section>
+
+                        <section class="flex flex-col gap-2 pt-4">
+                            <button onclick="MapEngine.addChild('${node.id}')" class="bg-black text-white text-[10px] font-bold py-3 rounded-lg hover:opacity-80">✚ ADD SUB-NODE</button>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="UI.startLinking()" class="border border-neutral-200 text-[10px] font-bold py-2 rounded hover:bg-neutral-50">☍ CONNECT</button>
+                                <button onclick="MapEngine.deleteNode('${node.id}')" class="border border-red-100 text-red-500 text-[10px] font-bold py-2 rounded hover:bg-red-50">✕ DELETE</button>
+                            </div>
+                        </section>
+
+                        <div class="pt-8 opacity-30">
+                            <div class="flex justify-between text-[8px] mono"><span>UUID</span><span>${node.id}</span></div>
+                        </div>
+                    </div>
+                `;
+
+                // INPUT STABILIZATION
+                const titleIn = document.getElementById('sb-title');
+                const contentIn = document.getElementById('sb-content');
+                const typeIn = document.getElementById('sb-type');
+
+                titleIn.addEventListener('change', (e) => {
+                    node.title = e.target.value;
+                    MapEngine.saveHistory();
+                    this.render();
+                    this.setSyncStatus('SYNCING...');
+                });
+
+                contentIn.addEventListener('blur', (e) => {
+                    if (node.content !== e.target.value) {
+                        node.content = e.target.value;
+                        MapEngine.saveHistory();
+                        this.setSyncStatus('SAVED');
+                    }
+                });
+
+                typeIn.addEventListener('change', (e) => {
+                    node.type = e.target.value;
+                    MapEngine.saveHistory();
+                    this.render();
+                });
+
+                document.getElementById('coord-display').innerText = `POS: ${Math.round(node.position.x)}, ${Math.round(node.position.y)}`;
+            },
+
+            startLinking() {
+                if (!MapEngine.state.selectedId) return;
+                this.linkingId = MapEngine.state.selectedId;
+                const canvas = document.getElementById('visual-canvas');
+                canvas.style.cursor = 'alias';
+                if (MapEngine.state.phase !== 'visual') this.setPhase('visual');
+            },
+
+            setSyncStatus(status) {
+                const el = document.getElementById('sync-status');
+                el.innerText = status;
+                el.className = status === 'STABLE' || status === 'SAVED' ? 'text-emerald-500' : 'text-orange-500';
+                if (status === 'SAVED') setTimeout(() => this.setSyncStatus('STABLE'), 2000);
+            }
+        };
+
+        // Initialize
+        UI.init();
+        MapEngine.init();
+    </script>
+</body>
+
+</html>
