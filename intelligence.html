@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta-Mind | Strategic Intelligence Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        :root { --accent: #4f46e5; --accent-light: #eef2ff; --text-main: #1e293b; --bg-dashboard: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dashboard); color: var(--text-main); }
+
+        /* --- Chart Container Logic (Required) --- */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            height: 300px;
+            max-height: 350px;
+            margin-left: auto;
+            margin-right: auto;
+            overflow: hidden;
+        }
+        @media (min-width: 768px) { .chart-container { height: 350px; } }
+
+        /* --- Dashboard UI Components --- */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            transition: transform 0.2s ease;
+        }
+        .glass-card:hover { transform: translateY(-2px); }
+
+        .sidebar-link.active {
+            background-color: var(--accent);
+            color: white;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+    <!-- Chosen Palette: Harmony & Clarity (Warm White, Slate Blue, Indigo Accents) -->
+    
+    <!-- Application Structure Plan: 
+         The SPA is designed as a Strategic Intelligence Dashboard. 
+         Instead of a linear report, it provides a thematic exploration path:
+         1. Executive Overview: Real-time mission stats and core mission alignment.
+         2. Temporal Intelligence: Interactive Roadmap timeline (Weeks 1-52).
+         3. Technical Architecture: Visualizing the 3-layer federated stack.
+         4. Requirement Traceability: Filterable list of MVP vs FFS user stories.
+         
+         This structure was chosen to allow stakeholders to move from high-level 'Why' (Mission) 
+         to mid-level 'When' (Roadmap) to low-level 'How' (Architecture/Stories).
+    -->
+
+    <!-- Visualization & Content Choices:
+         - Roadmap Data -> Timeline -> Horizontal Bar Chart (Chart.js). Goal: Change over time.
+         - Mission Alignment -> Logic/Values -> Radar Chart (Chart.js). Goal: Relationships/Pillars.
+         - Development Effort -> Allocation -> Doughnut Chart (Chart.js). Goal: Inform/Composition.
+         - Architecture Layering -> Hierarchy -> Styled HTML Grid. Goal: Organize.
+         - User Stories -> Interactive Table -> Vanilla JS Search/Filter. Goal: Compare/Inform.
+         Confirming: NO SVG graphics used. NO Mermaid JS used.
+    -->
+
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="min-h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- Sidebar Navigation (Desktop) -->
+    <aside class="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 z-50">
+        <div class="p-6 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl font-black tracking-tighter text-indigo-600">MM</span>
+                <span class="text-sm font-bold tracking-tight text-slate-800 uppercase">Intelligence</span>
+            </div>
+        </div>
+        <nav class="flex-grow p-4 space-y-2 overflow-y-auto">
+            <button onclick="Dashboard.view('overview')" id="nav-overview" class="sidebar-link active w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all">
+                <span>⊞</span> Overview
+            </button>
+            <button onclick="Dashboard.view('roadmap')" id="nav-roadmap" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-all">
+                <span>📅</span> Roadmap
+            </button>
+            <button onclick="Dashboard.view('architecture')" id="nav-architecture" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-all">
+                <span>⌬</span> Architecture
+            </button>
+            <button onclick="Dashboard.view('requirements')" id="nav-requirements" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-all">
+                <span>📋</span> Requirements
+            </button>
+        </nav>
+        <div class="p-6 border-t border-slate-100">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Platform Status</div>
+            <div class="flex items-center gap-2 text-xs font-bold text-emerald-500">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> FEDERATED_SYNC_ON
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Stage -->
+    <main class="flex-grow relative overflow-y-auto h-screen bg-slate-50/50">
+        
+        <!-- Header -->
+        <header class="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-200 h-16 flex items-center justify-between px-8 z-40">
+            <h2 id="view-title" class="text-lg font-bold text-slate-800">Mission Overview</h2>
+            <div class="flex items-center gap-4">
+                <div class="text-right hidden sm:block">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Current Phase</p>
+                    <p class="text-xs font-bold text-indigo-600">Phase 1: MVP Core</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <div id="dashboard-stage" class="p-8">
+            <!-- View: OVERVIEW (Default) -->
+            <div id="section-overview" class="fade-in space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-card p-6 border-l-4 border-indigo-500">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Project Scope</p>
+                        <h4 class="text-3xl font-black text-slate-800">52 <span class="text-sm font-normal text-slate-400">Weeks</span></h4>
+                    </div>
+                    <div class="glass-card p-6 border-l-4 border-emerald-500">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Target Capability</p>
+                        <h4 class="text-xl font-black text-slate-800">Federated AI Hub</h4>
+                    </div>
+                    <div class="glass-card p-6 border-l-4 border-amber-500">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Architecture State</p>
+                        <h4 class="text-xl font-black text-slate-800">Modular MVP</h4>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="glass-card p-8">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase mb-6 tracking-widest">Mission Integrity Radar</h3>
+                        <div class="chart-container">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="space-y-6">
+                        <div class="glass-card p-8 h-full flex flex-col justify-center">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4">Meta-Mind Core Identity</h3>
+                            <p class="text-sm text-slate-600 leading-relaxed mb-6">
+                                Meta-Mind is an AI-native platform uniting real-time interaction, persistent mapstates, and immersive metaverse experiences. We prioritize <span class="font-bold text-indigo-600">User Agency</span>, <span class="font-bold text-indigo-600">Ethical Co-creation</span>, and <span class="font-bold text-indigo-600">Federated Persistence</span>.
+                            </p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                                    <div class="text-indigo-600 font-bold text-xs uppercase mb-1">Ownership</div>
+                                    <p class="text-[10px] text-indigo-500 leading-tight">Users retain full rights over their mapstate origins.</p>
+                                </div>
+                                <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                                    <div class="text-indigo-600 font-bold text-xs uppercase mb-1">Privacy</div>
+                                    <p class="text-[10px] text-indigo-500 leading-tight">Decentralized storage models baked into federation.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: ROADMAP -->
+            <div id="section-roadmap" class="hidden fade-in space-y-8">
+                <div class="glass-card p-8">
+                    <h3 class="text-sm font-bold text-slate-400 uppercase mb-6 tracking-widest">Master Execution Timeline</h3>
+                    <div class="chart-container">
+                        <canvas id="roadmapChart"></canvas>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl border border-slate-200">
+                        <div class="text-indigo-600 font-black text-2xl mb-2">01</div>
+                        <h4 class="font-bold text-slate-800 mb-1">MVP Foundation</h4>
+                        <p class="text-xs text-slate-500">Weeks 1-8: Mapstate Core, Radial UI, and CRUD logic.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-slate-200">
+                        <div class="text-indigo-600 font-black text-2xl mb-2">03</div>
+                        <h4 class="font-bold text-slate-800 mb-1">Collaboration</h4>
+                        <p class="text-xs text-slate-500">Weeks 13-22: Real-time sync, permissions, and sharing.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-slate-200">
+                        <div class="text-indigo-600 font-black text-2xl mb-2">06</div>
+                        <h4 class="font-bold text-slate-800 mb-1">Federation</h4>
+                        <p class="text-xs text-slate-500">Weeks 39-52+: Scale, decentralization, and DAO governance.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: ARCHITECTURE -->
+            <div id="section-architecture" class="hidden fade-in space-y-8">
+                <div class="glass-card p-8">
+                    <h3 class="text-sm font-bold text-slate-400 uppercase mb-8 tracking-widest text-center">AI-Native Stack Hierarchy</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center max-w-5xl mx-auto">
+                        <!-- Layer 1 -->
+                        <div class="space-y-4">
+                            <div class="p-6 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-100">
+                                <h4 class="font-black text-xl mb-1">Interaction</h4>
+                                <p class="text-[10px] font-bold opacity-60 uppercase">Frontend Client</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">React / Konva / Tailwind</div>
+                        </div>
+                        <!-- Layer 2 -->
+                        <div class="space-y-4">
+                            <div class="p-6 bg-slate-800 text-white rounded-2xl shadow-xl shadow-slate-100">
+                                <h4 class="font-black text-xl mb-1">Synthesis</h4>
+                                <p class="text-[10px] font-bold opacity-60 uppercase">AI Orchestration</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Gemini 1.5 Pro / Agents</div>
+                        </div>
+                        <!-- Layer 3 -->
+                        <div class="space-y-4">
+                            <div class="p-6 bg-slate-100 border border-slate-200 text-slate-800 rounded-2xl">
+                                <h4 class="font-black text-xl mb-1">Persistence</h4>
+                                <p class="text-[10px] font-bold opacity-40 uppercase">Federated Database</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">IPFS / Vector DB / SQL</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="glass-card p-8">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase mb-6 tracking-widest">Phase 1 Effort Allocation</h3>
+                        <div class="chart-container">
+                            <canvas id="compositionChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card p-8 flex flex-col justify-center">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4">Technical Rationale</h3>
+                        <p class="text-sm text-slate-600 leading-relaxed">
+                            Meta-Mind utilizes a **Local-First architecture** with cloud augmentation. This ensures that user creativity is never throttled by latency, while federation allows the mapstate to persist and merge seamlessly across the decentralized network.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: REQUIREMENTS -->
+            <div id="section-requirements" class="hidden fade-in space-y-8">
+                <div class="glass-card p-8 overflow-hidden">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest">Requirement Traceability Matrix</h3>
+                        <div class="flex bg-slate-100 p-1 rounded-lg">
+                            <button onclick="Dashboard.filterRequirements('all')" id="filter-all" class="px-3 py-1 text-[10px] font-bold bg-white shadow-sm rounded-md text-indigo-600">ALL</button>
+                            <button onclick="Dashboard.filterRequirements('mvp')" id="filter-mvp" class="px-3 py-1 text-[10px] font-bold text-slate-500">MVP</button>
+                            <button onclick="Dashboard.filterRequirements('ffs')" id="filter-ffs" class="px-3 py-1 text-[10px] font-bold text-slate-500">FFS</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="border-b border-slate-200">
+                                <tr>
+                                    <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase">Requirement</th>
+                                    <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase">Type</th>
+                                    <th class="pb-4 text-[10px] font-bold text-slate-400 uppercase">Context</th>
+                                </tr>
+                            </thead>
+                            <tbody id="requirements-table-body" class="divide-y divide-slate-100">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="p-8 text-center text-[10px] font-bold text-slate-400 border-t border-slate-200 uppercase tracking-widest">
+            Meta-Mind Strategic Documentation // Unified Humanity & Technology Potential // 2024
+        </footer>
+    </main>
+
+    <script>
+        /**
+         * DASHBOARD CORE LOGIC
+         */
+        const Dashboard = {
+            state: {
+                activeView: 'overview',
+                requirements: [
+                    { title: "Visual Node Interface", type: "MVP", context: "Users can open map and see nodes as objects." },
+                    { title: "Radial Navigation Menu", type: "MVP", context: "Context-aware hover actions for each node." },
+                    { title: "Persistence Engine", type: "FFS", context: "Cloud saving and federated sharding of states." },
+                    { title: "AI Sense Module", type: "FFS", context: "LLM agents that auto-expand or synthesize branches." },
+                    { title: "Social Gamification", type: "FFS", context: "User reputation, badges, and activity feeds." },
+                    { title: "Mapstate Collaboration", type: "MVP", context: "Basic local-first merge and conflict logic." }
+                ]
+            },
+
+            view(id) {
+                // Update Sidebar
+                document.querySelectorAll('.sidebar-link').forEach(el => {
+                    el.classList.remove('active', 'text-white', 'shadow-indigo-100');
+                    el.classList.add('text-slate-500');
+                });
+                document.getElementById(`nav-${id}`).classList.add('active');
+                
+                // Update Title
+                document.getElementById('view-title').innerText = id.charAt(0).toUpperCase() + id.slice(1) + " Intelligence";
+
+                // Update View Visibility
+                document.querySelectorAll('#dashboard-stage > div').forEach(div => div.classList.add('hidden'));
+                document.getElementById(`section-${id}`).classList.remove('hidden');
+                
+                this.state.activeView = id;
+            },
+
+            filterRequirements(filter) {
+                const body = document.getElementById('requirements-table-body');
+                body.innerHTML = '';
+                
+                // Update Filters UI
+                document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+                    btn.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600');
+                    btn.classList.add('text-slate-500');
+                });
+                document.getElementById(`filter-${filter}`).classList.add('bg-white', 'shadow-sm', 'text-indigo-600');
+
+                const filtered = filter === 'all' 
+                    ? this.state.requirements 
+                    : this.state.requirements.filter(r => r.type.toLowerCase() === filter);
+
+                filtered.forEach(req => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="py-4 text-sm font-bold text-slate-800">${req.title}</td>
+                        <td class="py-4"><span class="px-2 py-0.5 rounded text-[8px] font-black uppercase ${req.type === 'MVP' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'}">${req.type}</span></td>
+                        <td class="py-4 text-[10px] text-slate-500 leading-tight">${req.context}</td>
+                    `;
+                    body.appendChild(row);
+                });
+            },
+
+            initCharts() {
+                // Shared Label Wrapping Utility
+                const wrap = (label) => label.length > 16 ? label.match(/.{1,16}(\s|$)/g) : label;
+
+                // 1. Mission Radar
+                new Chart(document.getElementById('radarChart'), {
+                    type: 'radar',
+                    data: {
+                        labels: [wrap("User Agency"), wrap("Federated Persistence"), wrap("Ethical AI"), wrap("Ownership"), wrap("Innovation")],
+                        datasets: [{
+                            label: 'Strategic Weight',
+                            data: [95, 90, 85, 95, 80],
+                            backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                            borderColor: '#4f46e5',
+                            pointBackgroundColor: '#4f46e5',
+                        }]
+                    },
+                    options: { 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } },
+                        scales: { r: { suggestedMin: 50, ticks: { display: false } } }
+                    }
+                });
+
+                // 2. Roadmap Timeline
+                new Chart(document.getElementById('roadmapChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: [
+                            wrap("Phase 1: MVP Core"), 
+                            wrap("Phase 2: Persistence"), 
+                            wrap("Phase 3: Collaboration"), 
+                            wrap("Phase 4: Social/AI"), 
+                            wrap("Phase 5: Public Meta"), 
+                            wrap("Phase 6: Federation")
+                        ],
+                        datasets: [{
+                            data: [[1, 8], [7, 14], [13, 22], [21, 30], [29, 38], [39, 52]],
+                            backgroundColor: ['#4f46e5', '#818cf8', '#6366f1', '#a855f7', '#ec4899', '#f43f5e'],
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { min: 1, max: 55, grid: { display: false } } }
+                    }
+                });
+
+                // 3. Composition Doughnut
+                new Chart(document.getElementById('compositionChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: [wrap("Canvas UI"), wrap("Mapstate Logic"), wrap("Federation R&D"), wrap("Testing")],
+                        datasets: [{
+                            data: [40, 35, 15, 10],
+                            backgroundColor: ['#4f46e5', '#818cf8', '#cbd5e1', '#f1f5f9'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+                        cutout: '70%'
+                    }
+                });
+            }
+        };
+
+        // Boot
+        window.onload = () => {
+            Dashboard.initCharts();
+            Dashboard.filterRequirements('all');
+        };
+    </script>
+</body>
+</html>

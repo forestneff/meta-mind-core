@@ -1,486 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meta-Mind | Web Architect Phase</title>
+    <title>Meta-Mind | Gateway to the Federated Metaverse</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
-        
-        :root { --accent: #ea580c; --bg-main: #ffffff; --bg-alt: #f8fafc; --border: #e2e8f0; --text-main: #0f172a; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-alt); color: var(--text-main); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-        /* --- Layout --- */
-        #app-container { flex: 1; display: flex; flex-direction: row; overflow: hidden; }
-        @media (max-width: 1024px) { #app-container { flex-direction: column; } }
-        #viewport { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
-        
-        /* --- Sidebar --- */
-        #sidebar { width: 360px; border-left: 1px solid var(--border); background: var(--bg-main); display: flex; flex-direction: column; z-index: 40; transition: transform 0.3s; }
-        @media (max-width: 1024px) { #sidebar { width: 100%; height: 45%; border-top: 1px solid var(--border); } }
+        :root {
+            --accent: #ea580c;
+            --bg: #ffffff;
+        }
 
-        /* --- Visual Map --- */
-        #visual-canvas { width: 100%; height: 100%; background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 24px 24px; cursor: crosshair; position: relative; }
-        .node { position: absolute; width: 60px; height: 60px; background: white; border: 2px solid #334155; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translate(-50%, -50%); z-index: 20; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transition: all 0.2s; }
-        .node:hover { transform: translate(-50%, -50%) scale(1.05); }
-        .node.selected { border-color: var(--accent); ring: 4px solid rgba(234, 88, 12, 0.1); }
-        .node-icon { font-size: 16px; margin-bottom: 2px; }
-        .node-label { font-size: 8px; font-weight: 700; text-transform: uppercase; max-width: 90%; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-        
-        .edge-path { stroke: #cbd5e1; stroke-width: 2; fill: none; transition: stroke 0.2s; }
-        .edge-path.active { stroke: var(--accent); }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: #0f172a;
+            overflow-x: hidden;
+        }
 
-        /* --- Web Render --- */
-        #web-render-container { background: white; height: 100%; overflow-y: auto; padding: 0; }
-        .web-widget { position: relative; border: 1px dashed transparent; transition: all 0.2s; }
-        .web-widget:hover { border-color: #cbd5e1; background: #f8fafc; cursor: pointer; }
-        .web-widget.selected { border-color: var(--accent); background: #fff7ed; }
-        .widget-tag { position: absolute; top: 0; right: 0; background: var(--accent); color: white; font-size: 8px; font-weight: 700; padding: 2px 6px; border-bottom-left-radius: 4px; display: none; }
-        .web-widget:hover .widget-tag, .web-widget.selected .widget-tag { display: block; }
+        .hero-gradient {
+            background: radial-gradient(circle at 50% 50%, #fff7ed 0%, #ffffff 100%);
+        }
 
-        /* --- UI Components --- */
-        .tab-btn { font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 0 16px; height: 100%; color: #64748b; border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 6px; }
-        .tab-btn:hover { color: #0f172a; background: #f1f5f9; }
-        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: #fff; }
-        
-        .modal-overlay { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; }
-        .template-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; width: 200px; cursor: pointer; transition: all 0.2s; text-align: center; }
-        .template-card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        
-        .fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        .module-card {
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 1px solid #e2e8f0;
+        }
+
+        .module-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+        }
+
+        .text-glow {
+            text-shadow: 0 0 20px rgba(234, 88, 12, 0.2);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
-    <!-- Chosen Palette: "Draftsman Blue & Safety Orange" -->
-    <!-- Application Structure Plan:
-         1. Modal Prompt: Forces user to choose a starting template (Landing Page, Blog, Blank).
-         2. Split View: Toggle between "Blueprint" (Map) and "Live Site" (Render).
-         3. Smart Sidebar: Detects node type (e.g., Hero vs Feature) and shows context-aware inputs.
-         4. Widget Engine: Translates map nodes into semantic HTML (section, h1, div grid).
-    -->
-    <!-- CONFIRMATION: NO SVG icons used (Unicode only). NO Mermaid JS. Chart.js optional but not used here. -->
 </head>
-<body>
 
-    <!-- Header -->
-    <header class="h-12 border-b border-neutral-200 bg-white flex items-center justify-between px-4 shrink-0 z-50">
+<body class="hero-gradient min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="h-20 flex items-center justify-between px-8 md:px-16 max-w-7xl mx-auto">
         <div class="flex items-center gap-3">
-            <span class="text-lg font-black tracking-tighter">META-MIND</span>
-            <span class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase">Web Architect v1.2</span>
+            <span class="text-2xl font-black tracking-tighter text-slate-900">META-MIND</span>
+            <span
+                class="px-2 py-0.5 rounded bg-slate-900 text-[10px] font-bold text-white tracking-widest uppercase">Root</span>
         </div>
-        <div class="flex items-center gap-3">
-            <button onclick="MapEngine.clear()" class="text-[10px] font-bold text-neutral-400 hover:text-red-500">RESET</button>
-            <button onclick="MapEngine.export()" class="text-[10px] font-bold text-neutral-400 hover:text-black">EXPORT JSON</button>
-            <div id="sync-status" class="w-2 h-2 rounded-full bg-emerald-500" title="State Synced"></div>
+        <div class="hidden md:flex gap-8 text-xs font-bold uppercase tracking-widest text-slate-500">
+            <a href="https://github.com/forestneff/meta-mind-core"
+                class="hover:text-orange-600 transition-colors">GitHub</a>
+            <a href="Meta-Mind_Root.html" class="hover:text-orange-600 transition-colors">Vision</a>
         </div>
-    </header>
+    </nav>
 
-    <div id="app-container">
-        <!-- RENDER VIEWPORT -->
-        <main id="viewport">
-            
-            <!-- Phase Tabs -->
-            <div class="h-10 border-b border-neutral-200 bg-slate-50 flex items-center shrink-0">
-                <button onclick="UI.setPhase('map')" id="tab-map" class="tab-btn active"><span>☍</span> Blueprint Map</button>
-                <button onclick="UI.setPhase('web')" id="tab-web" class="tab-btn"><span>🌐</span> Live Preview</button>
-                <div class="flex-grow"></div>
-                <button onclick="MapEngine.addNode(null, null, 'section')" class="px-4 text-[10px] font-bold bg-slate-200 hover:bg-slate-300 h-full border-l border-white">✚ SECTION</button>
+    <!-- Hero Section -->
+    <main class="max-w-7xl mx-auto px-8 md:px-16 py-20 text-center">
+        <div class="fade-in" style="animation-delay: 0.1s;">
+            <h1 class="text-5xl md:text-8xl font-black tracking-tighter text-slate-900 mb-6">
+                Architecture of <span class="text-orange-600 text-glow">Thought</span>
+            </h1>
+            <p class="text-lg md:text-2xl text-slate-500 max-w-3xl mx-auto leading-relaxed mb-12">
+                An AI-native federated mapstate platform designed for ethical co-creation,
+                spatial intelligence, and persistent digital evolution.
+            </p>
+        </div>
+
+        <!-- Modules Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-16 fade-in" style="animation-delay: 0.3s;">
+
+            <!-- 1. Strategic Intelligence -->
+            <a href="intelligence.html" class="module-card bg-white p-8 rounded-2xl text-left group">
+                <div class="text-3xl mb-4 group-hover:scale-110 transition-transform origin-left">⌬</div>
+                <h3 class="font-black text-xl mb-2">Strategic Hub</h3>
+                <p class="text-sm text-slate-500 leading-relaxed mb-4">Master project intelligence, mission pillars, and
+                    requirement traceability.</p>
+                <span class="text-[10px] font-black text-orange-600 tracking-widest uppercase">Launch Dashboard →</span>
+            </a>
+
+            <!-- 2. Project Explorer -->
+            <a href="explorer.html" class="module-card bg-white p-8 rounded-2xl text-left group">
+                <div class="text-3xl mb-4 group-hover:scale-110 transition-transform origin-left">🗺️</div>
+                <h3 class="font-black text-xl mb-2">Explorer</h3>
+                <p class="text-sm text-slate-500 leading-relaxed mb-4">Deep dive into the 52-week roadmap, phase
+                    evolution, and project history.</p>
+                <span class="text-[10px] font-black text-orange-600 tracking-widest uppercase">Explore Roadmap →</span>
+            </a>
+
+            <!-- 3. Web Architect (Sandbox) -->
+            <a href="sandbox.html" class="module-card bg-white p-8 rounded-2xl text-left group">
+                <div class="text-3xl mb-4 group-hover:scale-110 transition-transform origin-left">🌐</div>
+                <h3 class="font-black text-xl mb-2">Web Sandbox</h3>
+                <p class="text-sm text-slate-500 leading-relaxed mb-4">The active Web Phase engine. Interpret mapstates
+                    as functional web widgets.</p>
+                <span class="text-[10px] font-black text-orange-600 tracking-widest uppercase">Enter Sandbox v1.2
+                    →</span>
+            </a>
+
+            <!-- 4. Textual Outliner (Mindmap) -->
+            <a href="mindmap.html" class="module-card bg-white p-8 rounded-2xl text-left group">
+                <div class="text-3xl mb-4 group-hover:scale-110 transition-transform origin-left">⦿</div>
+                <h3 class="font-black text-xl mb-2">Outliner</h3>
+                <p class="text-sm text-slate-500 leading-relaxed mb-4">The legacy mindmap engine featuring interpretive
+                    textual hierarchy rendering.</p>
+                <span class="text-[10px] font-black text-orange-600 tracking-widest uppercase">Open Engine →</span>
+            </a>
+
+        </div>
+
+        <!-- Call to Action -->
+        <div class="mt-24 py-12 border-t border-slate-100 fade-in" style="animation-delay: 0.5s;">
+            <p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Built for Forest Neff //
+                Federated Mapstate Framework</p>
+            <div class="flex justify-center gap-4">
+                <a href="Meta-Mind_ArchitectureHub.html"
+                    class="px-6 py-3 bg-slate-900 text-white rounded-full text-xs font-bold hover:bg-orange-600 transition-all shadow-xl shadow-slate-200">View
+                    Infrastructure Hub</a>
             </div>
+        </div>
+    </main>
 
-            <!-- Content Container -->
-            <div id="render-target" class="flex-grow relative">
-                
-                <!-- 1. Blueprint Map (Visual Phase) -->
-                <div id="view-map" class="h-full w-full">
-                    <div id="visual-canvas">
-                        <svg id="edge-svg" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
-                        <!-- Nodes Injected Here -->
-                    </div>
-                </div>
+    <footer class="py-12 text-center text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+        &copy; 2024 Meta-Mind Project // Agency // Privacy // Origins
+    </footer>
 
-                <!-- 2. Live Web Render (Web Phase) -->
-                <div id="view-web" class="h-full w-full hidden">
-                    <div id="web-render-container" class="fade-in">
-                        <!-- Widgets Injected Here -->
-                    </div>
-                </div>
-
-                <!-- Template Modal (Overlay) -->
-                <div id="template-modal" class="modal-overlay">
-                    <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl w-full text-center">
-                        <h2 class="text-2xl font-black text-slate-900 mb-2">New Web Project</h2>
-                        <p class="text-slate-500 mb-8 text-sm">Select a starting architectural pattern.</p>
-                        
-                        <div class="flex flex-wrap justify-center gap-6">
-                            <!-- Template 1 -->
-                            <div onclick="Templates.load('landing')" class="template-card">
-                                <div class="text-4xl mb-4">🚀</div>
-                                <h3 class="font-bold text-slate-800">Landing Page</h3>
-                                <p class="text-xs text-slate-400 mt-2">Hero, Features Grid, Footer</p>
-                            </div>
-                            <!-- Template 2 -->
-                            <div onclick="Templates.load('blog')" class="template-card">
-                                <div class="text-4xl mb-4">📝</div>
-                                <h3 class="font-bold text-slate-800">Blog Layout</h3>
-                                <p class="text-xs text-slate-400 mt-2">Header, Article, Sidebar</p>
-                            </div>
-                            <!-- Template 3 -->
-                            <div onclick="Templates.load('blank')" class="template-card">
-                                <div class="text-4xl mb-4">✨</div>
-                                <h3 class="font-bold text-slate-800">Blank Canvas</h3>
-                                <p class="text-xs text-slate-400 mt-2">Start from scratch</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </main>
-
-        <!-- COMMAND SIDEBAR -->
-        <aside id="sidebar">
-            <div class="p-5 border-b border-neutral-200 bg-white shrink-0 flex justify-between items-center">
-                <div>
-                    <h3 class="font-bold text-sm">Inspector</h3>
-                    <p class="text-[9px] text-neutral-400 font-bold uppercase tracking-widest">Properties</p>
-                </div>
-                <div id="node-type-badge" class="px-2 py-1 rounded bg-slate-100 text-[9px] font-bold text-slate-500 uppercase hidden">TYPE</div>
-            </div>
-            
-            <div id="sidebar-content" class="flex-grow p-6 space-y-6 overflow-y-auto">
-                <!-- Injected via JS -->
-                <div class="text-center py-20 opacity-30">
-                    <div class="text-4xl mb-2">⦿</div>
-                    <p class="text-xs font-bold uppercase">Select a component</p>
-                </div>
-            </div>
-            
-            <div class="p-4 bg-slate-50 border-t border-neutral-200 text-[9px] font-mono text-neutral-400 flex justify-between">
-                <span id="coord-display">POS: 0, 0</span>
-                <span id="node-count">NODES: 0</span>
-            </div>
-        </aside>
-    </div>
-
-    <!-- LOGIC CORE -->
-    <script>
-        /**
-         * MAP ENGINE: Handles the Node Graph
-         */
-        const MapEngine = {
-            state: { nodes: [], edges: [], selectedId: null, history: [] },
-
-            addNode(x, y, type = "widget", title = "New Widget", content = "") {
-                const id = crypto.randomUUID();
-                const node = {
-                    id, type, title, content,
-                    position: { x: x || 200 + Math.random() * 100, y: y || 200 + Math.random() * 100 }
-                };
-                this.state.nodes.push(node);
-                this.state.selectedId = id;
-                this.saveHistory();
-                UI.render();
-                return id;
-            },
-
-            addEdge(source, target) {
-                if (!this.state.edges.find(e => e.source === source && e.target === target)) {
-                    this.state.edges.push({ id: crypto.randomUUID(), source, target });
-                    this.saveHistory();
-                }
-            },
-
-            deleteNode(id) {
-                this.state.nodes = this.state.nodes.filter(n => n.id !== id);
-                this.state.edges = this.state.edges.filter(e => e.source !== id && e.target !== id);
-                this.state.selectedId = null;
-                this.saveHistory(); UI.render();
-            },
-
-            clear() {
-                this.state.nodes = []; this.state.edges = []; this.state.selectedId = null;
-                document.getElementById('template-modal').style.display = 'flex'; // Re-show modal
-                UI.render();
-            },
-
-            saveHistory() { /* Placeholder for undo logic */ },
-            undo() { /* Placeholder */ },
-            export() { console.log(JSON.stringify(this.state)); }
-        };
-
-        /**
-         * TEMPLATE SYSTEM: Generates Mapstructures
-         */
-        const Templates = {
-            load(type) {
-                document.getElementById('template-modal').style.display = 'none';
-                if (type === 'blank') return;
-
-                // Root
-                const root = MapEngine.addNode(400, 50, 'root', 'Website Root', 'Main Container');
-
-                if (type === 'landing') {
-                    const hero = MapEngine.addNode(400, 180, 'hero', 'Hero Section', 'Welcome to Meta-Mind.\nThe Future of Federated Maps.');
-                    const features = MapEngine.addNode(200, 300, 'grid', 'Features Grid', 'Why choose us?');
-                    const footer = MapEngine.addNode(600, 300, 'footer', 'Footer', '© 2024 Meta-Mind Project');
-                    
-                    MapEngine.addEdge(root, hero);
-                    MapEngine.addEdge(root, features);
-                    MapEngine.addEdge(root, footer);
-
-                    // Sub Widgets
-                    const btn = MapEngine.addNode(400, 280, 'button', 'CTA Button', 'Get Started');
-                    MapEngine.addEdge(hero, btn);
-
-                    const f1 = MapEngine.addNode(150, 420, 'card', 'Modular', 'Fully isolated components.');
-                    const f2 = MapEngine.addNode(250, 420, 'card', 'Federated', 'Global scale sync.');
-                    MapEngine.addEdge(features, f1); MapEngine.addEdge(features, f2);
-
-                } else if (type === 'blog') {
-                    const header = MapEngine.addNode(400, 150, 'nav', 'Navbar', 'Home | About | Contact');
-                    const body = MapEngine.addNode(250, 280, 'article', 'Main Article', 'Lorem ipsum dolor sit amet...');
-                    const sidebar = MapEngine.addNode(550, 280, 'sidebar', 'Sidebar', 'Recent Posts\n- Update v1.0\n- Update v1.1');
-                    
-                    MapEngine.addEdge(root, header);
-                    MapEngine.addEdge(root, body);
-                    MapEngine.addEdge(root, sidebar);
-                }
-
-                MapEngine.state.selectedId = root; // Select root
-                UI.render();
-            }
-        };
-
-        /**
-         * WEB ENGINE: Interprets Nodes -> HTML
-         */
-        const WebEngine = {
-            render() {
-                const container = document.getElementById('web-render-container');
-                container.innerHTML = '';
-
-                // Find Root (Node with no incoming edges)
-                const targets = new Set(MapEngine.state.edges.map(e => e.target));
-                const roots = MapEngine.state.nodes.filter(n => !targets.has(n.id));
-
-                if (roots.length === 0 && MapEngine.state.nodes.length > 0) {
-                    this.renderNodeRecursive(MapEngine.state.nodes[0], container);
-                } else {
-                    roots.forEach(r => this.renderNodeRecursive(r, container));
-                }
-            },
-
-            renderNodeRecursive(node, parentEl) {
-                const el = this.createWidgetElement(node);
-                parentEl.appendChild(el);
-
-                // Find Children
-                const childEdges = MapEngine.state.edges.filter(e => e.source === node.id);
-                // Sort children by X position for logical flow
-                const childNodes = childEdges.map(e => MapEngine.state.nodes.find(n => n.id === e.target)).filter(n => n);
-                childNodes.sort((a, b) => a.position.x - b.position.x);
-
-                if (childNodes.length > 0) {
-                    const childContainer = document.createElement('div');
-                    // Special layout for grids
-                    if (node.type === 'grid') childContainer.className = "grid grid-cols-1 md:grid-cols-3 gap-6 mt-6";
-                    else childContainer.className = "flex flex-col gap-4 mt-4 w-full items-center";
-                    
-                    childNodes.forEach(child => this.renderNodeRecursive(child, childContainer));
-                    el.appendChild(childContainer);
-                }
-            },
-
-            createWidgetElement(node) {
-                const div = document.createElement('div');
-                const isSelected = MapEngine.state.selectedId === node.id;
-                div.className = `web-widget w-full relative ${isSelected ? 'selected' : ''}`;
-                div.onclick = (e) => { e.stopPropagation(); MapEngine.state.selectedId = node.id; UI.render(); };
-
-                // Tag Label
-                div.innerHTML = `<div class="widget-tag">${node.type.toUpperCase()}</div>`;
-
-                // Render based on Type
-                switch (node.type) {
-                    case 'hero':
-                        div.className += " py-20 px-6 text-center bg-slate-900 text-white rounded-xl";
-                        div.innerHTML += `<h1 class="text-4xl font-black mb-4">${node.title}</h1><p class="text-lg text-slate-300 max-w-2xl mx-auto whitespace-pre-line">${node.content}</p>`;
-                        break;
-                    case 'button':
-                        div.className = `web-widget inline-block bg-orange-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105 ${isSelected?'ring-4 ring-orange-300':''}`;
-                        div.innerHTML = node.content || node.title;
-                        div.onclick = (e) => { e.stopPropagation(); MapEngine.state.selectedId = node.id; UI.render(); };
-                        break;
-                    case 'card':
-                        div.className += " p-6 bg-white border border-slate-200 rounded-lg shadow-sm text-left hover:shadow-md";
-                        div.innerHTML += `<h3 class="font-bold text-slate-800 text-lg mb-2">${node.title}</h3><p class="text-slate-500 text-sm">${node.content}</p>`;
-                        break;
-                    case 'nav':
-                        div.className += " p-4 border-b border-slate-100 flex justify-between items-center bg-white";
-                        div.innerHTML += `<div class="font-bold">LOGO</div><div class="text-sm font-medium text-slate-500">${node.content}</div>`;
-                        break;
-                    case 'footer':
-                        div.className += " mt-12 py-8 border-t border-slate-200 text-center text-slate-400 text-xs uppercase tracking-widest";
-                        div.innerHTML += node.content;
-                        break;
-                    case 'grid':
-                        div.className += " py-12 px-4 max-w-6xl mx-auto w-full";
-                        div.innerHTML += `<h2 class="text-2xl font-bold text-center mb-2">${node.title}</h2><p class="text-center text-slate-500 mb-8">${node.content}</p>`;
-                        break;
-                    default: // Generic Section
-                        div.className += " p-4 border border-dashed border-slate-300 rounded m-2";
-                        div.innerHTML += `<div class="font-bold text-xs text-slate-400 uppercase mb-1">${node.title}</div><div class="text-slate-800">${node.content}</div>`;
-                }
-                return div;
-            }
-        };
-
-        /**
-         * UI CONTROLLER
-         */
-        const UI = {
-            linkingId: null,
-
-            init() {
-                // Canvas Click -> Add Node
-                document.getElementById('visual-canvas').addEventListener('click', (e) => {
-                    if (e.target.id === 'visual-canvas' || e.target.tagName === 'svg') {
-                        const rect = e.target.getBoundingClientRect();
-                        MapEngine.addNode(e.clientX - rect.left, e.clientY - rect.top);
-                    }
-                });
-            },
-
-            setPhase(p) {
-                document.getElementById('view-map').className = p === 'map' ? 'h-full w-full block' : 'hidden';
-                document.getElementById('view-web').className = p === 'web' ? 'h-full w-full block' : 'hidden';
-                document.getElementById('tab-map').className = `tab-btn ${p === 'map' ? 'active' : ''}`;
-                document.getElementById('tab-web').className = `tab-btn ${p === 'web' ? 'active' : ''}`;
-                this.render();
-            },
-
-            render() {
-                this.renderSidebar();
-                this.renderVisual();
-                WebEngine.render();
-                document.getElementById('node-count').innerText = `NODES: ${MapEngine.state.nodes.length}`;
-            },
-
-            renderVisual() {
-                const canvas = document.getElementById('visual-canvas');
-                const svg = document.getElementById('edge-svg');
-                
-                // Clear
-                Array.from(document.querySelectorAll('.node')).forEach(n => n.remove());
-                svg.innerHTML = '';
-
-                // Render Edges
-                MapEngine.state.edges.forEach(e => {
-                    const s = MapEngine.state.nodes.find(n => n.id === e.source);
-                    const t = MapEngine.state.nodes.find(n => n.id === e.target);
-                    if (s && t) {
-                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        path.setAttribute("d", `M ${s.position.x} ${s.position.y} L ${t.position.x} ${t.position.y}`);
-                        path.setAttribute("class", `edge-path ${MapEngine.state.selectedId === s.id ? 'active' : ''}`);
-                        svg.appendChild(path);
-                    }
-                });
-
-                // Render Nodes
-                MapEngine.state.nodes.forEach(n => {
-                    const el = document.createElement('div');
-                    el.className = `node ${MapEngine.state.selectedId === n.id ? 'selected' : ''}`;
-                    el.style.left = `${n.position.x}px`; el.style.top = `${n.position.y}px`;
-                    
-                    // Icon logic
-                    let icon = '⬜';
-                    if (n.type === 'hero') icon = '🚀';
-                    else if (n.type === 'button') icon = '🖱️';
-                    else if (n.type === 'footer') icon = '🦶';
-                    else if (n.type === 'grid') icon = '▦';
-                    else if (n.type === 'card') icon = '🃏';
-                    
-                    el.innerHTML = `<div class="node-icon">${icon}</div><div class="node-label">${n.title}</div>`;
-                    
-                    el.onclick = (e) => {
-                        e.stopPropagation();
-                        if (this.linkingId) {
-                            MapEngine.addEdge(this.linkingId, n.id);
-                            this.linkingId = null;
-                            canvas.style.cursor = 'crosshair';
-                        }
-                        MapEngine.state.selectedId = n.id;
-                        this.render();
-                    };
-                    canvas.appendChild(el);
-                });
-            },
-
-            renderSidebar() {
-                const container = document.getElementById('sidebar-content');
-                const node = MapEngine.state.nodes.find(n => n.id === MapEngine.state.selectedId);
-                const badge = document.getElementById('node-type-badge');
-
-                if (!node) {
-                    container.innerHTML = `<div class="py-20 text-center opacity-30 text-xs font-bold uppercase">No Selection</div>`;
-                    badge.classList.add('hidden');
-                    return;
-                }
-
-                badge.classList.remove('hidden');
-                badge.innerText = node.type;
-
-                // Dynamic Form
-                container.innerHTML = `
-                    <div class="space-y-6 fade-in">
-                        <section>
-                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Title / Header</label>
-                            <input type="text" id="sb-title" value="${node.title}" class="w-full border-b border-slate-200 py-2 font-bold text-lg focus:outline-none focus:border-orange-500 bg-transparent">
-                        </section>
-
-                        <section>
-                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type Definition</label>
-                            <select id="sb-type" class="w-full mt-1 bg-slate-50 border border-slate-200 rounded text-xs font-bold p-2 focus:ring-1 focus:ring-orange-500">
-                                <option value="section" ${node.type==='section'?'selected':''}>Generic Section</option>
-                                <option value="hero" ${node.type==='hero'?'selected':''}>Hero Banner</option>
-                                <option value="grid" ${node.type==='grid'?'selected':''}>Feature Grid</option>
-                                <option value="card" ${node.type==='card'?'selected':''}>Info Card</option>
-                                <option value="button" ${node.type==='button'?'selected':''}>Action Button</option>
-                                <option value="footer" ${node.type==='footer'?'selected':''}>Footer</option>
-                            </select>
-                        </section>
-
-                        <section>
-                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Inner Content / Copy</label>
-                            <textarea id="sb-content" class="w-full mt-2 bg-slate-50 p-4 rounded-xl text-sm text-slate-600 min-h-[120px] focus:outline-none border border-transparent focus:bg-white focus:border-slate-200 transition-colors">${node.content}</textarea>
-                        </section>
-
-                        <div class="grid grid-cols-2 gap-3 pt-4">
-                            <button onclick="UI.linkFrom()" class="border border-slate-200 py-2 rounded text-[10px] font-bold hover:bg-slate-50">☍ CONNECT</button>
-                            <button onclick="MapEngine.deleteNode('${node.id}')" class="border border-red-100 text-red-500 py-2 rounded text-[10px] font-bold hover:bg-red-50">✕ DELETE</button>
-                        </div>
-                    </div>
-                `;
-
-                // Bind Events
-                document.getElementById('sb-title').onchange = (e) => { node.title = e.target.value; this.render(); };
-                document.getElementById('sb-content').onblur = (e) => { node.content = e.target.value; this.render(); };
-                document.getElementById('sb-type').onchange = (e) => { node.type = e.target.value; this.render(); };
-                
-                document.getElementById('coord-display').innerText = `POS: ${Math.round(node.position.x)}, ${Math.round(node.position.y)}`;
-            },
-
-            linkFrom() {
-                if (MapEngine.state.selectedId) {
-                    this.linkingId = MapEngine.state.selectedId;
-                    document.getElementById('visual-canvas').style.cursor = 'alias';
-                }
-            }
-        };
-
-        // Init
-        UI.init();
-    </script>
 </body>
+
 </html>
