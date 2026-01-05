@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,50 +8,244 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
-        
-        :root { --accent: #ea580c; --bg-main: #ffffff; --bg-alt: #f8fafc; --border: #e2e8f0; --text-main: #0f172a; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-alt); color: var(--text-main); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        :root {
+            --accent: #ea580c;
+            --bg-main: #ffffff;
+            --bg-alt: #f8fafc;
+            --border: #e2e8f0;
+            --text-main: #0f172a;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-alt);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
 
         /* --- Layout --- */
-        #app-container { flex: 1; display: flex; flex-direction: row; overflow: hidden; }
-        @media (max-width: 1024px) { #app-container { flex-direction: column; } }
-        #viewport { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
-        
+        #app-container {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+        }
+
+        @media (max-width: 1024px) {
+            #app-container {
+                flex-direction: column;
+            }
+        }
+
+        #viewport {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
         /* --- Sidebar --- */
-        #sidebar { width: 360px; border-left: 1px solid var(--border); background: var(--bg-main); display: flex; flex-direction: column; z-index: 40; transition: transform 0.3s; }
-        @media (max-width: 1024px) { #sidebar { width: 100%; height: 45%; border-top: 1px solid var(--border); } }
+        #sidebar {
+            width: 360px;
+            border-left: 1px solid var(--border);
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            z-index: 40;
+            transition: transform 0.3s;
+        }
+
+        @media (max-width: 1024px) {
+            #sidebar {
+                width: 100%;
+                height: 45%;
+                border-top: 1px solid var(--border);
+            }
+        }
 
         /* --- Visual Map --- */
-        #visual-canvas { width: 100%; height: 100%; background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 24px 24px; cursor: crosshair; position: relative; }
-        .node { position: absolute; width: 60px; height: 60px; background: white; border: 2px solid #334155; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translate(-50%, -50%); z-index: 20; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transition: all 0.2s; }
-        .node:hover { transform: translate(-50%, -50%) scale(1.05); }
-        .node.selected { border-color: var(--accent); ring: 4px solid rgba(234, 88, 12, 0.1); }
-        .node-icon { font-size: 16px; margin-bottom: 2px; }
-        .node-label { font-size: 8px; font-weight: 700; text-transform: uppercase; max-width: 90%; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-        
-        .edge-path { stroke: #cbd5e1; stroke-width: 2; fill: none; transition: stroke 0.2s; }
-        .edge-path.active { stroke: var(--accent); }
+        #visual-canvas {
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+            cursor: crosshair;
+            position: relative;
+        }
+
+        .node {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+
+        .node:hover {
+            transform: translate(-50%, -50%) scale(1.05);
+        }
+
+        .node.selected {
+            border-color: var(--accent);
+            ring: 4px solid rgba(234, 88, 12, 0.1);
+        }
+
+        .node-icon {
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+
+        .node-label {
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            max-width: 90%;
+            text-align: center;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .edge-path {
+            stroke: #cbd5e1;
+            stroke-width: 2;
+            fill: none;
+            transition: stroke 0.2s;
+        }
+
+        .edge-path.active {
+            stroke: var(--accent);
+        }
 
         /* --- Web Render --- */
-        #web-render-container { background: white; height: 100%; overflow-y: auto; padding: 0; }
-        .web-widget { position: relative; border: 1px dashed transparent; transition: all 0.2s; }
-        .web-widget:hover { border-color: #cbd5e1; background: #f8fafc; cursor: pointer; }
-        .web-widget.selected { border-color: var(--accent); background: #fff7ed; }
-        .widget-tag { position: absolute; top: 0; right: 0; background: var(--accent); color: white; font-size: 8px; font-weight: 700; padding: 2px 6px; border-bottom-left-radius: 4px; display: none; }
-        .web-widget:hover .widget-tag, .web-widget.selected .widget-tag { display: block; }
+        #web-render-container {
+            background: white;
+            height: 100%;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .web-widget {
+            position: relative;
+            border: 1px dashed transparent;
+            transition: all 0.2s;
+        }
+
+        .web-widget:hover {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+            cursor: pointer;
+        }
+
+        .web-widget.selected {
+            border-color: var(--accent);
+            background: #fff7ed;
+        }
+
+        .widget-tag {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--accent);
+            color: white;
+            font-size: 8px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-bottom-left-radius: 4px;
+            display: none;
+        }
+
+        .web-widget:hover .widget-tag,
+        .web-widget.selected .widget-tag {
+            display: block;
+        }
 
         /* --- UI Components --- */
-        .tab-btn { font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 0 16px; height: 100%; color: #64748b; border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 6px; }
-        .tab-btn:hover { color: #0f172a; background: #f1f5f9; }
-        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: #fff; }
-        
-        .modal-overlay { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; }
-        .template-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; width: 200px; cursor: pointer; transition: all 0.2s; text-align: center; }
-        .template-card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        
-        .fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        .tab-btn {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 0 16px;
+            height: 100%;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tab-btn:hover {
+            color: #0f172a;
+            background: #f1f5f9;
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            background: #fff;
+        }
+
+        .modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .template-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            width: 200px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .template-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
     </style>
     <!-- Chosen Palette: "Draftsman Blue & Safety Orange" -->
     <!-- Application Structure Plan:
@@ -61,17 +256,21 @@
     -->
     <!-- CONFIRMATION: NO SVG icons used (Unicode only). NO Mermaid JS. Chart.js optional but not used here. -->
 </head>
+
 <body>
 
     <!-- Header -->
     <header class="h-12 border-b border-neutral-200 bg-white flex items-center justify-between px-4 shrink-0 z-50">
         <div class="flex items-center gap-3">
             <span class="text-lg font-black tracking-tighter">META-MIND</span>
-            <span class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase">Web Architect v1.2</span>
+            <span class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase">Web
+                Architect v1.2</span>
         </div>
         <div class="flex items-center gap-3">
-            <button onclick="MapEngine.clear()" class="text-[10px] font-bold text-neutral-400 hover:text-red-500">RESET</button>
-            <button onclick="MapEngine.export()" class="text-[10px] font-bold text-neutral-400 hover:text-black">EXPORT JSON</button>
+            <button onclick="MapEngine.clear()"
+                class="text-[10px] font-bold text-neutral-400 hover:text-red-500">RESET</button>
+            <button onclick="MapEngine.export()" class="text-[10px] font-bold text-neutral-400 hover:text-black">EXPORT
+                JSON</button>
             <div id="sync-status" class="w-2 h-2 rounded-full bg-emerald-500" title="State Synced"></div>
         </div>
     </header>
@@ -79,18 +278,21 @@
     <div id="app-container">
         <!-- RENDER VIEWPORT -->
         <main id="viewport">
-            
+
             <!-- Phase Tabs -->
             <div class="h-10 border-b border-neutral-200 bg-slate-50 flex items-center shrink-0">
-                <button onclick="UI.setPhase('map')" id="tab-map" class="tab-btn active"><span>☍</span> Blueprint Map</button>
+                <button onclick="UI.setPhase('map')" id="tab-map" class="tab-btn active"><span>☍</span> Blueprint
+                    Map</button>
                 <button onclick="UI.setPhase('web')" id="tab-web" class="tab-btn"><span>🌐</span> Live Preview</button>
                 <div class="flex-grow"></div>
-                <button onclick="MapEngine.addNode(null, null, 'section')" class="px-4 text-[10px] font-bold bg-slate-200 hover:bg-slate-300 h-full border-l border-white">✚ SECTION</button>
+                <button onclick="MapEngine.addNode(null, null, 'section')"
+                    class="px-4 text-[10px] font-bold bg-slate-200 hover:bg-slate-300 h-full border-l border-white">✚
+                    SECTION</button>
             </div>
 
             <!-- Content Container -->
             <div id="render-target" class="flex-grow relative">
-                
+
                 <!-- 1. Blueprint Map (Visual Phase) -->
                 <div id="view-map" class="h-full w-full">
                     <div id="visual-canvas">
@@ -111,7 +313,7 @@
                     <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl w-full text-center">
                         <h2 class="text-2xl font-black text-slate-900 mb-2">New Web Project</h2>
                         <p class="text-slate-500 mb-8 text-sm">Select a starting architectural pattern.</p>
-                        
+
                         <div class="flex flex-wrap justify-center gap-6">
                             <!-- Template 1 -->
                             <div onclick="Templates.load('landing')" class="template-card">
@@ -145,9 +347,11 @@
                     <h3 class="font-bold text-sm">Inspector</h3>
                     <p class="text-[9px] text-neutral-400 font-bold uppercase tracking-widest">Properties</p>
                 </div>
-                <div id="node-type-badge" class="px-2 py-1 rounded bg-slate-100 text-[9px] font-bold text-slate-500 uppercase hidden">TYPE</div>
+                <div id="node-type-badge"
+                    class="px-2 py-1 rounded bg-slate-100 text-[9px] font-bold text-slate-500 uppercase hidden">TYPE
+                </div>
             </div>
-            
+
             <div id="sidebar-content" class="flex-grow p-6 space-y-6 overflow-y-auto">
                 <!-- Injected via JS -->
                 <div class="text-center py-20 opacity-30">
@@ -155,8 +359,9 @@
                     <p class="text-xs font-bold uppercase">Select a component</p>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-50 border-t border-neutral-200 text-[9px] font-mono text-neutral-400 flex justify-between">
+
+            <div
+                class="p-4 bg-slate-50 border-t border-neutral-200 text-[9px] font-mono text-neutral-400 flex justify-between">
                 <span id="coord-display">POS: 0, 0</span>
                 <span id="node-count">NODES: 0</span>
             </div>
@@ -224,7 +429,7 @@
                     const hero = MapEngine.addNode(400, 180, 'hero', 'Hero Section', 'Welcome to Meta-Mind.\nThe Future of Federated Maps.');
                     const features = MapEngine.addNode(200, 300, 'grid', 'Features Grid', 'Why choose us?');
                     const footer = MapEngine.addNode(600, 300, 'footer', 'Footer', '© 2024 Meta-Mind Project');
-                    
+
                     MapEngine.addEdge(root, hero);
                     MapEngine.addEdge(root, features);
                     MapEngine.addEdge(root, footer);
@@ -241,7 +446,7 @@
                     const header = MapEngine.addNode(400, 150, 'nav', 'Navbar', 'Home | About | Contact');
                     const body = MapEngine.addNode(250, 280, 'article', 'Main Article', 'Lorem ipsum dolor sit amet...');
                     const sidebar = MapEngine.addNode(550, 280, 'sidebar', 'Sidebar', 'Recent Posts\n- Update v1.0\n- Update v1.1');
-                    
+
                     MapEngine.addEdge(root, header);
                     MapEngine.addEdge(root, body);
                     MapEngine.addEdge(root, sidebar);
@@ -286,7 +491,7 @@
                     // Special layout for grids
                     if (node.type === 'grid') childContainer.className = "grid grid-cols-1 md:grid-cols-3 gap-6 mt-6";
                     else childContainer.className = "flex flex-col gap-4 mt-4 w-full items-center";
-                    
+
                     childNodes.forEach(child => this.renderNodeRecursive(child, childContainer));
                     el.appendChild(childContainer);
                 }
@@ -308,7 +513,7 @@
                         div.innerHTML += `<h1 class="text-4xl font-black mb-4">${node.title}</h1><p class="text-lg text-slate-300 max-w-2xl mx-auto whitespace-pre-line">${node.content}</p>`;
                         break;
                     case 'button':
-                        div.className = `web-widget inline-block bg-orange-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105 ${isSelected?'ring-4 ring-orange-300':''}`;
+                        div.className = `web-widget inline-block bg-orange-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105 ${isSelected ? 'ring-4 ring-orange-300' : ''}`;
                         div.innerHTML = node.content || node.title;
                         div.onclick = (e) => { e.stopPropagation(); MapEngine.state.selectedId = node.id; UI.render(); };
                         break;
@@ -370,7 +575,7 @@
             renderVisual() {
                 const canvas = document.getElementById('visual-canvas');
                 const svg = document.getElementById('edge-svg');
-                
+
                 // Clear
                 Array.from(document.querySelectorAll('.node')).forEach(n => n.remove());
                 svg.innerHTML = '';
@@ -392,7 +597,7 @@
                     const el = document.createElement('div');
                     el.className = `node ${MapEngine.state.selectedId === n.id ? 'selected' : ''}`;
                     el.style.left = `${n.position.x}px`; el.style.top = `${n.position.y}px`;
-                    
+
                     // Icon logic
                     let icon = '⬜';
                     if (n.type === 'hero') icon = '🚀';
@@ -400,9 +605,9 @@
                     else if (n.type === 'footer') icon = '🦶';
                     else if (n.type === 'grid') icon = '▦';
                     else if (n.type === 'card') icon = '🃏';
-                    
+
                     el.innerHTML = `<div class="node-icon">${icon}</div><div class="node-label">${n.title}</div>`;
-                    
+
                     el.onclick = (e) => {
                         e.stopPropagation();
                         if (this.linkingId) {
@@ -442,12 +647,12 @@
                         <section>
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type Definition</label>
                             <select id="sb-type" class="w-full mt-1 bg-slate-50 border border-slate-200 rounded text-xs font-bold p-2 focus:ring-1 focus:ring-orange-500">
-                                <option value="section" ${node.type==='section'?'selected':''}>Generic Section</option>
-                                <option value="hero" ${node.type==='hero'?'selected':''}>Hero Banner</option>
-                                <option value="grid" ${node.type==='grid'?'selected':''}>Feature Grid</option>
-                                <option value="card" ${node.type==='card'?'selected':''}>Info Card</option>
-                                <option value="button" ${node.type==='button'?'selected':''}>Action Button</option>
-                                <option value="footer" ${node.type==='footer'?'selected':''}>Footer</option>
+                                <option value="section" ${node.type === 'section' ? 'selected' : ''}>Generic Section</option>
+                                <option value="hero" ${node.type === 'hero' ? 'selected' : ''}>Hero Banner</option>
+                                <option value="grid" ${node.type === 'grid' ? 'selected' : ''}>Feature Grid</option>
+                                <option value="card" ${node.type === 'card' ? 'selected' : ''}>Info Card</option>
+                                <option value="button" ${node.type === 'button' ? 'selected' : ''}>Action Button</option>
+                                <option value="footer" ${node.type === 'footer' ? 'selected' : ''}>Footer</option>
                             </select>
                         </section>
 
@@ -467,7 +672,7 @@
                 document.getElementById('sb-title').onchange = (e) => { node.title = e.target.value; this.render(); };
                 document.getElementById('sb-content').onblur = (e) => { node.content = e.target.value; this.render(); };
                 document.getElementById('sb-type').onchange = (e) => { node.type = e.target.value; this.render(); };
-                
+
                 document.getElementById('coord-display').innerText = `POS: ${Math.round(node.position.x)}, ${Math.round(node.position.y)}`;
             },
 
@@ -483,4 +688,5 @@
         UI.init();
     </script>
 </body>
+
 </html>
