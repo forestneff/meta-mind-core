@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meta-Mind | Sandbox v2.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="meta-mind-core.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --accent: #ea580c;
+            --bg: #ffffff;
+            --ui-bg: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: #0f172a;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Layout logic */
+        #stage {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+            position: relative;
+        }
+
+        @media (max-width: 1024px) {
+            #stage {
+                flex-direction: column;
+            }
+        }
+
+        /* Spatial Workspace */
+        #viewport {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #fff;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        #viewport:active {
+            cursor: grabbing;
+        }
+
+        #canvas-layer {
+            position: absolute;
+            transform-origin: 0 0;
+            will-change: transform;
+            pointer-events: none;
+        }
+
+        /* Nodes */
+        .node {
+            position: absolute;
+            width: 120px;
+            min-height: 80px;
+            padding: 12px;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            pointer-events: auto;
+            transform: translate(-50%, -50%);
+            transition: box-shadow 0.2s, border-color 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .node.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.1);
+            z-index: 30;
+        }
+
+        .node-title {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #0f172a;
+            pointer-events: none;
+        }
+
+        .node-type {
+            font-size: 8px;
+            font-weight: 600;
+            color: #94a3b8;
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            align-self: flex-start;
+            pointer-events: none;
+        }
+
+        /* Edges */
+        .edge-line {
+            stroke: #cbd5e1;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* Radial Menu */
+        .radial-menu {
+            position: absolute;
+            width: 160px;
+            height: 160px;
+            pointer-events: none;
+            z-index: 40;
+            display: none;
+            transition: opacity 0.2s;
+            opacity: 0;
+        }
+
+        .radial-menu.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .radial-btn {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: white;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.1s, background 0.1s;
+        }
+
+        .radial-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            transform: scale(1.1);
+        }
+
+        /* Positioning logic for Radial Buttons (N, E, S, W) */
+        .rad-n {
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, 0);
+        }
+
+        .rad-e {
+            top: 50%;
+            right: 0;
+            transform: translate(0, -50%);
+        }
+
+        .rad-s {
+            bottom: 0;
+            left: 50%;
+            transform: translate(-50%, 0);
+        }
+
+        .rad-w {
+            top: 50%;
+            left: 0;
+            transform: translate(0, -50%);
+        }
+
+        /* Phase Engine Window */
+        #phase-engine {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            z-index: 60;
+            overflow: hidden;
+            transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #phase-engine.open {
+            height: 100%;
+        }
+
+        /* Full screen takeover for focus */
+
+        .phase-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .phase-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.05);
+        }
+
+        .phase-card.active {
+            background: #fff7ed;
+            border-color: var(--accent);
+        }
+
+        /* Inspector / Sidebar */
+        #inspector {
+            width: 360px;
+            border-left: 1px solid #e2e8f0;
+            background: var(--ui-bg);
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+        }
+
+        @media (max-width: 1024px) {
+            #inspector {
+                width: 100%;
+                height: 45%;
+                border-left: 0;
+                border-top: 1px solid #e2e8f0;
+            }
+        }
+
+        /* Controls */
+        .float-controls {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            display: flex;
+            gap: 8px;
+            z-index: 40;
+        }
+
+        .circle-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: white;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            color: #475569;
+            transition: transform 0.1s;
+        }
+
+        .circle-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header class="h-14 border-b border-slate-200 px-6 flex items-center justify-between shrink-0 bg-white z-50">
+        <div class="flex items-center gap-3">
+            <button onclick="UI.togglePhaseEngine()" class="flex items-center gap-2 group">
+                <span
+                    class="text-lg font-black tracking-tighter group-hover:text-orange-600 transition-colors">MM</span>
+                <div
+                    class="px-2 py-0.5 rounded bg-slate-100 text-[9px] font-bold text-slate-500 tracking-widest uppercase group-hover:bg-orange-50 group-hover:text-orange-600 transition-colors">
+                    Phase Engine ▼</div>
+            </button>
+        </div>
+        <div class="flex gap-4">
+            <button onclick="MM.autoLayout()"
+                class="text-[10px] font-black text-slate-400 hover:text-orange-600 tracking-widest uppercase">Auto-Layout</button>
+            <div class="h-4 w-px bg-slate-100"></div>
+            <div id="zoom-display" class="text-[10px] font-mono text-slate-400">100%</div>
+        </div>
+    </header>
+
+    <!-- Phase Engine Window (Overlay) -->
+    <div id="phase-engine">
+        <div class="p-8 max-w-5xl mx-auto w-full h-full flex flex-col">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Phase Selector</h2>
+                <button onclick="UI.togglePhaseEngine()"
+                    class="text-slate-400 hover:text-red-500 text-2xl font-bold">✕</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow max-h-[400px]">
+                <!-- Phase 1: Spatial Map -->
+                <div onclick="UI.setPhase('map')" id="card-map" class="phase-card active">
+                    <div class="text-4xl mb-4">☍</div>
+                    <h3 class="font-bold text-lg">Spatial Map</h3>
+                    <p class="text-xs text-slate-400 mt-2">Freeform canvas with radial interactions.</p>
+                </div>
+                <!-- Phase 2: Textual Outline -->
+                <div onclick="UI.setPhase('outliner')" id="card-outliner" class="phase-card">
+                    <div class="text-4xl mb-4">≡</div>
+                    <h3 class="font-bold text-lg">Textual Outline</h3>
+                    <p class="text-xs text-slate-400 mt-2">Hierarchical tree view for structured editing.</p>
+                </div>
+                <!-- Phase 3: Web Architect -->
+                <div onclick="UI.setPhase('web')" id="card-web" class="phase-card">
+                    <div class="text-4xl mb-4">🌐</div>
+                    <h3 class="font-bold text-lg">Web Architect</h3>
+                    <p class="text-xs text-slate-400 mt-2">Live HTML widget rendering from mapstate.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="stage">
+
+        <!-- MAIN VIEWPORT -->
+        <main id="viewport">
+
+            <!-- Phase 1: Visual Map -->
+            <div id="view-map" class="absolute inset-0">
+                <div id="canvas-layer">
+                    <svg id="svg-edges"
+                        class="absolute inset-0 w-[5000px] h-[5000px] -translate-x-[2500px] -translate-y-[2500px] overflow-visible"></svg>
+                    <div id="node-layer"></div>
+                    <!-- Radial Menu (Injected dynamically) -->
+                    <div id="radial-menu" class="radial-menu">
+                        <div class="radial-btn rad-n" onclick="UI.radialAction('add_child')" title="Add Child">✚</div>
+                        <div class="radial-btn rad-e" onclick="UI.radialAction('connect')" title="Connect">☍</div>
+                        <div class="radial-btn rad-s" onclick="UI.radialAction('delete')" title="Delete">✕</div>
+                        <div class="radial-btn rad-w" onclick="UI.radialAction('edit')" title="Edit">✎</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 2: Outliner -->
+            <div id="view-outliner" class="absolute inset-0 bg-white p-8 hidden overflow-y-auto">
+                <div id="outliner-target" class="max-w-3xl mx-auto space-y-2"></div>
+            </div>
+
+            <!-- Phase 3: Web Render -->
+            <div id="view-web" class="absolute inset-0 bg-slate-100 p-8 hidden overflow-y-auto">
+                <div id="web-target" class="max-w-5xl mx-auto space-y-6"></div>
+            </div>
+
+            <!-- Floating Controls (Map Phase Only) -->
+            <div id="map-controls" class="float-controls">
+                <button onclick="MM.zoom(0.1)" class="circle-btn">＋</button>
+                <button onclick="MM.zoom(-0.1)" class="circle-btn">－</button>
+                <button onclick="MM.autoLayout()" class="circle-btn" title="Auto-Layout">☍</button>
+            </div>
+        </main>
+
+        <!-- Inspector Drawer -->
+        <aside id="inspector">
+            <div class="p-6 border-b border-slate-200 bg-white shrink-0">
+                <h3 class="font-bold text-sm tracking-tight">Active Intelligence</h3>
+                <p id="inspector-status" class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                    Ready</p>
+            </div>
+
+            <div id="inspector-content" class="flex-grow p-6 space-y-6 overflow-y-auto">
+                <!-- Injected Node Properties -->
+                <div class="h-full flex flex-col items-center justify-center opacity-30">
+                    <div class="text-4xl mb-2">⦿</div>
+                    <p class="text-xs font-bold uppercase tracking-widest">Select Node</p>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-200 shrink-0">
+                <button onclick="UI.triggerSense()"
+                    class="w-full py-3 bg-slate-900 text-white text-[10px] font-bold rounded-lg shadow-sm hover:bg-slate-800 transition-colors mb-2 uppercase tracking-widest">
+                    ✨ Generate AI Sense
+                </button>
+                <div class="flex justify-between text-[8px] font-mono text-slate-400 uppercase">
+                    <span>Meta-Mind Core</span>
+                    <span id="node-stats">Nodes: 0</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        /**
+         * SANDBOX UI CONTROLLER (V2.2)
+         * - Phase Engine Window
+         * - Radial Menu Integration
+         * - Multi-Phase Rendering logic
+         */
+
+        const UI = {
+            isPanning: false,
+            lastMouse: { x: 0, y: 0 },
+            activePhase: 'map',
+
+            init() {
+                const vp = document.getElementById('viewport');
+
+                // Pan Logic
+                vp.onmousedown = (e) => {
+                    if (this.activePhase === 'map' && e.target.id === 'view-map') {
+                        this.isPanning = true;
+                        this.lastMouse = { x: e.clientX, y: e.clientY };
+                        this.hideRadial();
+                    }
+                };
+                window.onmousemove = (e) => {
+                    if (this.isPanning) {
+                        const dx = e.clientX - this.lastMouse.x;
+                        const dy = e.clientY - this.lastMouse.y;
+                        MM.pan(dx, dy);
+                        this.lastMouse = { x: e.clientX, y: e.clientY };
+                    }
+                };
+                window.onmouseup = () => this.isPanning = false;
+
+                // Zoom Logic
+                vp.onwheel = (e) => {
+                    if (this.activePhase === 'map') {
+                        e.preventDefault();
+                        MM.zoom(e.deltaY > 0 ? -0.05 : 0.05, e.clientX, e.clientY);
+                        this.hideRadial();
+                    }
+                };
+
+                // Add Node (Double Click)
+                vp.ondblclick = (e) => {
+                    if (this.activePhase === 'map') {
+                        const pos = MM.screenToWorld(e.clientX, e.clientY);
+                        MM.addNode({ position: pos, title: "New Module" });
+                    }
+                };
+
+                // Subscribe to Kernel Updates
+                MM.subscribe(state => this.render(state));
+
+                // Initialize Demo Data
+                this.loadDemoData();
+            },
+
+            loadDemoData() {
+                const root = MM.addNode({ title: "Project Root", position: { x: 0, y: 0 }, type: "section" });
+                const c1 = MM.addNode({ title: "Hero Section", position: { x: -200, y: 150 }, type: "widget", content: "Welcome to Meta-Mind" });
+                const c2 = MM.addNode({ title: "Features Grid", position: { x: 200, y: 150 }, type: "widget", content: "Modular. Scalable. Fast." });
+                MM.addEdge(root, c1);
+                MM.addEdge(root, c2);
+                setTimeout(() => MM.autoLayout(), 100);
+            },
+
+            // --- Phase Engine Logic ---
+            togglePhaseEngine() {
+                document.getElementById('phase-engine').classList.toggle('open');
+            },
+
+            setPhase(phase) {
+                this.activePhase = phase;
+                document.getElementById('phase-engine').classList.remove('open');
+
+                // Update Cards
+                document.querySelectorAll('.phase-card').forEach(c => c.classList.remove('active'));
+                document.getElementById(`card-${phase}`).classList.add('active');
+
+                // Update Visibility
+                document.getElementById('view-map').className = phase === 'map' ? 'absolute inset-0 block' : 'hidden';
+                document.getElementById('view-outliner').className = phase === 'outliner' ? 'absolute inset-0 bg-white p-8 block overflow-y-auto' : 'hidden';
+                document.getElementById('view-web').className = phase === 'web' ? 'absolute inset-0 bg-slate-100 p-8 block overflow-y-auto' : 'hidden';
+
+                document.getElementById('map-controls').style.display = phase === 'map' ? 'flex' : 'none';
+
+                // Trigger Render to refresh the new view
+                MM.notify();
+            },
+
+            // --- Radial Menu Logic ---
+            showRadial(nodeId, x, y) {
+                const menu = document.getElementById('radial-menu');
+                menu.classList.add('active');
+                // Position relative to the node's transformed coordinates
+                // Note: The menu is inside #canvas-layer, so it inherits the pan/zoom transform!
+                menu.style.left = `${x}px`;
+                menu.style.top = `${y}px`;
+                // Apply reverse scale to keep buttons consistent size regardless of zoom
+                menu.style.transform = `translate(-50%, -50%) scale(${1 / MM.state.viewport.scale})`;
+
+                // Bind the current node ID to the UI controller context
+                this.radialContextId = nodeId;
+            },
+
+            hideRadial() {
+                document.getElementById('radial-menu').classList.remove('active');
+                this.radialContextId = null;
+            },
+
+            radialAction(action) {
+                if (!this.radialContextId) return;
+                const id = this.radialContextId;
+                const node = MM.state.nodes.find(n => n.id === id);
+
+                if (action === 'delete') {
+                    MM.deleteNode(id);
+                } else if (action === 'add_child') {
+                    const childId = MM.addNode({
+                        title: "Child Node",
+                        position: { x: node.position.x, y: node.position.y + 150 }
+                    });
+                    MM.addEdge(id, childId);
+                } else if (action === 'edit') {
+                    // Focus sidebar
+                    document.getElementById('inp-title').focus();
+                } else if (action === 'connect') {
+                    alert("Click another node to connect (Stub)");
+                }
+
+                this.hideRadial();
+            },
+
+            // --- Rendering ---
+            render(state) {
+                // Shared Stats
+                document.getElementById('zoom-display').innerText = Math.round(state.viewport.scale * 100) + "%";
+                document.getElementById('node-stats').innerText = `Nodes: ${state.nodes.length}`;
+                this.renderInspector(state);
+
+                if (this.activePhase === 'map') this.renderMap(state);
+                if (this.activePhase === 'outliner') this.renderOutliner(state);
+                if (this.activePhase === 'web') this.renderWeb(state);
+            },
+
+            renderMap(state) {
+                const canvas = document.getElementById('canvas-layer');
+                const nodeLayer = document.getElementById('node-layer');
+                const svg = document.getElementById('svg-edges');
+
+                // Transform
+                canvas.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+
+                // Edges
+                svg.innerHTML = '';
+                state.edges.forEach(e => {
+                    const s = state.nodes.find(n => n.id === e.source);
+                    const t = state.nodes.find(n => n.id === e.target);
+                    if (s && t) {
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        const d = `M ${s.position.x} ${s.position.y} C ${s.position.x} ${s.position.y + 50}, ${t.position.x} ${t.position.y - 50}, ${t.position.x} ${t.position.y}`;
+                        line.setAttribute("d", d);
+                        line.setAttribute("class", "edge-line");
+                        svg.appendChild(line);
+                    }
+                });
+
+                // Nodes
+                Array.from(nodeLayer.children).forEach(el => {
+                    if (el.id === 'radial-menu') return; // Don't delete the menu
+                    if (!state.nodes.find(n => n.id === el.dataset.id)) el.remove();
+                });
+
+                state.nodes.forEach(n => {
+                    let el = nodeLayer.querySelector(`[data-id="${n.id}"]`);
+                    if (!el) {
+                        el = document.createElement('div');
+                        el.className = 'node';
+                        el.dataset.id = n.id;
+                        el.onmousedown = (e) => e.stopPropagation();
+                        el.onclick = (e) => {
+                            e.stopPropagation();
+                            MM.state.selectedId = n.id;
+                            this.showRadial(n.id, n.position.x, n.position.y);
+                            MM.notify();
+                        };
+                        nodeLayer.appendChild(el);
+                    }
+                    el.style.left = `${n.position.x}px`;
+                    el.style.top = `${n.position.y}px`;
+                    el.classList.toggle('selected', state.selectedId === n.id);
+                    el.innerHTML = `<div class="node-type">${n.type}</div><div class="node-title">${n.title}</div>`;
+                });
+            },
+
+            renderOutliner(state) {
+                const target = document.getElementById('outliner-target');
+                // Simple list for v2.2, can be upgraded to recursive tree
+                target.innerHTML = state.nodes.map(n => `
+                    <div class="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer flex items-center gap-3 ${state.selectedId === n.id ? 'bg-orange-50' : ''}" onclick="MM.state.selectedId='${n.id}'; MM.notify()">
+                        <span class="text-[10px] text-slate-400">⦿</span>
+                        <span class="text-sm font-bold">${n.title}</span>
+                        <span class="text-[9px] bg-slate-100 px-2 rounded text-slate-500">${n.type}</span>
+                    </div>
+                `).join('');
+            },
+
+            renderWeb(state) {
+                const target = document.getElementById('web-target');
+                target.innerHTML = state.nodes.map(n => `
+                    <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 hover:border-orange-300 transition-all cursor-pointer" onclick="MM.state.selectedId='${n.id}'; MM.notify()">
+                        <h2 class="text-2xl font-black mb-2">${n.title}</h2>
+                        <p class="text-slate-500 leading-relaxed">${n.content || 'No content specified.'}</p>
+                    </div>
+                `).join('');
+            },
+
+            renderInspector(state) {
+                const node = state.nodes.find(n => n.id === state.selectedId);
+                const container = document.getElementById('inspector-content');
+
+                if (!node) {
+                    if (!container.querySelector('.opacity-30')) {
+                        container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-30"><div class="text-4xl mb-2">⦿</div><p class="text-xs font-bold uppercase tracking-widest">Select Node</p></div>`;
+                    }
+                    return;
+                }
+
+                // Check prevent re-render loop if same node
+                if (container.dataset.renderedId === node.id) return;
+                container.dataset.renderedId = node.id;
+
+                container.innerHTML = `
+                    <div class="space-y-6 animate-fade-in">
+                        <section>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Label</label>
+                            <input type="text" id="inp-title" value="${node.title}" class="w-full border-b border-slate-200 py-2 font-bold text-xl focus:outline-none focus:border-orange-500 bg-transparent transition-colors">
+                        </section>
+                        <section>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</label>
+                            <select id="inp-type" class="w-full mt-1 bg-white border border-slate-200 text-xs p-2 rounded">
+                                <option value="section" ${node.type === 'section' ? 'selected' : ''}>Section</option>
+                                <option value="widget" ${node.type === 'widget' ? 'selected' : ''}>Widget</option>
+                                <option value="data" ${node.type === 'data' ? 'selected' : ''}>Data Source</option>
+                            </select>
+                        </section>
+                        <section>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Content</label>
+                            <textarea id="inp-content" class="w-full mt-2 bg-white border border-slate-100 p-4 rounded-xl text-sm min-h-[120px] focus:outline-none focus:border-slate-300 transition-colors">${node.content}</textarea>
+                        </section>
+                    </div>
+                `;
+
+                document.getElementById('inp-title').onchange = (e) => MM.updateNode(node.id, { title: e.target.value });
+                document.getElementById('inp-type').onchange = (e) => MM.updateNode(node.id, { type: e.target.value });
+                document.getElementById('inp-content').onblur = (e) => MM.updateNode(node.id, { content: e.target.value });
+            },
+
+            async triggerSense() {
+                if (!MM.state.selectedId) return alert("Select a node first.");
+                const res = await MM.senseIntent("Analyze node context");
+                alert(`AI SUGGESTION:\n${res.content}`);
+            }
+        };
+
+        // Boot
+        UI.init();
+    </script>
+</body>
+
+</html>

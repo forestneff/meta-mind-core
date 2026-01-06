@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meta-Mind | Sandbox v4.4</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="meta-mind-core.js"></script>
+    <script src="phase-engines.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --accent: #ea580c;
+            --bg: #ffffff;
+            --ui-bg: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: #0f172a;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Layout */
+        #stage {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+            position: relative;
+        }
+
+        @media (max-width: 1024px) {
+            #stage {
+                flex-direction: column;
+            }
+        }
+
+        #viewport {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #fff;
+            cursor: grab;
+            touch-action: none;
+            outline: none;
+        }
+
+        #viewport:active {
+            cursor: grabbing;
+        }
+
+        #world-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            will-change: transform;
+            pointer-events: none;
+            width: 0;
+            height: 0;
+        }
+
+        /* EDGES FIX */
+        #edge-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 0;
+            overflow: visible;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .edge-vis {
+            stroke: #94a3b8;
+            stroke-width: 2;
+            fill: none;
+            transition: stroke 0.2s;
+            pointer-events: none;
+        }
+
+        .edge-vis.selected {
+            stroke: var(--accent);
+            stroke-width: 4;
+        }
+
+        .edge-hit {
+            stroke: transparent;
+            stroke-width: 25px;
+            fill: none;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .node {
+            position: absolute;
+            width: 72px;
+            height: 72px;
+            background: white;
+            border: 2px solid #cbd5e1;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            pointer-events: auto;
+            cursor: pointer;
+            z-index: 20;
+        }
+
+        .node.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 6px rgba(234, 88, 12, 0.15);
+            z-index: 30;
+            transform: translate(-50%, -50%) scale(1.15);
+        }
+
+        .node-icon {
+            font-size: 24px;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .node-label {
+            position: absolute;
+            bottom: -28px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: center;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2px 8px;
+            border-radius: 4px;
+            pointer-events: none;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .ring-halo {
+            position: absolute;
+            border: 2px dashed #e2e8f0;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 15;
+            opacity: 0;
+            animation: expandRing 0.5s forwards;
+        }
+
+        @keyframes expandRing {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .node.ring-child {
+            width: 40px;
+            height: 40px;
+            border-width: 1px;
+            font-size: 10px;
+            z-index: 18;
+            transition: all 0.5s ease-out;
+        }
+
+        .radial-wrapper {
+            position: absolute;
+            width: 240px;
+            height: 240px;
+            pointer-events: none;
+            z-index: 40;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.15s ease-out;
+        }
+
+        .radial-wrapper.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .radial-btn {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: white;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.1s;
+        }
+
+        .radial-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            transform: scale(1.15);
+        }
+
+        .rad-n {
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, 0);
+        }
+
+        .rad-e {
+            top: 50%;
+            right: 0;
+            transform: translate(0, -50%);
+        }
+
+        .rad-s {
+            bottom: 0;
+            left: 50%;
+            transform: translate(-50%, 0);
+        }
+
+        .rad-w {
+            top: 50%;
+            left: 0;
+            transform: translate(0, -50%);
+        }
+
+        .rad-center {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 56px;
+            height: 56px;
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--accent);
+            border: 2px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff7ed;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        #inspector {
+            width: 360px;
+            border-left: 1px solid #e2e8f0;
+            background: var(--ui-bg);
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+        }
+
+        @media (max-width: 1024px) {
+            #inspector {
+                width: 100%;
+                height: 50%;
+                border-left: 0;
+                border-top: 1px solid #e2e8f0;
+            }
+        }
+
+        .sb-tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #94a3b8;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+        }
+
+        .sb-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            background: white;
+        }
+
+        .tab-content {
+            display: none;
+            height: 100%;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .phase-option {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            margin-bottom: 8px;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .phase-option.unlocked {
+            opacity: 1;
+            pointer-events: auto;
+            background: white;
+        }
+
+        .phase-option:hover {
+            border-color: var(--accent);
+        }
+
+        .phase-option.active {
+            background: #fff7ed;
+            border-color: var(--accent);
+        }
+
+        #tutorial-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .tut-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="h-14 border-b border-slate-200 px-6 flex items-center justify-between shrink-0 bg-white z-50">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="flex items-center gap-2 group text-decoration-none">
+                <span
+                    class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
+                <span
+                    class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase group-hover:bg-orange-600 transition-colors">Kernel
+                    v4.4</span>
+            </a>
+        </div>
+        <div class="flex gap-4 items-center">
+            <button onclick="MM.resetStorage()"
+                class="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-widest">Restart</button>
+            <div class="h-4 w-px bg-slate-200"></div>
+            <button onclick="MM.autoLayout()"
+                class="text-[10px] font-black text-slate-400 hover:text-orange-600 tracking-widest uppercase">Auto-Layout</button>
+        </div>
+    </header>
+
+    <div id="stage">
+        <main id="viewport" tabindex="0">
+            <div id="view-map" class="absolute inset-0">
+                <div id="world-layer">
+                    <svg id="edge-svg"></svg>
+                    <div id="node-layer"></div>
+
+                    <div id="radial-main" class="radial-wrapper">
+                        <div class="radial-btn rad-n" onclick="UI.radialAction('add_child')" title="Add Detail">✚</div>
+                        <div class="radial-btn rad-e" onclick="UI.switchRadial('connect')" title="Connect">☍</div>
+                        <div class="radial-btn rad-s" onclick="UI.radialAction('delete')" title="Delete">✕</div>
+                        <div class="radial-btn rad-w" onclick="UI.radialAction('toggle_ring')" title="Collapse to Ring">
+                            ⭕</div>
+                    </div>
+
+                    <div id="radial-connect" class="radial-wrapper">
+                        <div class="radial-btn rad-center" onclick="UI.switchRadial('main')" title="Back">BACK</div>
+                        <div class="radial-btn rad-n" onclick="UI.startLinking('child')" title="Child">↓</div>
+                        <div class="radial-btn rad-e" onclick="UI.startLinking('sibling')" title="Sibling">↔</div>
+                        <div class="radial-btn rad-s" onclick="UI.startLinking('parent')" title="Parent">↑</div>
+                        <div class="radial-btn rad-w" onclick="UI.startLinking('logic')" title="Logic">⚡</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-outliner" class="absolute inset-0 bg-white p-8 hidden overflow-y-auto">
+                <div id="outliner-target" class="max-w-3xl mx-auto space-y-2 h-full"></div>
+            </div>
+            <div id="view-web" class="absolute inset-0 bg-slate-100 p-8 hidden overflow-y-auto">
+                <div id="web-target" class="max-w-5xl mx-auto space-y-6"></div>
+            </div>
+
+            <div id="tutorial-overlay">
+                <div class="tut-card fade-in">
+                    <div class="text-4xl mb-4">👋</div>
+                    <h2 class="text-2xl font-black mb-2 text-slate-900">Setup Your Identity</h2>
+                    <p class="text-slate-500 mb-6 text-sm">Welcome to Meta-Mind. Let's build your profile. Once
+                        complete, you will unlock the Web Architect.</p>
+                    <div class="space-y-3">
+                        <input id="tut-name" type="text" placeholder="Your Name"
+                            class="w-full border p-2 rounded text-sm">
+                        <input id="tut-role" type="text" placeholder="Role (e.g. Developer)"
+                            class="w-full border p-2 rounded text-sm">
+                    </div>
+                    <button onclick="UI.completeTutorialStep1()"
+                        class="w-full py-3 mt-6 bg-orange-600 text-white rounded-lg font-bold text-sm hover:bg-orange-700 transition-colors">Create
+                        Profile Node</button>
+                </div>
+            </div>
+
+            <div id="map-controls" class="absolute bottom-6 left-6 z-40 flex gap-2">
+                <button onclick="MM.zoom(0.1)"
+                    class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">＋</button>
+                <button onclick="MM.zoom(-0.1)"
+                    class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">－</button>
+                <button onclick="MM.autoLayout()"
+                    class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">☍</button>
+            </div>
+        </main>
+
+        <aside id="inspector">
+            <div class="flex border-b border-slate-200 bg-white shrink-0">
+                <div onclick="UI.setSidebarTab('node')" id="tab-btn-node" class="sb-tab active">Details</div>
+                <div onclick="UI.setSidebarTab('map')" id="tab-btn-map" class="sb-tab">Phases</div>
+            </div>
+
+            <div id="tab-node" class="tab-content active">
+                <div id="node-editor-content">
+                    <div class="h-full flex flex-col items-center justify-center opacity-30 mt-20">
+                        <div class="text-4xl mb-2">⦿</div>
+                        <p class="text-xs font-bold uppercase tracking-widest">Select Node</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-map" class="tab-content">
+                <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Phase Unlocks</h3>
+                <div onclick="UI.setPhase('map')" id="phase-opt-map" class="phase-option unlocked active">
+                    <div class="text-xl">☍</div>
+                    <div>
+                        <div class="text-xs font-bold">Spatial Map</div>
+                        <div class="text-[10px] text-slate-400">Core Interface</div>
+                    </div>
+                </div>
+                <div onclick="UI.setPhase('outliner')" id="phase-opt-outliner" class="phase-option">
+                    <div class="text-xl">≡</div>
+                    <div>
+                        <div class="text-xs font-bold">Textual Outline</div>
+                        <div class="text-[10px] text-slate-400">Interpretive Renderer</div>
+                    </div>
+                </div>
+                <div onclick="UI.setPhase('web')" id="phase-opt-web" class="phase-option">
+                    <div class="text-xl">🌐</div>
+                    <div>
+                        <div class="text-xs font-bold">Web Architect</div>
+                        <div class="text-[10px] text-slate-400">HTML Renderer</div>
+                    </div>
+                </div>
+
+                <div class="mt-8 p-4 bg-orange-50 rounded-xl border border-orange-100">
+                    <h4 class="text-xs font-bold text-orange-800 mb-1">Quest: Profile Setup</h4>
+                    <p id="quest-text" class="text-[10px] text-orange-600 mb-2">Add details to your profile node.</p>
+                    <div class="w-full bg-orange-200 h-1 rounded-full">
+                        <div id="quest-bar" class="bg-orange-500 h-1 rounded-full" style="width: 10%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-200 shrink-0 mt-auto">
+                <button onclick="UI.devUnlockAll()"
+                    class="text-[9px] font-bold text-slate-300 hover:text-orange-600 uppercase w-full text-center mb-2">Dev
+                    Unlock All</button>
+                <div class="flex justify-between text-[8px] font-mono text-slate-400 uppercase">
+                    <span>Meta-Mind Core</span>
+                    <span id="node-stats">Nodes: 0</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        const TextEngine = new TextPhaseEngine(MM);
+        const WebEngine = new WebPhaseEngine(MM);
+
+        const UI = {
+            isPanning: false, lastMouse: { x: 0, y: 0 }, activePhase: 'map', activeSidebarTab: 'node', radialContextId: null,
+            unlockedPhases: ['map'],
+
+            init() {
+                PhaseRegistry.init(MM);
+                const vp = document.getElementById('viewport');
+                vp.onmousedown = (e) => { if (this.activePhase === 'map' && (e.target.id === 'view-map' || e.target.id === 'viewport')) { this.isPanning = true; this.lastMouse = { x: e.clientX, y: e.clientY }; this.deselectAll(); } };
+                window.onmousemove = (e) => { if (this.isPanning) { MM.pan(e.clientX - this.lastMouse.x, e.clientY - this.lastMouse.y); this.lastMouse = { x: e.clientX, y: e.clientY }; } };
+                window.onmouseup = () => this.isPanning = false;
+                vp.onwheel = (e) => { if (this.activePhase === 'map') { e.preventDefault(); MM.zoom(e.deltaY > 0 ? -0.05 : 0.05, e.clientX, e.clientY); this.hideRadial(); } };
+
+                MM.subscribe(state => this.render(state));
+
+                // Persistence check
+                if (MM.state.nodes.length > 0) {
+                    document.getElementById('tutorial-overlay').style.display = 'none';
+                    MM.notify();
+                }
+            },
+
+            completeTutorialStep1() {
+                const name = document.getElementById('tut-name').value || "Architect";
+                const role = document.getElementById('tut-role').value || "User";
+                const root = MM.addNode({ title: name, position: { x: 0, y: 0 }, type: "profile", content: `Role: ${role}` });
+                MM.state.viewport.x = window.innerWidth / 2;
+                MM.state.viewport.y = window.innerHeight / 2;
+                document.getElementById('tutorial-overlay').style.display = 'none';
+                document.getElementById('quest-bar').style.width = "33%";
+                setTimeout(() => { MM.state.selectedId = root; this.showRadial(root, 0, 0); MM.notify(); }, 500);
+            },
+
+            devUnlockAll() {
+                this.unlockPhase('outliner');
+                this.unlockPhase('web');
+                document.getElementById('quest-text').innerText = "All Phases Unlocked (Dev Mode)";
+                document.getElementById('quest-bar').style.width = "100%";
+            },
+
+            checkQuestProgress() {
+                const roots = MM.state.nodes.filter(n => n.type === 'profile');
+                if (roots.length > 0) {
+                    const root = roots[0];
+                    const children = MM.state.edges.filter(e => e.source === root.id);
+                    const progress = Math.min((children.length / 3) * 100, 90);
+                    document.getElementById('quest-bar').style.width = `${progress}%`;
+
+                    if (children.length >= 3 && root.metadata?.isRing) {
+                        this.unlockPhase('outliner');
+                        this.unlockPhase('web');
+                        document.getElementById('quest-text').innerText = "Quest Complete: Profile Ring";
+                        document.getElementById('quest-bar').style.width = "100%";
+                    }
+                }
+            },
+
+            unlockPhase(id) {
+                if (!this.unlockedPhases.includes(id)) {
+                    this.unlockedPhases.push(id);
+                    document.getElementById(`phase-opt-${id}`).classList.add('unlocked');
+                }
+            },
+
+            setPhase(phaseId) {
+                if (!this.unlockedPhases.includes(phaseId)) return;
+                this.activePhase = phaseId;
+                document.querySelectorAll('.phase-option').forEach(el => el.classList.remove('active'));
+                document.getElementById(`phase-opt-${phaseId}`).classList.add('active');
+                ['map', 'outliner', 'web'].forEach(p => { document.getElementById(`view-${p}`).style.display = (p === phaseId) ? 'block' : 'none'; });
+                if (phaseId !== 'map') {
+                    let targetId = phaseId === 'web' ? 'web-target' : 'outliner-target';
+                    PhaseRegistry.setActive(phaseId);
+                    PhaseRegistry.renderActive(targetId);
+                }
+            },
+
+            // --- Ring Logic ---
+            toggleRing(nodeId) {
+                const node = MM.state.nodes.find(n => n.id === nodeId);
+                if (!node) return;
+                node.metadata = node.metadata || {};
+                node.metadata.isRing = !node.metadata.isRing;
+                MM.saveHistory();
+                this.checkQuestProgress();
+                MM.notify();
+            },
+
+            showRadial(id, x, y, type = 'main') {
+                document.querySelectorAll('.radial-wrapper').forEach(e => e.classList.remove('active'));
+                const m = document.getElementById(`radial-${type}`);
+                if (m) { m.classList.add('active'); m.style.left = `${x}px`; m.style.top = `${y}px`; m.style.transform = `translate(-50%, -50%) scale(${1 / MM.state.viewport.scale})`; this.radialContextId = id; }
+            },
+            hideRadial() { document.querySelectorAll('.radial-wrapper').forEach(e => e.classList.remove('active')); this.radialContextId = null; },
+
+            radialAction(act) {
+                if (!this.radialContextId) return;
+                const id = this.radialContextId;
+                const node = MM.state.nodes.find(n => n.id === id);
+
+                if (act === 'delete') MM.deleteNode(id);
+
+                if (act === 'add_child') {
+                    // Context-Aware Add from Blueprint
+                    const bp = MM.getBlueprint(node.type);
+                    // Build a simple prompt or default to first allowed type
+                    let childType = 'concept';
+                    let childLabel = 'New Node';
+
+                    if (bp.allowedChildren && bp.allowedChildren.length > 0) {
+                        // For MVP: Just pick the first allowed type for speed
+                        // Future: Show a mini-menu of allowed types
+                        const allowed = bp.allowedChildren[0];
+                        childType = allowed.type;
+                        childLabel = allowed.label;
+
+                        // If it's a profile, maybe prompt specifically?
+                        if (node.type === 'profile') {
+                            const userChoice = prompt(`Add to Profile:\n${bp.allowedChildren.map(c => c.label).join(', ')}`, bp.allowedChildren[0].label);
+                            // Simple mapping check (naive for demo)
+                            if (userChoice) childLabel = userChoice;
+                        }
+                    }
+
+                    const cid = MM.addNode({ title: childLabel, type: childType, position: { x: node.position.x + 100, y: node.position.y + 100 } });
+                    MM.addEdge(id, cid);
+                    this.checkQuestProgress();
+                }
+
+                if (act === 'edit') { this.setSidebarTab('node'); document.getElementById('inp-title')?.focus(); }
+                if (act === 'toggle_ring') this.toggleRing(id);
+                this.hideRadial();
+            },
+            switchRadial(t) { if (this.radialContextId) this.showRadial(this.radialContextId, 0, 0, t); }, // Fix pos later
+
+            startLinking(t) { /* ... same as before ... */ },
+            completeLinking(tgt) { /* ... same as before ... */ },
+            cancelLinking() { /* ... same as before ... */ },
+
+            renderMap(state) {
+                const world = document.getElementById('world-layer');
+                const nodeLayer = document.getElementById('node-layer');
+                const svg = document.getElementById('edge-svg');
+                world.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+
+                // Render Edges
+                svg.innerHTML = '';
+                state.edges.forEach(e => {
+                    const s = state.nodes.find(n => n.id === e.source);
+                    const t = state.nodes.find(n => n.id === e.target);
+                    if (s && t && !s.metadata?.isRing) {
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        line.setAttribute("x1", s.position.x); line.setAttribute("y1", s.position.y);
+                        line.setAttribute("x2", t.position.x); line.setAttribute("y2", t.position.y);
+                        line.setAttribute("class", "edge-vis");
+                        svg.appendChild(line);
+                    }
+                });
+
+                // Render Nodes
+                nodeLayer.innerHTML = '';
+                state.nodes.forEach(n => {
+                    const parentEdge = state.edges.find(e => e.target === n.id);
+                    if (parentEdge) {
+                        const parent = state.nodes.find(p => p.id === parentEdge.source);
+                        if (parent && parent.metadata?.isRing) return;
+                    }
+                    this.renderNodeElement(n, nodeLayer);
+
+                    if (n.metadata?.isRing) {
+                        const children = state.edges.filter(e => e.source === n.id).map(e => state.nodes.find(k => k.id === e.target));
+                        const radius = 90;
+                        children.forEach((child, i) => {
+                            const angle = (i / children.length) * 2 * Math.PI;
+                            const cx = n.position.x + Math.cos(angle) * radius;
+                            const cy = n.position.y + Math.sin(angle) * radius;
+                            const el = document.createElement('div');
+                            el.className = 'node ring-child';
+                            el.style.left = `${cx}px`; el.style.top = `${cy}px`;
+                            el.onclick = (e) => { e.stopPropagation(); MM.state.selectedId = child.id; MM.notify(); };
+
+                            // Use Blueprint Icon
+                            const bp = MM.getBlueprint(child.type);
+                            el.innerHTML = `<div class="text-[12px]">${bp.icon}</div>`;
+                            nodeLayer.appendChild(el);
+                        });
+                        const halo = document.createElement('div');
+                        halo.className = 'ring-halo';
+                        halo.style.width = `${radius * 2 + 60}px`; halo.style.height = `${radius * 2 + 60}px`;
+                        halo.style.left = `${n.position.x}px`; halo.style.top = `${n.position.y}px`;
+                        halo.style.transform = 'translate(-50%, -50%)';
+                        nodeLayer.appendChild(halo);
+                    }
+                });
+            },
+
+            renderNodeElement(n, container) {
+                const el = document.createElement('div');
+                el.className = 'node';
+                el.dataset.id = n.id;
+                el.style.left = `${n.position.x}px`; el.style.top = `${n.position.y}px`;
+                if (MM.state.selectedId === n.id) el.classList.add('selected');
+                el.onmousedown = (e) => e.stopPropagation();
+                el.onclick = (e) => { e.stopPropagation(); MM.state.selectedId = n.id; this.showRadial(n.id, n.position.x, n.position.y); MM.notify(); };
+
+                const bp = MM.getBlueprint(n.type);
+                el.innerHTML = `<div class="node-icon">${bp.icon}</div><div class="node-label">${n.title}</div>`;
+                container.appendChild(el);
+            },
+
+            // ... (Includes: getIcon, render, setSidebarTab, deselectAll, selectEdge) ...
+            getIcon(type) { return '⚪'; },
+            render(state) { document.getElementById('node-stats').innerText = `Nodes: ${state.nodes.length}`; this.renderInspector(state); if (this.activePhase === 'map') this.renderMap(state); else PhaseRegistry.renderActive('phase-content'); },
+            setSidebarTab(tab) { /*...*/ }, deselectAll() {/*...*/ }, selectEdge(id) {/*...*/ }, cancelLinking() {/*...*/ }
+        };
+
+        UI.renderInspector = (state) => { /* Reuse logic from v4.1, update fields dynamically */ };
+
+        UI.init();
+    </script>
+</body>
+
+</html>

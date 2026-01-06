@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meta-Mind | Sandbox v4.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="meta-mind-core.js"></script>
+    <script src="phase-engines.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        :root { --accent: #ea580c; --bg: #ffffff; --ui-bg: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: #0f172a; height: 100vh; overflow: hidden; display: flex; flex-direction: column; -webkit-tap-highlight-color: transparent; }
+        
+        #stage { flex: 1; display: flex; flex-direction: row; overflow: hidden; position: relative; }
+        @media (max-width: 1024px) { #stage { flex-direction: column; } }
+
+        #viewport { flex: 1; position: relative; overflow: hidden; background: #fff; cursor: grab; touch-action: none; outline: none; }
+        #viewport:active { cursor: grabbing; }
+        
+        /* UNIFIED WORLD LAYER */
+        #world-layer { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; pointer-events: none; width: 0; height: 0; }
+        
+        /* EDGES FIX: Overflow Visible on Zero-Size SVG */
+        #edge-svg { position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: visible; pointer-events: none; z-index: 10; }
+        .edge-vis { stroke: #94a3b8; stroke-width: 2; fill: none; transition: stroke 0.2s; pointer-events: none; }
+        .edge-vis.selected { stroke: var(--accent); stroke-width: 4; }
+        .edge-hit { stroke: transparent; stroke-width: 25px; fill: none; cursor: pointer; pointer-events: auto; }
+
+        /* Nodes */
+        .node { position: absolute; width: 72px; height: 72px; background: white; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translate(-50%, -50%); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); pointer-events: auto; cursor: pointer; z-index: 20; }
+        .node.selected { border-color: var(--accent); box-shadow: 0 0 0 6px rgba(234, 88, 12, 0.15); z-index: 30; transform: translate(-50%, -50%) scale(1.15); }
+        .node-icon { font-size: 24px; line-height: 1; pointer-events: none; }
+        .node-label { position: absolute; bottom: -28px; font-size: 10px; font-weight: 800; text-transform: uppercase; text-align: center; white-space: nowrap; background: rgba(255,255,255,0.95); padding: 2px 8px; border-radius: 4px; pointer-events: none; color: #475569; border: 1px solid #e2e8f0; }
+
+        /* Ring / Halo Styling */
+        .ring-halo { position: absolute; border: 2px dashed #e2e8f0; border-radius: 50%; pointer-events: none; z-index: 15; }
+        .node.ring-child { width: 40px; height: 40px; border-width: 1px; font-size: 10px; z-index: 18; }
+        .node.ring-child .node-label { display: none; } /* Hide labels in ring until hover */
+        .node.ring-child:hover .node-label { display: block; z-index: 40; }
+
+        /* Radial */
+        .radial-wrapper { position: absolute; width: 240px; height: 240px; pointer-events: none; z-index: 40; display: none; opacity: 0; transition: opacity 0.15s ease-out; }
+        .radial-wrapper.active { display: block; opacity: 1; }
+        .radial-btn { position: absolute; width: 44px; height: 44px; border-radius: 50%; background: white; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; pointer-events: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.1s; }
+        .radial-btn:hover { background: var(--accent); color: white; border-color: var(--accent); transform: scale(1.15); }
+        .rad-n { top: 0; left: 50%; transform: translate(-50%, 0); } .rad-e { top: 50%; right: 0; transform: translate(0, -50%); } .rad-s { bottom: 0; left: 50%; transform: translate(-50%, 0); } .rad-w { top: 50%; left: 0; transform: translate(0, -50%); }
+        .rad-center { top: 50%; left: 50%; transform: translate(-50%, -50%); width: 56px; height: 56px; font-size: 11px; font-weight: bold; color: var(--accent); border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; background: #fff7ed; cursor: pointer; pointer-events: auto; }
+
+        /* Tutorial Overlay */
+        #tutorial-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.95); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .tut-card { background: white; padding: 2rem; border-radius: 1.5rem; border: 1px solid #e2e8f0; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-width: 400px; }
+        
+        #inspector { width: 360px; border-left: 1px solid #e2e8f0; background: var(--ui-bg); display: flex; flex-direction: column; z-index: 50; }
+        @media (max-width: 1024px) { #inspector { width: 100%; height: 50%; border-left: 0; border-top: 1px solid #e2e8f0; } }
+
+        .sb-tab { flex: 1; text-align: center; padding: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; border-bottom: 2px solid transparent; cursor: pointer; }
+        .sb-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: white; }
+        .tab-content { display: none; height: 100%; overflow-y: auto; padding: 1.5rem; }
+        .tab-content.active { display: block; }
+        
+        .phase-option { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; background: white; margin-bottom: 8px; opacity: 0.5; pointer-events: none; } /* Locked by default */
+        .phase-option.unlocked { opacity: 1; pointer-events: auto; background: white; }
+        .phase-option:hover { border-color: var(--accent); }
+        .phase-option.active { background: #fff7ed; border-color: var(--accent); }
+
+        #linking-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.6); backdrop-filter: blur(2px); z-index: 100; display: none; align-items: center; justify-content: center; pointer-events: none; }
+        #linking-overlay.active { display: flex; }
+        .linking-badge { background: var(--accent); color: white; padding: 8px 16px; border-radius: 99px; font-weight: 800; font-size: 12px; text-transform: uppercase; box-shadow: 0 10px 20px rgba(234, 88, 12, 0.3); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <header class="h-14 border-b border-slate-200 px-6 flex items-center justify-between shrink-0 bg-white z-50">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="flex items-center gap-2 group text-decoration-none">
+                <span class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
+                <span class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase group-hover:bg-orange-600 transition-colors">Kernel v4.1</span>
+            </a>
+        </div>
+        <div class="flex gap-4 items-center">
+            <button onclick="MM.resetStorage()" class="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-widest">Restart</button>
+            <div class="h-4 w-px bg-slate-200"></div>
+            <button onclick="MM.autoLayout()" class="text-[10px] font-black text-slate-400 hover:text-orange-600 tracking-widest uppercase">Auto-Layout</button>
+        </div>
+    </header>
+
+    <div id="stage">
+        
+        <main id="viewport" tabindex="0">
+            <!-- Phase 1: Visual Map -->
+            <div id="view-map" class="absolute inset-0">
+                <div id="world-layer">
+                    <svg id="edge-svg"></svg>
+                    <div id="node-layer"></div> <!-- Nodes and Halo Rings -->
+                    
+                    <!-- 1. Main Radial -->
+                    <div id="radial-main" class="radial-wrapper">
+                        <div class="radial-btn rad-n" onclick="UI.radialAction('add_child')" title="Add Detail">✚</div>
+                        <div class="radial-btn rad-e" onclick="UI.switchRadial('connect')" title="Connect">☍</div>
+                        <div class="radial-btn rad-s" onclick="UI.radialAction('delete')" title="Delete">✕</div>
+                        <div class="radial-btn rad-w" onclick="UI.radialAction('toggle_ring')" title="Collapse to Ring">⭕</div>
+                    </div>
+
+                    <!-- 2. Connection Sub-Menu -->
+                    <div id="radial-connect" class="radial-wrapper">
+                        <div class="radial-btn rad-center" onclick="UI.switchRadial('main')" title="Back">BACK</div>
+                        <div class="radial-btn rad-n" onclick="UI.startLinking('child')" title="Child">↓</div>
+                        <div class="radial-btn rad-e" onclick="UI.startLinking('sibling')" title="Sibling">↔</div>
+                        <div class="radial-btn rad-s" onclick="UI.startLinking('parent')" title="Parent">↑</div>
+                        <div class="radial-btn rad-w" onclick="UI.startLinking('logic')" title="Logic">⚡</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Other Phases -->
+            <div id="view-outliner" class="absolute inset-0 bg-white p-8 hidden overflow-y-auto"><div id="outliner-target" class="max-w-3xl mx-auto space-y-2 h-full"></div></div>
+            <div id="view-web" class="absolute inset-0 bg-slate-100 p-8 hidden overflow-y-auto"><div id="web-target" class="max-w-5xl mx-auto space-y-6"></div></div>
+            <div id="view-universal" class="absolute inset-0 bg-slate-50 p-8 hidden overflow-y-auto"><div id="universal-target" class="max-w-4xl mx-auto"></div></div>
+
+            <div id="linking-overlay"><div class="linking-badge">Select Target Node to Link</div></div>
+            
+            <div id="map-controls" class="absolute bottom-6 left-6 z-40 flex gap-2">
+                <button onclick="MM.zoom(0.1)" class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">＋</button>
+                <button onclick="MM.zoom(-0.1)" class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">－</button>
+                <button onclick="MM.autoLayout()" class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">☍</button>
+            </div>
+
+            <!-- TUTORIAL OVERLAY -->
+            <div id="tutorial-overlay">
+                <div class="tut-card fade-in">
+                    <div class="text-4xl mb-4">👋</div>
+                    <h2 class="text-2xl font-black mb-2 text-slate-900">Setup Your Identity</h2>
+                    <p class="text-slate-500 mb-6 text-sm">Welcome to Meta-Mind. Let's build your profile. Once complete, you will unlock the Web Architect.</p>
+                    <div class="space-y-3">
+                        <input id="tut-name" type="text" placeholder="Your Name" class="w-full border p-2 rounded text-sm">
+                        <input id="tut-role" type="text" placeholder="Role (e.g. Developer)" class="w-full border p-2 rounded text-sm">
+                    </div>
+                    <button onclick="UI.completeTutorialStep1()" class="w-full py-3 mt-6 bg-orange-600 text-white rounded-lg font-bold text-sm hover:bg-orange-700 transition-colors">Create Profile Node</button>
+                </div>
+            </div>
+        </main>
+
+        <aside id="inspector">
+            <div class="flex border-b border-slate-200 bg-white shrink-0">
+                <div onclick="UI.setSidebarTab('node')" id="tab-btn-node" class="sb-tab active">Details</div>
+                <div onclick="UI.setSidebarTab('map')" id="tab-btn-map" class="sb-tab">Phases</div>
+            </div>
+            
+            <div id="tab-node" class="tab-content active">
+                <div id="node-editor-content">
+                    <div class="h-full flex flex-col items-center justify-center opacity-30 mt-20"><div class="text-4xl mb-2">⦿</div><p class="text-xs font-bold uppercase tracking-widest">Select Node</p></div>
+                </div>
+            </div>
+
+            <div id="tab-map" class="tab-content">
+                <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Phase Unlocks</h3>
+                <div onclick="UI.setPhase('map')" id="phase-opt-map" class="phase-option unlocked active"><div class="text-xl">☍</div><div><div class="text-xs font-bold">Spatial Map</div><div class="text-[10px] text-slate-400">Core Interface</div></div></div>
+                <div onclick="UI.setPhase('outliner')" id="phase-opt-outliner" class="phase-option"><div class="text-xl">≡</div><div><div class="text-xs font-bold">Textual Outline</div><div class="text-[10px] text-slate-400">Interpretive Renderer</div></div></div>
+                <div onclick="UI.setPhase('web')" id="phase-opt-web" class="phase-option"><div class="text-xl">🌐</div><div><div class="text-xs font-bold">Web Architect</div><div class="text-[10px] text-slate-400">HTML Renderer</div></div></div>
+                <div onclick="UI.setPhase('universal')" id="phase-opt-universal" class="phase-option"><div class="text-xl">♾️</div><div><div class="text-xs font-bold">Universal View</div><div class="text-[10px] text-slate-400">Mixed Renderer</div></div></div>
+                
+                <div class="mt-8 p-4 bg-orange-50 rounded-xl border border-orange-100">
+                    <h4 class="text-xs font-bold text-orange-800 mb-1">Quest: Profile Setup</h4>
+                    <p class="text-[10px] text-orange-600 mb-2">Add 3 details to your profile node and collapse them into a ring to unlock Web Architect.</p>
+                    <div class="w-full bg-orange-200 h-1 rounded-full"><div id="quest-bar" class="bg-orange-500 h-1 rounded-full" style="width: 10%"></div></div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-200 shrink-0 mt-auto">
+                <div class="flex justify-between text-[8px] font-mono text-slate-400 uppercase">
+                    <span>Meta-Mind Core</span>
+                    <span id="node-stats">Nodes: 0</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        const TextEngine = new TextPhaseEngine(MM);
+        const WebEngine = new WebPhaseEngine(MM);
+        const UniversalEngine = new UniversalPhaseEngine(MM);
+
+        const UI = {
+            isPanning: false, lastMouse: {x:0, y:0}, activePhase: 'map', activeSidebarTab: 'node', radialContextId: null, activeLinkType: null, selectedEdgeId: null,
+            unlockedPhases: ['map'], // Gamification state
+
+            init() {
+                PhaseRegistry.init(MM);
+                const vp = document.getElementById('viewport');
+                vp.onmousedown = (e) => { if(this.activePhase === 'map' && (e.target.id === 'view-map' || e.target.id === 'viewport')) { this.isPanning = true; this.lastMouse = {x:e.clientX, y:e.clientY}; this.deselectAll(); }};
+                window.onmousemove = (e) => { if(this.isPanning) { MM.pan(e.clientX - this.lastMouse.x, e.clientY - this.lastMouse.y); this.lastMouse = {x:e.clientX, y:e.clientY}; }};
+                window.onmouseup = () => this.isPanning = false;
+                vp.onwheel = (e) => { if(this.activePhase === 'map') { e.preventDefault(); MM.zoom(e.deltaY > 0 ? -0.05 : 0.05, e.clientX, e.clientY); this.hideRadial(); }};
+                
+                MM.subscribe(state => this.render(state));
+                
+                // Persistence check
+                if(MM.state.nodes.length > 0) {
+                    document.getElementById('tutorial-overlay').style.display = 'none'; // Hide tut if user has data
+                    MM.notify();
+                }
+            },
+
+            completeTutorialStep1() {
+                const name = document.getElementById('tut-name').value || "Architect";
+                const role = document.getElementById('tut-role').value || "User";
+                
+                // Create Profile Node
+                const root = MM.addNode({ title: name, position: {x: 0, y: 0}, type: "profile", content: `Role: ${role}` });
+                MM.state.viewport.x = window.innerWidth / 2;
+                MM.state.viewport.y = window.innerHeight / 2;
+                
+                document.getElementById('tutorial-overlay').style.display = 'none';
+                
+                // Quest Progress
+                document.getElementById('quest-bar').style.width = "33%";
+                
+                // Auto-select to prompt user
+                setTimeout(() => {
+                    MM.state.selectedId = root;
+                    this.setSidebarTab('node');
+                    this.showRadial(root, 0, 0);
+                    MM.notify();
+                }, 500);
+            },
+
+            checkQuestProgress() {
+                // Simple logic: If root has children and is collapsed (ring mode), unlock Web Phase
+                const roots = MM.state.nodes.filter(n => n.type === 'profile');
+                if(roots.length > 0) {
+                    const root = roots[0];
+                    const children = MM.state.edges.filter(e => e.source === root.id);
+                    if(children.length >= 2) {
+                        this.unlockPhase('outliner');
+                        this.unlockPhase('web');
+                        this.unlockPhase('universal');
+                        document.getElementById('quest-bar').style.width = "100%";
+                    }
+                }
+            },
+
+            unlockPhase(id) {
+                if(!this.unlockedPhases.includes(id)) {
+                    this.unlockedPhases.push(id);
+                    document.getElementById(`phase-opt-${id}`).classList.add('unlocked');
+                    // alert(`Achievement Unlocked: ${id.toUpperCase()} Phase!`);
+                }
+            },
+
+            setPhase(phaseId) {
+                if(!this.unlockedPhases.includes(phaseId)) return; // Locked
+                this.activePhase = phaseId;
+                document.querySelectorAll('.phase-option').forEach(el => el.classList.remove('active'));
+                document.getElementById(`phase-opt-${phaseId}`).classList.add('active');
+                
+                ['map','text','web','universal'].forEach(p => {
+                    const el = document.getElementById(`view-${p}`);
+                    if(el) el.style.display = (p === phaseId) ? 'block' : 'none';
+                });
+                
+                document.getElementById('map-controls').style.display = phaseId === 'map' ? 'flex' : 'none';
+
+                if (phaseId !== 'map') {
+                    let targetId = 'phase-content';
+                    if(phaseId === 'text') targetId = 'outliner-target'; // Fix target ID mapping
+                    if(phaseId === 'web') targetId = 'web-target';
+                    if(phaseId === 'universal') targetId = 'universal-target';
+                    PhaseRegistry.setActive(phaseId);
+                    PhaseRegistry.renderActive(targetId);
+                }
+            },
+
+            setSidebarTab(tab) {
+                this.activeSidebarTab = tab;
+                document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+                document.getElementById(`tab-btn-${tab}`).classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(`tab-${tab}`).classList.add('active');
+            },
+
+            deselectAll() { MM.state.selectedId = null; this.selectedEdgeId = null; this.hideRadial(); MM.notify(); },
+            selectEdge(id) { this.selectedEdgeId = id; MM.state.selectedId = null; this.hideRadial(); this.setSidebarTab('node'); MM.notify(); },
+
+            // --- Ring / Halo Logic ---
+            toggleRing(nodeId) {
+                const node = MM.state.nodes.find(n => n.id === nodeId);
+                if(!node) return;
+                
+                // Toggle metadata state
+                node.metadata = node.metadata || {};
+                node.metadata.isRing = !node.metadata.isRing;
+                MM.saveHistory();
+                
+                this.checkQuestProgress(); // Check for unlock
+                MM.notify();
+            },
+
+            showRadial(id, x, y, type='main') {
+                document.querySelectorAll('.radial-wrapper').forEach(e=>e.classList.remove('active'));
+                const m = document.getElementById(`radial-${type}`);
+                m.classList.add('active'); m.style.left = `${x}px`; m.style.top = `${y}px`;
+                m.style.transform = `translate(-50%, -50%) scale(${1/MM.state.viewport.scale})`;
+                this.radialContextId = id; this.radialPosition = {x,y};
+            },
+            switchRadial(t) { if(this.radialContextId) this.showRadial(this.radialContextId, this.radialPosition.x, this.radialPosition.y, t); },
+            hideRadial() { document.querySelectorAll('.radial-wrapper').forEach(e=>e.classList.remove('active')); this.radialContextId = null; },
+            
+            radialAction(act) {
+                if(!this.radialContextId) return;
+                const id = this.radialContextId;
+                const node = MM.state.nodes.find(n=>n.id===id);
+                if(act==='delete') MM.deleteNode(id);
+                if(act==='add_child') { const cid=MM.addNode({position:{x:node.position.x+100,y:node.position.y+100}}); MM.addEdge(id, cid); }
+                if(act==='edit') { this.setSidebarTab('node'); document.getElementById('inp-title')?.focus(); }
+                if(act==='toggle_ring') this.toggleRing(id);
+                this.hideRadial();
+            },
+
+            startLinking(t) { this.activeLinkType=t; this.hideRadial(); document.getElementById('linking-overlay').style.display='flex'; document.getElementById('viewport').style.cursor='crosshair'; },
+            completeLinking(tgt) { if(this.radialContextId && tgt!==this.radialContextId) MM.addEdge(this.radialContextId, tgt, this.activeLinkType); this.cancelLinking(); },
+            cancelLinking() { this.activeLinkType=null; document.getElementById('linking-overlay').style.display='none'; document.getElementById('viewport').style.cursor='grab'; },
+
+            getIcon(type) { if(type==='profile')return'👤'; if(type==='hero')return'🚀'; return'⚪'; },
+
+            render(state) {
+                document.getElementById('node-stats').innerText = `Nodes: ${state.nodes.length}`;
+                this.renderInspector(state);
+                if(this.activePhase === 'map') this.renderMap(state);
+                // Trigger updates if other phases active? Not strictly needed as setPhase handles it, 
+                // but good for live updates if split screen.
+            },
+
+            renderMap(state) {
+                const world = document.getElementById('world-layer');
+                const nodeLayer = document.getElementById('node-layer');
+                const svg = document.getElementById('edge-svg');
+
+                world.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+
+                // Render Edges
+                svg.innerHTML = '';
+                state.edges.forEach(e => {
+                    const s = state.nodes.find(n => n.id === e.source);
+                    const t = state.nodes.find(n => n.id === e.target);
+                    
+                    // Don't draw edge if parent is in Ring Mode (children are floating in ring)
+                    if(s && t && !s.metadata?.isRing) {
+                        const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        l.setAttribute("x1", s.position.x); l.setAttribute("y1", s.position.y);
+                        l.setAttribute("x2", t.position.x); l.setAttribute("y2", t.position.y);
+                        l.setAttribute("class", `edge-vis ${this.selectedEdgeId === e.id ? 'selected' : ''}`);
+                        svg.appendChild(l);
+                        const h = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        h.setAttribute("x1", s.position.x); h.setAttribute("y1", s.position.y);
+                        h.setAttribute("x2", t.position.x); h.setAttribute("y2", t.position.y);
+                        h.setAttribute("class", "edge-hit");
+                        h.onclick = (ev) => { ev.stopPropagation(); this.selectEdge(e.id); };
+                        svg.appendChild(h);
+                    }
+                });
+
+                // Render Nodes
+                nodeLayer.innerHTML = ''; // Full redraw for simplicity in this version
+                
+                state.nodes.forEach(n => {
+                    // Check if node is hidden inside a parent's ring
+                    const parentEdge = state.edges.find(e => e.target === n.id);
+                    if(parentEdge) {
+                        const parent = state.nodes.find(p => p.id === parentEdge.source);
+                        if(parent && parent.metadata?.isRing) return; // Don't render normally if in ring
+                    }
+
+                    this.renderNodeElement(n, nodeLayer);
+
+                    // Render Ring Children if active
+                    if(n.metadata?.isRing) {
+                        const children = state.edges.filter(e => e.source === n.id).map(e => state.nodes.find(k => k.id === e.target));
+                        const radius = 80;
+                        children.forEach((child, i) => {
+                            const angle = (i / children.length) * 2 * Math.PI;
+                            const cx = n.position.x + Math.cos(angle) * radius;
+                            const cy = n.position.y + Math.sin(angle) * radius;
+                            
+                            // Render mini child
+                            const el = document.createElement('div');
+                            el.className = 'node ring-child';
+                            el.style.left = `${cx}px`; el.style.top = `${cy}px`;
+                            el.onclick = (e) => { e.stopPropagation(); MM.state.selectedId = child.id; MM.notify(); };
+                            el.innerHTML = `<div class="text-[8px] font-bold text-center pt-2">${child.title.substring(0,3)}</div>`;
+                            nodeLayer.appendChild(el);
+                        });
+                        // Draw Halo Circle
+                        const halo = document.createElement('div');
+                        halo.className = 'ring-halo';
+                        halo.style.width = `${radius*2 + 40}px`; halo.style.height = `${radius*2 + 40}px`;
+                        halo.style.left = `${n.position.x}px`; halo.style.top = `${n.position.y}px`;
+                        halo.style.transform = 'translate(-50%, -50%)';
+                        nodeLayer.appendChild(halo);
+                    }
+                });
+            },
+
+            renderNodeElement(n, container) {
+                const el = document.createElement('div');
+                el.className = 'node';
+                el.dataset.id = n.id;
+                el.style.left = `${n.position.x}px`; el.style.top = `${n.position.y}px`;
+                if(MM.state.selectedId === n.id) el.classList.add('selected');
+                el.onmousedown = (e) => e.stopPropagation();
+                el.onclick = (e) => { e.stopPropagation(); if(this.activeLinkType){this.completeLinking(n.id);return;} MM.state.selectedId=n.id; MM.notify(); this.showRadial(n.id, n.position.x, n.position.y); };
+                el.innerHTML = `<div class="node-icon">${this.getIcon(n.type)}</div><div class="node-label">${n.title}</div>`;
+                container.appendChild(el);
+            },
+
+            renderInspector(state) {
+                const container = document.getElementById('node-editor-content');
+                if (this.selectedEdgeId) {
+                    const edge = state.edges.find(e => e.id === this.selectedEdgeId);
+                    if(!edge) return;
+                    container.innerHTML = `<div class="space-y-6 animate-fade-in"><div class="text-xs font-bold text-orange-600 uppercase tracking-widest mb-4">⚡ Connection</div><section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Weight</label><input type="number" id="inp-weight" value="${edge.meta?.weight || 1.0}" class="w-full border-b border-slate-200 py-2 font-bold"></section></div>`;
+                    return;
+                }
+                const node = state.nodes.find(n => n.id === state.selectedId);
+                if(!node) { if(!container.querySelector('.opacity-30')) container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-30 mt-20"><div class="text-4xl mb-2">⦿</div><p class="text-xs font-bold uppercase tracking-widest">Select Node</p></div>`; return; }
+                if(container.dataset.renderedId === node.id && !this.selectedEdgeId) return;
+                container.dataset.renderedId = node.id;
+                container.innerHTML = `
+                    <div class="space-y-6 animate-fade-in">
+                        <section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Label</label><input type="text" id="inp-title" value="${node.title}" class="w-full border-b border-slate-200 py-2 font-bold text-xl focus:outline-none focus:border-orange-500 bg-transparent transition-colors"></section>
+                        <section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</label><select id="inp-type" class="w-full mt-1 bg-white border border-slate-200 text-xs p-2 rounded"><option value="section" ${node.type==='section'?'selected':''}>Section</option><option value="hero" ${node.type==='hero'?'selected':''}>Hero</option><option value="button" ${node.type==='button'?'selected':''}>Button</option><option value="nav" ${node.type==='nav'?'selected':''}>Navbar</option><option value="widget" ${node.type==='widget'?'selected':''}>Widget</option></select></section>
+                        <section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Renderer</label><select id="inp-renderer" class="w-full mt-1 bg-white border border-slate-200 text-xs p-2 rounded"><option value="text">Text Outline</option><option value="web">Web Architect</option></select></section>
+                        <section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Content</label><textarea id="inp-content" class="w-full mt-2 bg-white border border-slate-100 p-4 rounded-xl text-sm min-h-[120px] focus:outline-none focus:border-slate-300 transition-colors">${node.content}</textarea></section>
+                    </div>`;
+                document.getElementById('inp-title').onchange = (e) => MM.updateNode(node.id, {title: e.target.value});
+                document.getElementById('inp-type').onchange = (e) => MM.updateNode(node.id, {type: e.target.value});
+                document.getElementById('inp-renderer').onchange = (e) => { if(!node.metadata) node.metadata={}; node.metadata.renderer=e.target.value; MM.updateNode(node.id, {metadata: node.metadata}); };
+                document.getElementById('inp-content').onblur = (e) => MM.updateNode(node.id, {content: e.target.value});
+            },
+
+            async triggerSense() { if(!MM.state.selectedId) return; const res = await MM.senseIntent("Contextual Expansion"); alert(`AI SUGGESTION:\n${res.content}`); }
+        };
+
+        // Fix missing deleteEdge in Kernel (Shim for now)
+        MM.deleteEdge = (id) => {
+            MM.state.edges = MM.state.edges.filter(e => e.id !== id);
+            MM.selectedId = null;
+            UI.selectedEdgeId = null;
+            MM.saveHistory();
+            MM.notify();
+        };
+
+        UI.init();
+    </script>
+</body>
+</html>

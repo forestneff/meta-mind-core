@@ -1,692 +1,358 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meta-Mind | Web Architect Phase</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meta-Mind | Sandbox v5.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="meta-mind-core.js"></script>
+    <script src="phase-engines.js"></script>
+    <link rel="stylesheet" href="meta-mind-base.css">
+    <link rel="stylesheet" href="meta-mind-ui.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
-
-        :root {
-            --accent: #ea580c;
-            --bg-main: #ffffff;
-            --bg-alt: #f8fafc;
-            --border: #e2e8f0;
-            --text-main: #0f172a;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-alt);
-            color: var(--text-main);
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .mono {
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        /* --- Layout --- */
-        #app-container {
-            flex: 1;
-            display: flex;
-            flex-direction: row;
-            overflow: hidden;
-        }
-
-        @media (max-width: 1024px) {
-            #app-container {
-                flex-direction: column;
-            }
-        }
-
-        #viewport {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* --- Sidebar --- */
-        #sidebar {
-            width: 360px;
-            border-left: 1px solid var(--border);
-            background: var(--bg-main);
-            display: flex;
-            flex-direction: column;
-            z-index: 40;
-            transition: transform 0.3s;
-        }
-
-        @media (max-width: 1024px) {
-            #sidebar {
-                width: 100%;
-                height: 45%;
-                border-top: 1px solid var(--border);
-            }
-        }
-
-        /* --- Visual Map --- */
-        #visual-canvas {
-            width: 100%;
-            height: 100%;
-            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
-            background-size: 24px 24px;
-            cursor: crosshair;
-            position: relative;
-        }
-
-        .node {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            background: white;
-            border: 2px solid #334155;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transform: translate(-50%, -50%);
-            z-index: 20;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s;
-        }
-
-        .node:hover {
-            transform: translate(-50%, -50%) scale(1.05);
-        }
-
-        .node.selected {
-            border-color: var(--accent);
-            ring: 4px solid rgba(234, 88, 12, 0.1);
-        }
-
-        .node-icon {
-            font-size: 16px;
-            margin-bottom: 2px;
-        }
-
-        .node-label {
-            font-size: 8px;
-            font-weight: 700;
-            text-transform: uppercase;
-            max-width: 90%;
-            text-align: center;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-        }
-
-        .edge-path {
-            stroke: #cbd5e1;
-            stroke-width: 2;
-            fill: none;
-            transition: stroke 0.2s;
-        }
-
-        .edge-path.active {
-            stroke: var(--accent);
-        }
-
-        /* --- Web Render --- */
-        #web-render-container {
-            background: white;
-            height: 100%;
-            overflow-y: auto;
-            padding: 0;
-        }
-
-        .web-widget {
-            position: relative;
-            border: 1px dashed transparent;
-            transition: all 0.2s;
-        }
-
-        .web-widget:hover {
-            border-color: #cbd5e1;
-            background: #f8fafc;
-            cursor: pointer;
-        }
-
-        .web-widget.selected {
-            border-color: var(--accent);
-            background: #fff7ed;
-        }
-
-        .widget-tag {
-            position: absolute;
-            top: 0;
-            right: 0;
-            background: var(--accent);
-            color: white;
-            font-size: 8px;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-bottom-left-radius: 4px;
-            display: none;
-        }
-
-        .web-widget:hover .widget-tag,
-        .web-widget.selected .widget-tag {
-            display: block;
-        }
-
-        /* --- UI Components --- */
-        .tab-btn {
-            font-size: 10px;
+        /* Sandbox-specific overrides */
+        #edge-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; overflow: visible; }
+        .edge-vis { stroke: #cbd5e1; stroke-width: 2; fill: none; transition: stroke 0.2s; pointer-events: none; }
+        .edge-vis.selected { stroke: var(--accent); stroke-width: 4; }
+        .edge-hit { stroke: transparent; stroke-width: 25px; fill: none; cursor: pointer; pointer-events: auto; }
+        
+        #world-layer { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; pointer-events: none; width: 0; height: 0; }
+        
+        /* Node Styles */
+        .node { z-index: 20; pointer-events: auto; }
+        
+        /* Header Phase Tabs */
+        .phase-tab {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
             font-weight: 800;
             text-transform: uppercase;
-            padding: 0 16px;
-            height: 100%;
-            color: #64748b;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
             border-bottom: 2px solid transparent;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .tab-btn:hover {
-            color: #0f172a;
-            background: #f1f5f9;
-        }
-
-        .tab-btn.active {
-            color: var(--accent);
-            border-bottom-color: var(--accent);
-            background: #fff;
-        }
-
-        .modal-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .template-card {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            width: 200px;
-            cursor: pointer;
             transition: all 0.2s;
-            text-align: center;
         }
-
-        .template-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--accent);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-
-        .fade-in {
-            animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: scale(0.98);
-            }
-
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
+        .phase-tab:hover { color: #0f172a; background: #f8fafc; }
+        .phase-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
     </style>
-    <!-- Chosen Palette: "Draftsman Blue & Safety Orange" -->
-    <!-- Application Structure Plan:
-         1. Modal Prompt: Forces user to choose a starting template (Landing Page, Blog, Blank).
-         2. Split View: Toggle between "Blueprint" (Map) and "Live Site" (Render).
-         3. Smart Sidebar: Detects node type (e.g., Hero vs Feature) and shows context-aware inputs.
-         4. Widget Engine: Translates map nodes into semantic HTML (section, h1, div grid).
-    -->
-    <!-- CONFIRMATION: NO SVG icons used (Unicode only). NO Mermaid JS. Chart.js optional but not used here. -->
 </head>
-
 <body>
 
-    <!-- Header -->
-    <header class="h-12 border-b border-neutral-200 bg-white flex items-center justify-between px-4 shrink-0 z-50">
-        <div class="flex items-center gap-3">
-            <span class="text-lg font-black tracking-tighter">META-MIND</span>
-            <span class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase">Web
-                Architect v1.2</span>
+    <header class="h-14 border-b border-slate-200 px-6 flex items-center justify-between shrink-0 bg-white z-50">
+        <div class="flex items-center gap-6">
+            <a href="index.html" class="flex items-center gap-2 group text-decoration-none">
+                <span class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
+            </a>
+            
+            <!-- Phase Selector (Moved to Header) -->
+            <div class="flex h-full">
+                <button onclick="UI.setPhase('map')" id="phase-btn-map" class="phase-tab active">Spatial Map</button>
+                <button onclick="UI.setPhase('outliner')" id="phase-btn-outliner" class="phase-tab">Text Editor</button>
+                <button onclick="UI.setPhase('web')" id="phase-btn-web" class="phase-tab">Web Architect</button>
+            </div>
         </div>
-        <div class="flex items-center gap-3">
-            <button onclick="MapEngine.clear()"
-                class="text-[10px] font-bold text-neutral-400 hover:text-red-500">RESET</button>
-            <button onclick="MapEngine.export()" class="text-[10px] font-bold text-neutral-400 hover:text-black">EXPORT
-                JSON</button>
-            <div id="sync-status" class="w-2 h-2 rounded-full bg-emerald-500" title="State Synced"></div>
+
+        <div class="flex gap-4 items-center">
+            <button onclick="MM.resetStorage()" class="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-widest">Reset</button>
+            <div class="h-4 w-px bg-slate-200"></div>
+            <button onclick="MM.autoLayout()" class="text-[10px] font-black text-slate-400 hover:text-orange-600 tracking-widest uppercase">Auto-Layout</button>
         </div>
     </header>
 
-    <div id="app-container">
-        <!-- RENDER VIEWPORT -->
-        <main id="viewport">
-
-            <!-- Phase Tabs -->
-            <div class="h-10 border-b border-neutral-200 bg-slate-50 flex items-center shrink-0">
-                <button onclick="UI.setPhase('map')" id="tab-map" class="tab-btn active"><span>☍</span> Blueprint
-                    Map</button>
-                <button onclick="UI.setPhase('web')" id="tab-web" class="tab-btn"><span>🌐</span> Live Preview</button>
-                <div class="flex-grow"></div>
-                <button onclick="MapEngine.addNode(null, null, 'section')"
-                    class="px-4 text-[10px] font-bold bg-slate-200 hover:bg-slate-300 h-full border-l border-white">✚
-                    SECTION</button>
+    <div id="stage">
+        
+        <main id="viewport" tabindex="0">
+            <!-- Phase 1: Visual Map -->
+            <div id="view-map" class="absolute inset-0">
+                <div id="world-layer">
+                    <svg id="edge-svg"></svg>
+                    <div id="node-layer"></div>
+                    
+                    <!-- Radial Menu -->
+                    <div id="radial-main" class="radial-wrapper">
+                        <div class="radial-btn rad-n" onclick="UI.radialAction('add_child')" title="Add Detail">✚</div>
+                        <div class="radial-btn rad-e" onclick="UI.switchRadial('connect')" title="Connect">☍</div>
+                        <div class="radial-btn rad-s" onclick="UI.radialAction('delete')" title="Delete">✕</div>
+                        <div class="radial-btn rad-w" onclick="UI.radialAction('edit')" title="Edit">✎</div>
+                    </div>
+                    
+                    <!-- Connection Sub-Menu -->
+                    <div id="radial-connect" class="radial-wrapper">
+                        <div class="radial-btn rad-center" onclick="UI.switchRadial('main')" title="Back">BACK</div>
+                        <div class="radial-btn rad-n" onclick="UI.startLinking('child')" title="Child">↓</div>
+                        <div class="radial-btn rad-e" onclick="UI.startLinking('sibling')" title="Sibling">↔</div>
+                        <div class="radial-btn rad-s" onclick="UI.startLinking('parent')" title="Parent">↑</div>
+                        <div class="radial-btn rad-w" onclick="UI.startLinking('logic')" title="Logic">⚡</div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Content Container -->
-            <div id="render-target" class="flex-grow relative">
-
-                <!-- 1. Blueprint Map (Visual Phase) -->
-                <div id="view-map" class="h-full w-full">
-                    <div id="visual-canvas">
-                        <svg id="edge-svg" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
-                        <!-- Nodes Injected Here -->
-                    </div>
-                </div>
-
-                <!-- 2. Live Web Render (Web Phase) -->
-                <div id="view-web" class="h-full w-full hidden">
-                    <div id="web-render-container" class="fade-in">
-                        <!-- Widgets Injected Here -->
-                    </div>
-                </div>
-
-                <!-- Template Modal (Overlay) -->
-                <div id="template-modal" class="modal-overlay">
-                    <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl w-full text-center">
-                        <h2 class="text-2xl font-black text-slate-900 mb-2">New Web Project</h2>
-                        <p class="text-slate-500 mb-8 text-sm">Select a starting architectural pattern.</p>
-
-                        <div class="flex flex-wrap justify-center gap-6">
-                            <!-- Template 1 -->
-                            <div onclick="Templates.load('landing')" class="template-card">
-                                <div class="text-4xl mb-4">🚀</div>
-                                <h3 class="font-bold text-slate-800">Landing Page</h3>
-                                <p class="text-xs text-slate-400 mt-2">Hero, Features Grid, Footer</p>
-                            </div>
-                            <!-- Template 2 -->
-                            <div onclick="Templates.load('blog')" class="template-card">
-                                <div class="text-4xl mb-4">📝</div>
-                                <h3 class="font-bold text-slate-800">Blog Layout</h3>
-                                <p class="text-xs text-slate-400 mt-2">Header, Article, Sidebar</p>
-                            </div>
-                            <!-- Template 3 -->
-                            <div onclick="Templates.load('blank')" class="template-card">
-                                <div class="text-4xl mb-4">✨</div>
-                                <h3 class="font-bold text-slate-800">Blank Canvas</h3>
-                                <p class="text-xs text-slate-400 mt-2">Start from scratch</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+            <!-- Other Phase Views -->
+            <div id="view-outliner" class="absolute inset-0 bg-white p-8 hidden overflow-y-auto"><div id="outliner-target" class="max-w-3xl mx-auto space-y-2 h-full"></div></div>
+            <div id="view-web" class="absolute inset-0 bg-slate-100 p-8 hidden overflow-y-auto"><div id="web-target" class="max-w-5xl mx-auto space-y-6"></div></div>
+            
+            <div id="linking-overlay"><div class="linking-badge">Select Target Node to Link</div></div>
+            
+            <div id="map-controls" class="absolute bottom-6 left-6 z-40 flex gap-2">
+                <button onclick="MM.zoom(0.1)" class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">＋</button>
+                <button onclick="MM.zoom(-0.1)" class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">－</button>
+                <button onclick="MM.autoLayout()" class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">☍</button>
             </div>
         </main>
 
-        <!-- COMMAND SIDEBAR -->
-        <aside id="sidebar">
-            <div class="p-5 border-b border-neutral-200 bg-white shrink-0 flex justify-between items-center">
-                <div>
-                    <h3 class="font-bold text-sm">Inspector</h3>
-                    <p class="text-[9px] text-neutral-400 font-bold uppercase tracking-widest">Properties</p>
-                </div>
-                <div id="node-type-badge"
-                    class="px-2 py-1 rounded bg-slate-100 text-[9px] font-bold text-slate-500 uppercase hidden">TYPE
-                </div>
+        <aside id="inspector">
+            <div class="flex border-b border-slate-200 bg-white shrink-0 h-10 items-center px-4">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Properties</h3>
             </div>
-
-            <div id="sidebar-content" class="flex-grow p-6 space-y-6 overflow-y-auto">
-                <!-- Injected via JS -->
-                <div class="text-center py-20 opacity-30">
+            
+            <div id="inspector-content" class="flex-grow p-6 overflow-y-auto">
+                <!-- Injected Node Properties -->
+                <div class="h-full flex flex-col items-center justify-center opacity-30">
                     <div class="text-4xl mb-2">⦿</div>
-                    <p class="text-xs font-bold uppercase">Select a component</p>
+                    <p class="text-xs font-bold uppercase tracking-widest">Select Node</p>
                 </div>
             </div>
 
-            <div
-                class="p-4 bg-slate-50 border-t border-neutral-200 text-[9px] font-mono text-neutral-400 flex justify-between">
-                <span id="coord-display">POS: 0, 0</span>
-                <span id="node-count">NODES: 0</span>
+            <div class="p-4 bg-slate-50 border-t border-slate-200 shrink-0 mt-auto">
+                <button onclick="UI.initProfile()" class="w-full py-2 bg-white border border-slate-200 text-slate-600 rounded text-[10px] font-bold hover:border-orange-400 mb-2">Start Profile</button>
+                <button onclick="MM.exportJSON()" class="w-full py-2 bg-slate-900 text-white rounded text-[10px] font-bold hover:bg-slate-800">Export State</button>
             </div>
         </aside>
     </div>
 
-    <!-- LOGIC CORE -->
     <script>
-        /**
-         * MAP ENGINE: Handles the Node Graph
-         */
-        const MapEngine = {
-            state: { nodes: [], edges: [], selectedId: null, history: [] },
+        const TextEngine = new TextPhaseEngine(MM);
+        const WebEngine = new WebPhaseEngine(MM);
 
-            addNode(x, y, type = "widget", title = "New Widget", content = "") {
-                const id = crypto.randomUUID();
-                const node = {
-                    id, type, title, content,
-                    position: { x: x || 200 + Math.random() * 100, y: y || 200 + Math.random() * 100 }
-                };
-                this.state.nodes.push(node);
-                this.state.selectedId = id;
-                this.saveHistory();
-                UI.render();
-                return id;
-            },
-
-            addEdge(source, target) {
-                if (!this.state.edges.find(e => e.source === source && e.target === target)) {
-                    this.state.edges.push({ id: crypto.randomUUID(), source, target });
-                    this.saveHistory();
-                }
-            },
-
-            deleteNode(id) {
-                this.state.nodes = this.state.nodes.filter(n => n.id !== id);
-                this.state.edges = this.state.edges.filter(e => e.source !== id && e.target !== id);
-                this.state.selectedId = null;
-                this.saveHistory(); UI.render();
-            },
-
-            clear() {
-                this.state.nodes = []; this.state.edges = []; this.state.selectedId = null;
-                document.getElementById('template-modal').style.display = 'flex'; // Re-show modal
-                UI.render();
-            },
-
-            saveHistory() { /* Placeholder for undo logic */ },
-            undo() { /* Placeholder */ },
-            export() { console.log(JSON.stringify(this.state)); }
-        };
-
-        /**
-         * TEMPLATE SYSTEM: Generates Mapstructures
-         */
-        const Templates = {
-            load(type) {
-                document.getElementById('template-modal').style.display = 'none';
-                if (type === 'blank') return;
-
-                // Root
-                const root = MapEngine.addNode(400, 50, 'root', 'Website Root', 'Main Container');
-
-                if (type === 'landing') {
-                    const hero = MapEngine.addNode(400, 180, 'hero', 'Hero Section', 'Welcome to Meta-Mind.\nThe Future of Federated Maps.');
-                    const features = MapEngine.addNode(200, 300, 'grid', 'Features Grid', 'Why choose us?');
-                    const footer = MapEngine.addNode(600, 300, 'footer', 'Footer', '© 2024 Meta-Mind Project');
-
-                    MapEngine.addEdge(root, hero);
-                    MapEngine.addEdge(root, features);
-                    MapEngine.addEdge(root, footer);
-
-                    // Sub Widgets
-                    const btn = MapEngine.addNode(400, 280, 'button', 'CTA Button', 'Get Started');
-                    MapEngine.addEdge(hero, btn);
-
-                    const f1 = MapEngine.addNode(150, 420, 'card', 'Modular', 'Fully isolated components.');
-                    const f2 = MapEngine.addNode(250, 420, 'card', 'Federated', 'Global scale sync.');
-                    MapEngine.addEdge(features, f1); MapEngine.addEdge(features, f2);
-
-                } else if (type === 'blog') {
-                    const header = MapEngine.addNode(400, 150, 'nav', 'Navbar', 'Home | About | Contact');
-                    const body = MapEngine.addNode(250, 280, 'article', 'Main Article', 'Lorem ipsum dolor sit amet...');
-                    const sidebar = MapEngine.addNode(550, 280, 'sidebar', 'Sidebar', 'Recent Posts\n- Update v1.0\n- Update v1.1');
-
-                    MapEngine.addEdge(root, header);
-                    MapEngine.addEdge(root, body);
-                    MapEngine.addEdge(root, sidebar);
-                }
-
-                MapEngine.state.selectedId = root; // Select root
-                UI.render();
-            }
-        };
-
-        /**
-         * WEB ENGINE: Interprets Nodes -> HTML
-         */
-        const WebEngine = {
-            render() {
-                const container = document.getElementById('web-render-container');
-                container.innerHTML = '';
-
-                // Find Root (Node with no incoming edges)
-                const targets = new Set(MapEngine.state.edges.map(e => e.target));
-                const roots = MapEngine.state.nodes.filter(n => !targets.has(n.id));
-
-                if (roots.length === 0 && MapEngine.state.nodes.length > 0) {
-                    this.renderNodeRecursive(MapEngine.state.nodes[0], container);
-                } else {
-                    roots.forEach(r => this.renderNodeRecursive(r, container));
-                }
-            },
-
-            renderNodeRecursive(node, parentEl) {
-                const el = this.createWidgetElement(node);
-                parentEl.appendChild(el);
-
-                // Find Children
-                const childEdges = MapEngine.state.edges.filter(e => e.source === node.id);
-                // Sort children by X position for logical flow
-                const childNodes = childEdges.map(e => MapEngine.state.nodes.find(n => n.id === e.target)).filter(n => n);
-                childNodes.sort((a, b) => a.position.x - b.position.x);
-
-                if (childNodes.length > 0) {
-                    const childContainer = document.createElement('div');
-                    // Special layout for grids
-                    if (node.type === 'grid') childContainer.className = "grid grid-cols-1 md:grid-cols-3 gap-6 mt-6";
-                    else childContainer.className = "flex flex-col gap-4 mt-4 w-full items-center";
-
-                    childNodes.forEach(child => this.renderNodeRecursive(child, childContainer));
-                    el.appendChild(childContainer);
-                }
-            },
-
-            createWidgetElement(node) {
-                const div = document.createElement('div');
-                const isSelected = MapEngine.state.selectedId === node.id;
-                div.className = `web-widget w-full relative ${isSelected ? 'selected' : ''}`;
-                div.onclick = (e) => { e.stopPropagation(); MapEngine.state.selectedId = node.id; UI.render(); };
-
-                // Tag Label
-                div.innerHTML = `<div class="widget-tag">${node.type.toUpperCase()}</div>`;
-
-                // Render based on Type
-                switch (node.type) {
-                    case 'hero':
-                        div.className += " py-20 px-6 text-center bg-slate-900 text-white rounded-xl";
-                        div.innerHTML += `<h1 class="text-4xl font-black mb-4">${node.title}</h1><p class="text-lg text-slate-300 max-w-2xl mx-auto whitespace-pre-line">${node.content}</p>`;
-                        break;
-                    case 'button':
-                        div.className = `web-widget inline-block bg-orange-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105 ${isSelected ? 'ring-4 ring-orange-300' : ''}`;
-                        div.innerHTML = node.content || node.title;
-                        div.onclick = (e) => { e.stopPropagation(); MapEngine.state.selectedId = node.id; UI.render(); };
-                        break;
-                    case 'card':
-                        div.className += " p-6 bg-white border border-slate-200 rounded-lg shadow-sm text-left hover:shadow-md";
-                        div.innerHTML += `<h3 class="font-bold text-slate-800 text-lg mb-2">${node.title}</h3><p class="text-slate-500 text-sm">${node.content}</p>`;
-                        break;
-                    case 'nav':
-                        div.className += " p-4 border-b border-slate-100 flex justify-between items-center bg-white";
-                        div.innerHTML += `<div class="font-bold">LOGO</div><div class="text-sm font-medium text-slate-500">${node.content}</div>`;
-                        break;
-                    case 'footer':
-                        div.className += " mt-12 py-8 border-t border-slate-200 text-center text-slate-400 text-xs uppercase tracking-widest";
-                        div.innerHTML += node.content;
-                        break;
-                    case 'grid':
-                        div.className += " py-12 px-4 max-w-6xl mx-auto w-full";
-                        div.innerHTML += `<h2 class="text-2xl font-bold text-center mb-2">${node.title}</h2><p class="text-center text-slate-500 mb-8">${node.content}</p>`;
-                        break;
-                    default: // Generic Section
-                        div.className += " p-4 border border-dashed border-slate-300 rounded m-2";
-                        div.innerHTML += `<div class="font-bold text-xs text-slate-400 uppercase mb-1">${node.title}</div><div class="text-slate-800">${node.content}</div>`;
-                }
-                return div;
-            }
-        };
-
-        /**
-         * UI CONTROLLER
-         */
         const UI = {
-            linkingId: null,
+            isPanning: false, lastMouse: {x:0, y:0}, activePhase: 'map', radialContextId: null, activeLinkType: null, selectedEdgeId: null,
 
             init() {
-                // Canvas Click -> Add Node
-                document.getElementById('visual-canvas').addEventListener('click', (e) => {
-                    if (e.target.id === 'visual-canvas' || e.target.tagName === 'svg') {
-                        const rect = e.target.getBoundingClientRect();
-                        MapEngine.addNode(e.clientX - rect.left, e.clientY - rect.top);
+                PhaseRegistry.init(MM);
+                const vp = document.getElementById('viewport');
+                vp.onmousedown = (e) => { 
+                    if(this.activePhase === 'map' && (e.target.id === 'view-map' || e.target.id === 'viewport' || e.target.id === 'world-layer' || e.target.id === 'edge-svg')) { 
+                        this.isPanning = true; this.lastMouse = {x:e.clientX, y:e.clientY}; this.deselectAll(); 
                     }
+                };
+                window.onmousemove = (e) => {
+                    if(this.isPanning) {
+                        MM.pan(e.clientX - this.lastMouse.x, e.clientY - this.lastMouse.y);
+                        this.lastMouse = {x:e.clientX, y:e.clientY};
+                    }
+                };
+                window.onmouseup = () => this.isPanning = false;
+                vp.onwheel = (e) => { if(this.activePhase === 'map') { e.preventDefault(); MM.zoom(e.deltaY > 0 ? -0.05 : 0.05, e.clientX, e.clientY); this.hideRadial(); }};
+                vp.ondblclick = (e) => { if(this.activePhase === 'map') { const pos = MM.screenToWorld(e.clientX, e.clientY); MM.addNode({ position: pos, title: "New Concept" }); }};
+                
+                MM.subscribe(state => this.render(state));
+                if(MM.state.nodes.length > 0) MM.notify();
+            },
+
+            initProfile() {
+                const root = MM.addNode({ title: "My Profile", position: {x: 0, y: 0}, type: "profile", content: "Identity Root" });
+                MM.state.viewport.x = window.innerWidth / 2; MM.state.viewport.y = window.innerHeight / 2;
+                MM.notify();
+                setTimeout(() => { MM.state.selectedId = root; this.renderInspector(MM.state); this.showRadial(root, 0, 0); MM.notify(); }, 100);
+            },
+
+            setPhase(phaseId) {
+                this.activePhase = phaseId;
+                document.querySelectorAll('.phase-tab').forEach(el => el.classList.remove('active'));
+                document.getElementById(`phase-btn-${phaseId}`).classList.add('active');
+
+                ['map','outliner','web'].forEach(p => {
+                    const el = document.getElementById(`view-${p}`);
+                    if(el) el.style.display = (p === phaseId) ? 'block' : 'none';
                 });
+                
+                document.getElementById('map-controls').style.display = phaseId === 'map' ? 'flex' : 'none';
+
+                if (phaseId !== 'map') {
+                    let targetId = phaseId === 'web' ? 'web-target' : 'outliner-target';
+                    PhaseRegistry.setActive(phaseId);
+                    PhaseRegistry.renderActive(targetId);
+                }
             },
 
-            setPhase(p) {
-                document.getElementById('view-map').className = p === 'map' ? 'h-full w-full block' : 'hidden';
-                document.getElementById('view-web').className = p === 'web' ? 'h-full w-full block' : 'hidden';
-                document.getElementById('tab-map').className = `tab-btn ${p === 'map' ? 'active' : ''}`;
-                document.getElementById('tab-web').className = `tab-btn ${p === 'web' ? 'active' : ''}`;
-                this.render();
+            deselectAll() { MM.state.selectedId = null; this.selectedEdgeId = null; this.hideRadial(); MM.notify(); },
+            selectEdge(id) { this.selectedEdgeId = id; MM.state.selectedId = null; this.hideRadial(); this.renderInspector(MM.state); MM.notify(); },
+
+            showRadial(id, x, y, type='main') {
+                document.querySelectorAll('.radial-wrapper').forEach(e=>e.classList.remove('active'));
+                const m = document.getElementById(`radial-${type}`);
+                if(m) { 
+                    m.classList.add('active'); 
+                    m.style.left = `${x}px`; m.style.top = `${y}px`; 
+                    m.style.transform = `translate(-50%, -50%) scale(${1/MM.state.viewport.scale})`; 
+                    this.radialContextId = id; this.radialPosition = {x,y}; 
+                }
+            },
+            switchRadial(t) { if(this.radialContextId) this.showRadial(this.radialContextId, this.radialPosition.x, this.radialPosition.y, t); },
+            hideRadial() { document.querySelectorAll('.radial-wrapper').forEach(e=>e.classList.remove('active')); this.radialContextId = null; },
+            
+            radialAction(act) {
+                if(!this.radialContextId) return;
+                const id = this.radialContextId;
+                const node = MM.state.nodes.find(n => n.id === id);
+                if(act==='delete') MM.deleteNode(id);
+                if(act==='add_child') { 
+                    const bp = MM.getBlueprint(node.type);
+                    const childType = (bp.allowedChildren && bp.allowedChildren.length > 0) ? bp.allowedChildren[0].type : 'concept';
+                    const childTitle = (bp.allowedChildren && bp.allowedChildren.length > 0) ? bp.allowedChildren[0].label : 'New Node';
+                    const cid = MM.addNode({title: childTitle, type: childType, position:{x:node.position.x+150,y:node.position.y+150}}); 
+                    MM.addEdge(id, cid); 
+                }
+                if(act==='edit') { this.renderInspector(MM.state); document.getElementById('inp-title')?.focus(); }
+                this.hideRadial();
             },
 
-            render() {
-                this.renderSidebar();
-                this.renderVisual();
-                WebEngine.render();
-                document.getElementById('node-count').innerText = `NODES: ${MapEngine.state.nodes.length}`;
+            startLinking(t) { this.activeLinkType=t; this.hideRadial(); document.getElementById('linking-overlay').style.display='flex'; document.getElementById('viewport').style.cursor='crosshair'; },
+            completeLinking(tgt) { if(this.radialContextId && tgt!==this.radialContextId) MM.addEdge(this.radialContextId, tgt, this.activeLinkType); this.cancelLinking(); },
+            cancelLinking() { this.activeLinkType=null; document.getElementById('linking-overlay').style.display='none'; document.getElementById('viewport').style.cursor='grab'; },
+
+            getIcon(type) { 
+                const bp = MM.getBlueprint(type);
+                return bp ? bp.icon : '⚪';
             },
 
-            renderVisual() {
-                const canvas = document.getElementById('visual-canvas');
+            render(state) {
+                this.renderInspector(state);
+                if(this.activePhase === 'map') this.renderMap(state);
+                else {
+                    let targetId = this.activePhase === 'web' ? 'web-target' : 'outliner-target';
+                    PhaseRegistry.renderActive(targetId);
+                }
+            },
+
+            renderMap(state) {
+                const world = document.getElementById('world-layer');
+                const nodeLayer = document.getElementById('node-layer');
                 const svg = document.getElementById('edge-svg');
 
-                // Clear
-                Array.from(document.querySelectorAll('.node')).forEach(n => n.remove());
-                svg.innerHTML = '';
+                world.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
 
                 // Render Edges
-                MapEngine.state.edges.forEach(e => {
-                    const s = MapEngine.state.nodes.find(n => n.id === e.source);
-                    const t = MapEngine.state.nodes.find(n => n.id === e.target);
-                    if (s && t) {
-                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        path.setAttribute("d", `M ${s.position.x} ${s.position.y} L ${t.position.x} ${t.position.y}`);
-                        path.setAttribute("class", `edge-path ${MapEngine.state.selectedId === s.id ? 'active' : ''}`);
-                        svg.appendChild(path);
+                svg.innerHTML = '';
+                state.edges.forEach(e => {
+                    const s = state.nodes.find(n => n.id === e.source);
+                    const t = state.nodes.find(n => n.id === e.target);
+                    if(s && t) {
+                        const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        l.setAttribute("x1", s.position.x); l.setAttribute("y1", s.position.y);
+                        l.setAttribute("x2", t.position.x); l.setAttribute("y2", t.position.y);
+                        l.setAttribute("class", `edge-vis ${this.selectedEdgeId === e.id ? 'selected' : ''}`);
+                        svg.appendChild(l);
+                        const h = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        h.setAttribute("x1", s.position.x); h.setAttribute("y1", s.position.y);
+                        h.setAttribute("x2", t.position.x); h.setAttribute("y2", t.position.y);
+                        h.setAttribute("class", "edge-hit");
+                        h.onclick = (ev) => { ev.stopPropagation(); this.selectEdge(e.id); };
+                        svg.appendChild(h);
                     }
                 });
 
                 // Render Nodes
-                MapEngine.state.nodes.forEach(n => {
-                    const el = document.createElement('div');
-                    el.className = `node ${MapEngine.state.selectedId === n.id ? 'selected' : ''}`;
-                    el.style.left = `${n.position.x}px`; el.style.top = `${n.position.y}px`;
+                Array.from(nodeLayer.children).forEach(el => {
+                    if(el.id.startsWith('radial-')) return;
+                    if(!state.nodes.find(n => n.id === el.dataset.id)) el.remove();
+                });
 
-                    // Icon logic
-                    let icon = '⬜';
-                    if (n.type === 'hero') icon = '🚀';
-                    else if (n.type === 'button') icon = '🖱️';
-                    else if (n.type === 'footer') icon = '🦶';
-                    else if (n.type === 'grid') icon = '▦';
-                    else if (n.type === 'card') icon = '🃏';
-
-                    el.innerHTML = `<div class="node-icon">${icon}</div><div class="node-label">${n.title}</div>`;
-
-                    el.onclick = (e) => {
-                        e.stopPropagation();
-                        if (this.linkingId) {
-                            MapEngine.addEdge(this.linkingId, n.id);
-                            this.linkingId = null;
-                            canvas.style.cursor = 'crosshair';
-                        }
-                        MapEngine.state.selectedId = n.id;
-                        this.render();
-                    };
-                    canvas.appendChild(el);
+                state.nodes.forEach(n => {
+                    let el = nodeLayer.querySelector(`[data-id="${n.id}"]`);
+                    if(!el) {
+                        el = document.createElement('div');
+                        el.className = 'node';
+                        el.dataset.id = n.id;
+                        el.onmousedown = (e) => e.stopPropagation();
+                        el.onclick = (e) => { 
+                            e.stopPropagation(); 
+                            if (this.activeLinkType) { this.completeLinking(n.id); return; }
+                            MM.state.selectedId = n.id;
+                            MM.zoom(0, n.position.x, n.position.y);
+                            this.renderInspector(state); // Update sidebar
+                            this.showRadial(n.id, n.position.x, n.position.y);
+                            MM.notify(); 
+                        };
+                        nodeLayer.appendChild(el);
+                    }
+                    el.style.left = `${n.position.x}px`;
+                    el.style.top = `${n.position.y}px`;
+                    el.classList.toggle('selected', state.selectedId === n.id);
+                    el.innerHTML = `<div class="node-icon">${this.getIcon(n.type)}</div><div class="node-label">${n.title}</div>`;
                 });
             },
 
-            renderSidebar() {
-                const container = document.getElementById('sidebar-content');
-                const node = MapEngine.state.nodes.find(n => n.id === MapEngine.state.selectedId);
-                const badge = document.getElementById('node-type-badge');
-
-                if (!node) {
-                    container.innerHTML = `<div class="py-20 text-center opacity-30 text-xs font-bold uppercase">No Selection</div>`;
-                    badge.classList.add('hidden');
+            renderInspector(state) {
+                const container = document.getElementById('inspector-content');
+                
+                // Edge Inspector
+                if (this.selectedEdgeId) {
+                    const edge = state.edges.find(e => e.id === this.selectedEdgeId);
+                    if(!edge) return;
+                    container.innerHTML = `
+                        <div class="space-y-6 animate-fade-in">
+                            <div class="text-xs font-bold text-orange-600 uppercase tracking-widest mb-4">⚡ Connection</div>
+                            <section>
+                                <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Weight</label>
+                                <input type="number" id="inp-weight" value="${edge.meta?.weight || 1.0}" class="w-full border-b border-slate-200 py-2 font-bold">
+                            </section>
+                            <button onclick="MM.deleteEdge('${edge.id}')" class="w-full py-2 bg-red-50 text-red-600 rounded text-xs font-bold mt-4">Delete Connection</button>
+                        </div>
+                    `;
                     return;
                 }
 
-                badge.classList.remove('hidden');
-                badge.innerText = node.type;
+                // Node Inspector
+                const node = state.nodes.find(n => n.id === state.selectedId);
+                if(!node) {
+                    container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-30 mt-20"><div class="text-4xl mb-2">⦿</div><p class="text-xs font-bold uppercase tracking-widest">Select Element</p></div>`;
+                    return;
+                }
+                
+                // Only re-render inputs if switching nodes
+                if(container.dataset.renderedId === node.id && !this.selectedEdgeId) return;
+                container.dataset.renderedId = node.id;
 
-                // Dynamic Form
                 container.innerHTML = `
-                    <div class="space-y-6 fade-in">
+                    <div class="space-y-6 animate-fade-in">
                         <section>
-                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Title / Header</label>
-                            <input type="text" id="sb-title" value="${node.title}" class="w-full border-b border-slate-200 py-2 font-bold text-lg focus:outline-none focus:border-orange-500 bg-transparent">
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Label</label>
+                            <input type="text" id="inp-title" value="${node.title}" class="w-full border-b border-slate-200 py-2 font-bold text-xl focus:outline-none focus:border-orange-500 bg-transparent transition-colors">
                         </section>
-
                         <section>
-                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type Definition</label>
-                            <select id="sb-type" class="w-full mt-1 bg-slate-50 border border-slate-200 rounded text-xs font-bold p-2 focus:ring-1 focus:ring-orange-500">
-                                <option value="section" ${node.type === 'section' ? 'selected' : ''}>Generic Section</option>
-                                <option value="hero" ${node.type === 'hero' ? 'selected' : ''}>Hero Banner</option>
-                                <option value="grid" ${node.type === 'grid' ? 'selected' : ''}>Feature Grid</option>
-                                <option value="card" ${node.type === 'card' ? 'selected' : ''}>Info Card</option>
-                                <option value="button" ${node.type === 'button' ? 'selected' : ''}>Action Button</option>
-                                <option value="footer" ${node.type === 'footer' ? 'selected' : ''}>Footer</option>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</label>
+                            <select id="inp-type" class="w-full mt-1 bg-white border border-slate-200 text-xs p-2 rounded">
+                                <option value="section" ${node.type==='section'?'selected':''}>Section</option>
+                                <option value="hero" ${node.type==='hero'?'selected':''}>Hero</option>
+                                <option value="button" ${node.type==='button'?'selected':''}>Button</option>
+                                <option value="nav" ${node.type==='nav'?'selected':''}>Navbar</option><option value="widget" ${node.type==='widget'?'selected':''}>Widget</option><option value="profile" ${node.type==='profile'?'selected':''}>Profile</option>
                             </select>
                         </section>
-
                         <section>
-                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Inner Content / Copy</label>
-                            <textarea id="sb-content" class="w-full mt-2 bg-slate-50 p-4 rounded-xl text-sm text-slate-600 min-h-[120px] focus:outline-none border border-transparent focus:bg-white focus:border-slate-200 transition-colors">${node.content}</textarea>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Content</label>
+                            <textarea id="inp-content" class="w-full mt-2 bg-white border border-slate-100 p-4 rounded-xl text-sm min-h-[120px] focus:outline-none focus:border-slate-300 transition-colors">${node.content}</textarea>
                         </section>
-
-                        <div class="grid grid-cols-2 gap-3 pt-4">
-                            <button onclick="UI.linkFrom()" class="border border-slate-200 py-2 rounded text-[10px] font-bold hover:bg-slate-50">☍ CONNECT</button>
-                            <button onclick="MapEngine.deleteNode('${node.id}')" class="border border-red-100 text-red-500 py-2 rounded text-[10px] font-bold hover:bg-red-50">✕ DELETE</button>
-                        </div>
-                    </div>
-                `;
-
-                // Bind Events
-                document.getElementById('sb-title').onchange = (e) => { node.title = e.target.value; this.render(); };
-                document.getElementById('sb-content').onblur = (e) => { node.content = e.target.value; this.render(); };
-                document.getElementById('sb-type').onchange = (e) => { node.type = e.target.value; this.render(); };
-
-                document.getElementById('coord-display').innerText = `POS: ${Math.round(node.position.x)}, ${Math.round(node.position.y)}`;
+                        <button onclick="UI.triggerSense()" class="w-full py-3 bg-slate-900 text-white text-[10px] font-bold rounded-lg shadow-sm hover:bg-slate-800 transition-colors uppercase tracking-widest">✨ AI Expand</button>
+                    </div>`;
+                
+                document.getElementById('inp-title').onchange = (e) => MM.updateNode(node.id, {title: e.target.value});
+                document.getElementById('inp-type').onchange = (e) => MM.updateNode(node.id, {type: e.target.value});
+                document.getElementById('inp-content').onblur = (e) => MM.updateNode(node.id, {content: e.target.value});
             },
 
-            linkFrom() {
-                if (MapEngine.state.selectedId) {
-                    this.linkingId = MapEngine.state.selectedId;
-                    document.getElementById('visual-canvas').style.cursor = 'alias';
-                }
-            }
+            async triggerSense() { if(!MM.state.selectedId) return; const res = await MM.senseIntent("Contextual Expansion"); alert(`AI SUGGESTION:\n${res.content}`); }
         };
 
-        // Init
+        MM.deleteEdge = (id) => {
+            MM.state.edges = MM.state.edges.filter(e => e.id !== id);
+            MM.selectedId = null;
+            UI.selectedEdgeId = null;
+            MM.saveHistory();
+            MM.notify();
+        };
+
         UI.init();
     </script>
 </body>
-
 </html>

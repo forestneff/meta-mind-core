@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meta-Mind | Sandbox v2.3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="meta-mind-core.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        :root { --accent: #ea580c; --bg: #ffffff; --ui-bg: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: #0f172a; height: 100vh; overflow: hidden; display: flex; flex-direction: column; -webkit-tap-highlight-color: transparent; }
+        
+        /* Layout logic */
+        #stage { flex: 1; display: flex; flex-direction: row; overflow: hidden; position: relative; }
+        @media (max-width: 1024px) { #stage { flex-direction: column; } }
+
+        /* Spatial Workspace */
+        #viewport { flex: 1; position: relative; overflow: hidden; background: #fff; cursor: grab; touch-action: none; }
+        #viewport:active { cursor: grabbing; }
+        #canvas-layer { position: absolute; transform-origin: 0 0; will-change: transform; pointer-events: none; }
+        
+        /* Circular Nodes */
+        .node { 
+            position: absolute; width: 64px; height: 64px; 
+            background: white; border: 2px solid #cbd5e1; border-radius: 50%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transform: translate(-50%, -50%); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); pointer-events: auto; cursor: pointer; z-index: 20;
+        }
+        .node:hover { transform: translate(-50%, -50%) scale(1.1); border-color: #94a3b8; }
+        .node.selected { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.15); z-index: 30; transform: translate(-50%, -50%) scale(1.2); }
+        
+        .node-icon { font-size: 20px; line-height: 1; pointer-events: none; }
+        .node-label { 
+            position: absolute; bottom: -20px; 
+            font-size: 9px; font-weight: 800; text-transform: uppercase; text-align: center; 
+            white-space: nowrap; background: rgba(255,255,255,0.8); padding: 2px 6px; 
+            border-radius: 4px; pointer-events: none; color: #475569;
+        }
+
+        /* Edges */
+        .edge-line { stroke: #cbd5e1; stroke-width: 2; fill: none; transition: stroke 0.2s; }
+        .edge-line.active { stroke: var(--accent); }
+
+        /* Radial Menu */
+        .radial-menu {
+            position: absolute; width: 180px; height: 180px; pointer-events: none; z-index: 40;
+            display: none; opacity: 0; transition: opacity 0.2s;
+        }
+        .radial-menu.active { display: block; opacity: 1; }
+        .radial-btn {
+            position: absolute; width: 32px; height: 32px; border-radius: 50%;
+            background: white; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; cursor: pointer; pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.1s;
+        }
+        .radial-btn:hover { background: var(--accent); color: white; border-color: var(--accent); transform: scale(1.15); }
+        
+        /* Radial Positions */
+        .rad-n { top: 0; left: 50%; transform: translate(-50%, 0); }
+        .rad-e { top: 50%; right: 0; transform: translate(0, -50%); }
+        .rad-s { bottom: 0; left: 50%; transform: translate(-50%, 0); }
+        .rad-w { top: 50%; left: 0; transform: translate(0, -50%); }
+
+        /* Inspector Sidebar */
+        #inspector { width: 360px; border-left: 1px solid #e2e8f0; background: var(--ui-bg); display: flex; flex-direction: column; z-index: 50; }
+        @media (max-width: 1024px) { #inspector { width: 100%; height: 50%; border-left: 0; border-top: 1px solid #e2e8f0; } }
+
+        /* Sidebar Tabs */
+        .sb-tab { flex: 1; text-align: center; padding: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; border-bottom: 2px solid transparent; cursor: pointer; }
+        .sb-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: white; }
+        .tab-content { display: none; height: 100%; overflow-y: auto; padding: 1.5rem; }
+        .tab-content.active { display: block; }
+
+        /* Phase Cards */
+        .phase-option { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; background: white; margin-bottom: 8px; }
+        .phase-option:hover { border-color: var(--accent); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .phase-option.active { background: #fff7ed; border-color: var(--accent); }
+
+        /* Floating Controls */
+        .float-controls { position: absolute; bottom: 24px; left: 24px; display: flex; gap: 8px; z-index: 40; }
+        .circle-btn { width: 44px; height: 44px; border-radius: 50%; background: white; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.05); color: #475569; transition: transform 0.1s; }
+        .circle-btn:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="h-14 border-b border-slate-200 px-6 flex items-center justify-between shrink-0 bg-white z-50">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="flex items-center gap-2 group text-decoration-none">
+                <span class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
+                <span class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase group-hover:bg-orange-600 transition-colors">Sandbox 2.3</span>
+            </a>
+        </div>
+        <div class="flex gap-4">
+            <button onclick="MM.autoLayout()" class="text-[10px] font-black text-slate-400 hover:text-orange-600 tracking-widest uppercase">Auto-Layout</button>
+            <div class="h-4 w-px bg-slate-100"></div>
+            <div id="zoom-display" class="text-[10px] font-mono text-slate-400">100%</div>
+        </div>
+    </header>
+
+    <div id="stage">
+        
+        <!-- MAIN VIEWPORT -->
+        <main id="viewport">
+            
+            <!-- Phase 1: Visual Map -->
+            <div id="view-map" class="absolute inset-0">
+                <div id="canvas-layer">
+                    <svg id="svg-edges" class="absolute inset-0 w-[5000px] h-[5000px] -translate-x-[2500px] -translate-y-[2500px] overflow-visible"></svg>
+                    <div id="node-layer"></div>
+                    <!-- Radial Menu -->
+                    <div id="radial-menu" class="radial-menu">
+                        <div class="radial-btn rad-n" onclick="UI.radialAction('add_child')" title="Add Child">✚</div>
+                        <div class="radial-btn rad-e" onclick="UI.radialAction('connect')" title="Connect">☍</div>
+                        <div class="radial-btn rad-s" onclick="UI.radialAction('delete')" title="Delete">✕</div>
+                        <div class="radial-btn rad-w" onclick="UI.radialAction('edit')" title="Edit">✎</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 2: Outliner -->
+            <div id="view-outliner" class="absolute inset-0 bg-white p-8 hidden overflow-y-auto">
+                <div id="outliner-target" class="max-w-3xl mx-auto space-y-2"></div>
+            </div>
+
+            <!-- Phase 3: Web Render -->
+            <div id="view-web" class="absolute inset-0 bg-slate-100 p-8 hidden overflow-y-auto">
+                <div id="web-target" class="max-w-5xl mx-auto space-y-6"></div>
+            </div>
+
+            <!-- Floating Controls -->
+            <div id="map-controls" class="float-controls">
+                <button onclick="MM.zoom(0.1)" class="circle-btn">＋</button>
+                <button onclick="MM.zoom(-0.1)" class="circle-btn">－</button>
+                <button onclick="MM.autoLayout()" class="circle-btn" title="Auto-Layout">☍</button>
+            </div>
+        </main>
+
+        <!-- Tabbed Inspector Drawer -->
+        <aside id="inspector">
+            <!-- Tabs Header -->
+            <div class="flex border-b border-slate-200 bg-white shrink-0">
+                <div onclick="UI.setSidebarTab('node')" id="tab-btn-node" class="sb-tab active">Node Details</div>
+                <div onclick="UI.setSidebarTab('map')" id="tab-btn-map" class="sb-tab">Map Settings</div>
+            </div>
+            
+            <!-- Tab 1: Node Details -->
+            <div id="tab-node" class="tab-content active">
+                <div id="node-editor-content">
+                    <div class="h-full flex flex-col items-center justify-center opacity-30 mt-20">
+                        <div class="text-4xl mb-2">⦿</div>
+                        <p class="text-xs font-bold uppercase tracking-widest">Select Node</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Map & Phase Settings -->
+            <div id="tab-map" class="tab-content">
+                <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Phase Engine</h3>
+                
+                <div onclick="UI.setPhase('map')" id="phase-opt-map" class="phase-option active">
+                    <div class="text-xl">☍</div>
+                    <div>
+                        <div class="text-xs font-bold">Spatial Map</div>
+                        <div class="text-[10px] text-slate-400">Radial node canvas</div>
+                    </div>
+                </div>
+
+                <div onclick="UI.setPhase('outliner')" id="phase-opt-outliner" class="phase-option">
+                    <div class="text-xl">≡</div>
+                    <div>
+                        <div class="text-xs font-bold">Textual Outline</div>
+                        <div class="text-[10px] text-slate-400">Hierarchical list view</div>
+                    </div>
+                </div>
+
+                <div onclick="UI.setPhase('web')" id="phase-opt-web" class="phase-option">
+                    <div class="text-xl">🌐</div>
+                    <div>
+                        <div class="text-xs font-bold">Web Architect</div>
+                        <div class="text-[10px] text-slate-400">HTML widget render</div>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-8 border-t border-slate-100">
+                    <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Actions</h3>
+                    <button onclick="MM.autoLayout()" class="w-full py-3 border border-slate-200 rounded-lg text-xs font-bold hover:bg-white mb-2">Auto-Layout Map</button>
+                    <button onclick="MM.exportJSON()" class="w-full py-3 border border-slate-200 rounded-lg text-xs font-bold hover:bg-white">Export JSON</button>
+                </div>
+            </div>
+
+            <!-- Footer Stats -->
+            <div class="p-4 bg-slate-50 border-t border-slate-200 shrink-0 mt-auto">
+                <div class="flex justify-between text-[8px] font-mono text-slate-400 uppercase">
+                    <span>Meta-Mind Core</span>
+                    <span id="node-stats">Nodes: 0</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        /**
+         * SANDBOX UI CONTROLLER (V2.3)
+         * - Circular Nodes with Auto-Icons
+         * - Tabbed Sidebar
+         * - Phase Engine in Sidebar
+         */
+        
+        const UI = {
+            isPanning: false,
+            lastMouse: { x: 0, y: 0 },
+            activePhase: 'map',
+            activeSidebarTab: 'node',
+
+            init() {
+                const vp = document.getElementById('viewport');
+                
+                // Pan Logic
+                vp.onmousedown = (e) => { 
+                    if(this.activePhase === 'map' && e.target.id === 'view-map') { 
+                        this.isPanning = true; 
+                        this.lastMouse = {x: e.clientX, y: e.clientY};
+                        this.hideRadial(); 
+                    }
+                };
+                window.onmousemove = (e) => {
+                    if(this.isPanning) {
+                        const dx = e.clientX - this.lastMouse.x;
+                        const dy = e.clientY - this.lastMouse.y;
+                        MM.pan(dx, dy);
+                        this.lastMouse = {x: e.clientX, y: e.clientY};
+                    }
+                };
+                window.onmouseup = () => this.isPanning = false;
+
+                // Zoom Logic
+                vp.onwheel = (e) => {
+                    if(this.activePhase === 'map') {
+                        e.preventDefault();
+                        MM.zoom(e.deltaY > 0 ? -0.05 : 0.05, e.clientX, e.clientY);
+                        this.hideRadial();
+                    }
+                };
+
+                // Add Node (Double Click)
+                vp.ondblclick = (e) => {
+                    if(this.activePhase === 'map') {
+                        const pos = MM.screenToWorld(e.clientX, e.clientY);
+                        MM.addNode({ position: pos, title: "New Concept" });
+                    }
+                };
+
+                // Subscribe to Kernel
+                MM.subscribe(state => this.render(state));
+
+                // Initial Data
+                this.loadDemoData();
+            },
+
+            loadDemoData() {
+                const root = MM.addNode({ title: "Core System", position: {x: 0, y: 0}, type: "section" });
+                const c1 = MM.addNode({ title: "User Database", position: {x: -200, y: 150}, type: "data" });
+                const c2 = MM.addNode({ title: "API Gateway", position: {x: 200, y: 150}, type: "logic" });
+                MM.addEdge(root, c1);
+                MM.addEdge(root, c2);
+                setTimeout(() => MM.autoLayout(), 100);
+            },
+
+            // --- Phase & Tabs ---
+            setSidebarTab(tab) {
+                this.activeSidebarTab = tab;
+                document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+                document.getElementById(`tab-btn-${tab}`).classList.add('active');
+                
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(`tab-${tab}`).classList.add('active');
+            },
+
+            setPhase(phase) {
+                this.activePhase = phase;
+                
+                // Update Sidebar Selection
+                document.querySelectorAll('.phase-option').forEach(o => o.classList.remove('active'));
+                const opt = document.getElementById(`phase-opt-${phase}`);
+                if(opt) opt.classList.add('active');
+
+                // Update Viewport
+                document.getElementById('view-map').className = phase === 'map' ? 'absolute inset-0 block' : 'hidden';
+                document.getElementById('view-outliner').className = phase === 'outliner' ? 'absolute inset-0 bg-white p-8 block overflow-y-auto' : 'hidden';
+                document.getElementById('view-web').className = phase === 'web' ? 'absolute inset-0 bg-slate-100 p-8 block overflow-y-auto' : 'hidden';
+                
+                document.getElementById('map-controls').style.display = phase === 'map' ? 'flex' : 'none';
+                
+                MM.notify(); // Re-render
+            },
+
+            // --- Radial Menu ---
+            showRadial(nodeId, x, y) {
+                const menu = document.getElementById('radial-menu');
+                menu.classList.add('active');
+                menu.style.left = `${x}px`;
+                menu.style.top = `${y}px`;
+                // Inverse scale to keep buttons constant size
+                menu.style.transform = `translate(-50%, -50%) scale(${1 / MM.state.viewport.scale})`;
+                this.radialContextId = nodeId;
+            },
+
+            hideRadial() {
+                document.getElementById('radial-menu').classList.remove('active');
+                this.radialContextId = null;
+            },
+
+            radialAction(action) {
+                if(!this.radialContextId) return;
+                const id = this.radialContextId;
+                const node = MM.state.nodes.find(n => n.id === id);
+
+                if(action === 'delete') MM.deleteNode(id);
+                else if (action === 'add_child') {
+                    const childId = MM.addNode({ 
+                        title: "Child Node", 
+                        position: { x: node.position.x, y: node.position.y + 150 } 
+                    });
+                    MM.addEdge(id, childId);
+                } else if (action === 'edit') {
+                    this.setSidebarTab('node');
+                    document.getElementById('inp-title')?.focus();
+                } else if (action === 'connect') {
+                    alert("Connect Stub: Click target node");
+                }
+                this.hideRadial();
+            },
+
+            // --- Auto-Icon Logic ---
+            getIconForNode(title, type) {
+                const lower = title.toLowerCase();
+                if (lower.includes('user') || lower.includes('auth')) return '👤';
+                if (lower.includes('data') || lower.includes('db')) return '🗄️';
+                if (lower.includes('api') || lower.includes('connect')) return '🔌';
+                if (lower.includes('web') || lower.includes('site')) return '🌐';
+                if (lower.includes('logic') || lower.includes('func')) return '⚙️';
+                if (lower.includes('core') || lower.includes('root')) return '🧠';
+                
+                // Fallback by type
+                if (type === 'section') return '📑';
+                if (type === 'widget') return '🧩';
+                return '⚪';
+            },
+
+            // --- Render Loop ---
+            render(state) {
+                document.getElementById('zoom-display').innerText = Math.round(state.viewport.scale * 100) + "%";
+                document.getElementById('node-stats').innerText = `Nodes: ${state.nodes.length}`;
+                
+                this.renderInspector(state);
+
+                if(this.activePhase === 'map') this.renderMap(state);
+                if(this.activePhase === 'outliner') this.renderOutliner(state);
+                if(this.activePhase === 'web') this.renderWeb(state);
+            },
+
+            renderMap(state) {
+                const canvas = document.getElementById('canvas-layer');
+                const nodeLayer = document.getElementById('node-layer');
+                const svg = document.getElementById('svg-edges');
+
+                canvas.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+
+                // Edges
+                svg.innerHTML = '';
+                state.edges.forEach(e => {
+                    const s = state.nodes.find(n => n.id === e.source);
+                    const t = state.nodes.find(n => n.id === e.target);
+                    if(s && t) {
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        line.setAttribute("x1", s.position.x); line.setAttribute("y1", s.position.y);
+                        line.setAttribute("x2", t.position.x); line.setAttribute("y2", t.position.y);
+                        line.setAttribute("class", `edge-line ${state.selectedId === s.id || state.selectedId === t.id ? 'active' : ''}`);
+                        svg.appendChild(line);
+                    }
+                });
+
+                // Nodes
+                Array.from(nodeLayer.children).forEach(el => {
+                    if(el.id === 'radial-menu') return;
+                    if(!state.nodes.find(n => n.id === el.dataset.id)) el.remove();
+                });
+
+                state.nodes.forEach(n => {
+                    let el = nodeLayer.querySelector(`[data-id="${n.id}"]`);
+                    if(!el) {
+                        el = document.createElement('div');
+                        el.className = 'node';
+                        el.dataset.id = n.id;
+                        el.onmousedown = (e) => e.stopPropagation();
+                        el.onclick = (e) => { 
+                            e.stopPropagation(); 
+                            MM.state.selectedId = n.id;
+                            // Zoom focus logic
+                            MM.zoom(0, n.position.x, n.position.y); // Center slightly
+                            this.setSidebarTab('node');
+                            this.showRadial(n.id, n.position.x, n.position.y);
+                            MM.notify(); 
+                        };
+                        nodeLayer.appendChild(el);
+                    }
+                    el.style.left = `${n.position.x}px`;
+                    el.style.top = `${n.position.y}px`;
+                    el.classList.toggle('selected', state.selectedId === n.id);
+                    
+                    const icon = this.getIconForNode(n.title, n.type);
+                    el.innerHTML = `<div class="node-icon">${icon}</div><div class="node-label">${n.title}</div>`;
+                });
+            },
+
+            renderOutliner(state) {
+                const target = document.getElementById('outliner-target');
+                target.innerHTML = state.nodes.map(n => `
+                    <div class="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer flex items-center gap-3 ${state.selectedId === n.id ? 'bg-orange-50' : ''}" onclick="MM.state.selectedId='${n.id}'; UI.setSidebarTab('node'); MM.notify()">
+                        <span class="text-xl">${this.getIconForNode(n.title, n.type)}</span>
+                        <span class="text-sm font-bold">${n.title}</span>
+                    </div>
+                `).join('');
+            },
+
+            renderWeb(state) {
+                const target = document.getElementById('web-target');
+                target.innerHTML = state.nodes.map(n => `
+                    <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 hover:border-orange-300 transition-all cursor-pointer" onclick="MM.state.selectedId='${n.id}'; UI.setSidebarTab('node'); MM.notify()">
+                        <div class="text-3xl mb-2">${this.getIconForNode(n.title, n.type)}</div>
+                        <h2 class="text-xl font-black mb-2">${n.title}</h2>
+                        <p class="text-slate-500 text-sm leading-relaxed">${n.content || 'No content specified.'}</p>
+                    </div>
+                `).join('');
+            },
+
+            renderInspector(state) {
+                const node = state.nodes.find(n => n.id === state.selectedId);
+                const container = document.getElementById('node-editor-content');
+                
+                if(!node) {
+                    if(!container.querySelector('.opacity-30')) {
+                        container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-30 mt-20"><div class="text-4xl mb-2">⦿</div><p class="text-xs font-bold uppercase tracking-widest">Select Node</p></div>`;
+                    }
+                    return;
+                }
+
+                if(container.dataset.renderedId === node.id) return;
+                container.dataset.renderedId = node.id;
+
+                container.innerHTML = `
+                    <div class="space-y-6 animate-fade-in">
+                        <section>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Label</label>
+                            <input type="text" id="inp-title" value="${node.title}" class="w-full border-b border-slate-200 py-2 font-bold text-xl focus:outline-none focus:border-orange-500 bg-transparent transition-colors">
+                        </section>
+                        <section>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</label>
+                            <select id="inp-type" class="w-full mt-1 bg-white border border-slate-200 text-xs p-2 rounded">
+                                <option value="section" ${node.type==='section'?'selected':''}>Section</option>
+                                <option value="widget" ${node.type==='widget'?'selected':''}>Widget</option>
+                                <option value="data" ${node.type==='data'?'selected':''}>Data Source</option>
+                                <option value="logic" ${node.type==='logic'?'selected':''}>Logic / API</option>
+                            </select>
+                        </section>
+                        <section>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Content</label>
+                            <textarea id="inp-content" class="w-full mt-2 bg-white border border-slate-100 p-4 rounded-xl text-sm min-h-[120px] focus:outline-none focus:border-slate-300 transition-colors">${node.content}</textarea>
+                        </section>
+                        <button onclick="UI.triggerSense()" class="w-full py-3 bg-slate-900 text-white text-[10px] font-bold rounded-lg shadow-sm hover:bg-slate-800 transition-colors uppercase tracking-widest">
+                            ✨ AI Expand
+                        </button>
+                    </div>
+                `;
+
+                document.getElementById('inp-title').onchange = (e) => MM.updateNode(node.id, {title: e.target.value});
+                document.getElementById('inp-type').onchange = (e) => MM.updateNode(node.id, {type: e.target.value});
+                document.getElementById('inp-content').onblur = (e) => MM.updateNode(node.id, {content: e.target.value});
+            },
+
+            async triggerSense() {
+                if(!MM.state.selectedId) return;
+                const res = await MM.senseIntent("Contextual Expansion");
+                alert(`AI SUGGESTION:\n${res.content}`);
+            }
+        };
+
+        // Boot
+        UI.init();
+    </script>
+</body>
+</html>

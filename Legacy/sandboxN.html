@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meta-Mind | Universal Sandbox v2.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Import the Kernel Library -->
+    <script src="meta-mind-core.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --accent: #ea580c;
+            --bg: #ffffff;
+            --ui-bg: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: #0f172a;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Layout logic */
+        #stage {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+        }
+
+        @media (max-width: 1024px) {
+            #stage {
+                flex-direction: column;
+            }
+        }
+
+        /* Spatial Workspace */
+        #viewport {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #fff;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        #viewport:active {
+            cursor: grabbing;
+        }
+
+        #canvas-layer {
+            position: absolute;
+            transform-origin: 0 0;
+            will-change: transform;
+            pointer-events: none;
+        }
+
+        /* Nodes */
+        .node {
+            position: absolute;
+            width: 120px;
+            min-height: 80px;
+            padding: 12px;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            pointer-events: auto;
+            transform: translate(-50%, -50%);
+            transition: box-shadow 0.2s, border-color 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .node.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.1);
+        }
+
+        .node-title {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #0f172a;
+        }
+
+        .node-type {
+            font-size: 8px;
+            font-weight: 600;
+            color: #94a3b8;
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            align-self: flex-start;
+        }
+
+        /* Edges */
+        .edge-line {
+            stroke: #cbd5e1;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* Inspector / Sidebar */
+        #inspector {
+            width: 360px;
+            border-left: 1px solid #e2e8f0;
+            background: var(--ui-bg);
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+        }
+
+        @media (max-width: 1024px) {
+            #inspector {
+                width: 100%;
+                height: 45%;
+                border-left: 0;
+                border-top: 1px solid #e2e8f0;
+            }
+        }
+
+        /* Controls */
+        .float-controls {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            display: flex;
+            gap: 8px;
+            z-index: 40;
+        }
+
+        .circle-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: white;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            color: #475569;
+            transition: transform 0.1s;
+        }
+
+        .circle-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header class="h-14 border-b border-slate-200 px-6 flex items-center justify-between shrink-0 bg-white z-50">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="font-black text-xl tracking-tighter">MM</a>
+            <span
+                class="text-[9px] font-bold bg-orange-600 text-white px-2 py-0.5 rounded tracking-widest uppercase">Kernel
+                v2.1</span>
+        </div>
+        <div class="flex gap-4">
+            <button onclick="MM.autoLayout()"
+                class="text-[10px] font-black text-slate-400 hover:text-orange-600 tracking-widest uppercase">Auto-Layout</button>
+            <div class="h-4 w-px bg-slate-100"></div>
+            <div id="zoom-display" class="text-[10px] font-mono text-slate-400">100%</div>
+        </div>
+    </header>
+
+    <div id="stage">
+        <!-- Visual Workspace -->
+        <main id="viewport">
+            <div id="canvas-layer">
+                <svg id="svg-edges"
+                    class="absolute inset-0 w-[5000px] h-[5000px] -translate-x-[2500px] -translate-y-[2500px] overflow-visible"></svg>
+                <div id="node-layer"></div>
+            </div>
+
+            <div class="float-controls">
+                <button onclick="MM.zoom(0.1)" class="circle-btn">＋</button>
+                <button onclick="MM.zoom(-0.1)" class="circle-btn">－</button>
+                <button onclick="MM.autoLayout()" class="circle-btn" title="Auto-Layout">☍</button>
+            </div>
+        </main>
+
+        <!-- Inspector Drawer -->
+        <aside id="inspector">
+            <div class="p-6 border-b border-slate-200 bg-white shrink-0">
+                <h3 class="font-bold text-sm tracking-tight">Active Intelligence</h3>
+                <p id="inspector-status" class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                    Ready</p>
+            </div>
+
+            <div id="inspector-content" class="flex-grow p-6 space-y-6 overflow-y-auto">
+                <!-- Injected Node Properties -->
+                <div class="h-full flex flex-col items-center justify-center opacity-30">
+                    <div class="text-4xl mb-2">⦿</div>
+                    <p class="text-xs font-bold uppercase tracking-widest">Select Node</p>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-200 shrink-0">
+                <button onclick="UI.triggerSense()"
+                    class="w-full py-3 bg-slate-900 text-white text-[10px] font-bold rounded-lg shadow-sm hover:bg-slate-800 transition-colors mb-2 uppercase tracking-widest">
+                    ✨ Generate AI Sense
+                </button>
+                <div class="flex justify-between text-[8px] font-mono text-slate-400 uppercase">
+                    <span>Meta-Mind Core</span>
+                    <span id="node-stats">Nodes: 0</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        /**
+         * SANDBOX UI CONTROLLER
+         * Bridges the DOM with the Meta-Mind Core Kernel.
+         */
+
+        const UI = {
+            isPanning: false,
+            lastMouse: { x: 0, y: 0 },
+
+            init() {
+                const vp = document.getElementById('viewport');
+
+                // --- Interaction Handlers ---
+
+                // Pan Logic
+                vp.onmousedown = (e) => {
+                    if (e.target.id === 'viewport') {
+                        this.isPanning = true;
+                        this.lastMouse = { x: e.clientX, y: e.clientY };
+                    }
+                };
+                window.onmousemove = (e) => {
+                    if (this.isPanning) {
+                        const dx = e.clientX - this.lastMouse.x;
+                        const dy = e.clientY - this.lastMouse.y;
+                        MM.pan(dx, dy);
+                        this.lastMouse = { x: e.clientX, y: e.clientY };
+                    }
+                };
+                window.onmouseup = () => this.isPanning = false;
+
+                // Zoom Logic
+                vp.onwheel = (e) => {
+                    e.preventDefault();
+                    MM.zoom(e.deltaY > 0 ? -0.05 : 0.05, e.clientX, e.clientY);
+                };
+
+                // Add Node (Double Click)
+                vp.ondblclick = (e) => {
+                    const pos = MM.screenToWorld(e.clientX, e.clientY);
+                    MM.addNode({ position: pos, title: "New Module" });
+                };
+
+                // Subscribe to Kernel Updates
+                MM.subscribe(state => this.render(state));
+
+                // Initialize Dummy Data
+                this.loadDemoData();
+            },
+
+            loadDemoData() {
+                const root = MM.addNode({ title: "Project Root", position: { x: 0, y: 0 }, type: "section" });
+                const c1 = MM.addNode({ title: "Module A", position: { x: -200, y: 150 }, type: "widget" });
+                const c2 = MM.addNode({ title: "Module B", position: { x: 200, y: 150 }, type: "widget" });
+                MM.addEdge(root, c1);
+                MM.addEdge(root, c2);
+                setTimeout(() => MM.autoLayout(), 100);
+            },
+
+            render(state) {
+                const canvas = document.getElementById('canvas-layer');
+                const nodeLayer = document.getElementById('node-layer');
+                const svg = document.getElementById('svg-edges');
+
+                // Apply Viewport Transform
+                canvas.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+                document.getElementById('zoom-display').innerText = Math.round(state.viewport.scale * 100) + "%";
+                document.getElementById('node-stats').innerText = `Nodes: ${state.nodes.length}`;
+
+                // Render Edges
+                svg.innerHTML = '';
+                state.edges.forEach(e => {
+                    const s = state.nodes.find(n => n.id === e.source);
+                    const t = state.nodes.find(n => n.id === e.target);
+                    if (s && t) {
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        // Curved path for elegance
+                        const d = `M ${s.position.x} ${s.position.y} C ${s.position.x} ${s.position.y + 50}, ${t.position.x} ${t.position.y - 50}, ${t.position.x} ${t.position.y}`;
+                        line.setAttribute("d", d);
+                        line.setAttribute("class", "edge-line");
+                        svg.appendChild(line);
+                    }
+                });
+
+                // Render Nodes (Diffing)
+                Array.from(nodeLayer.children).forEach(el => {
+                    if (!state.nodes.find(n => n.id === el.dataset.id)) el.remove();
+                });
+
+                state.nodes.forEach(n => {
+                    let el = nodeLayer.querySelector(`[data-id="${n.id}"]`);
+                    if (!el) {
+                        el = document.createElement('div');
+                        el.className = 'node';
+                        el.dataset.id = n.id;
+                        el.onmousedown = (e) => e.stopPropagation(); // Prevent panning
+                        el.onclick = (e) => { e.stopPropagation(); MM.state.selectedId = n.id; MM.notify(); };
+                        nodeLayer.appendChild(el);
+                    }
+                    el.style.left = `${n.position.x}px`;
+                    el.style.top = `${n.position.y}px`;
+                    el.classList.toggle('selected', state.selectedId === n.id);
+
+                    // Inner Content
+                    el.innerHTML = `
+                        <div class="node-type">${n.type}</div>
+                        <div class="node-title">${n.title}</div>
+                    `;
+                });
+
+                this.renderInspector(state);
+            },
+
+            renderInspector(state) {
+                const node = state.nodes.find(n => n.id === state.selectedId);
+                const container = document.getElementById('inspector-content');
+
+                if (!node) {
+                    if (container.querySelector('.opacity-30')) return; // Don't re-render empty state constantly
+                    container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-30"><div class="text-4xl mb-2">⦿</div><p class="text-xs font-bold uppercase tracking-widest">Select Node</p></div>`;
+                    return;
+                }
+
+                // Check if already rendered to prevent input focus loss
+                if (container.dataset.renderedId === node.id) return;
+                container.dataset.renderedId = node.id;
+
+                container.innerHTML = `
+                    <div class="space-y-6">
+                        <section>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Label</label>
+                            <input type="text" id="inp-title" value="${node.title}" class="w-full border-b border-slate-200 py-2 font-bold text-xl focus:outline-none focus:border-orange-500 bg-transparent transition-colors">
+                        </section>
+                        <section>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Content</label>
+                            <textarea id="inp-content" class="w-full mt-2 bg-white border border-slate-100 p-4 rounded-xl text-sm min-h-[120px] focus:outline-none focus:border-slate-300 transition-colors">${node.content}</textarea>
+                        </section>
+                        <section class="grid grid-cols-2 gap-3">
+                            <button onclick="UI.addChild('${node.id}')" class="py-2 border border-slate-200 rounded text-[10px] font-bold hover:bg-slate-50 uppercase">＋ Add Child</button>
+                            <button onclick="MM.deleteNode('${node.id}')" class="py-2 border border-red-100 text-red-500 rounded text-[10px] font-bold hover:bg-red-50 uppercase">✕ Delete</button>
+                        </section>
+                    </div>
+                `;
+
+                // Attach stable listeners
+                document.getElementById('inp-title').addEventListener('change', (e) => MM.updateNode(node.id, { title: e.target.value }));
+                document.getElementById('inp-content').addEventListener('blur', (e) => MM.updateNode(node.id, { content: e.target.value }));
+            },
+
+            addChild(parentId) {
+                const parent = MM.state.nodes.find(n => n.id === parentId);
+                const id = MM.addNode({
+                    title: "Sub-Module",
+                    position: { x: parent.position.x, y: parent.position.y + 150 }
+                });
+                MM.addEdge(parentId, id);
+            },
+
+            async triggerSense() {
+                if (!MM.state.selectedId) return alert("Select a node first.");
+                const res = await MM.senseIntent("Analyze node context");
+                alert(`AI SUGGESTION:\n${res.content}`);
+            }
+        };
+
+        // Boot
+        UI.init();
+    </script>
+</body>
+
+</html>

@@ -75,29 +75,31 @@
 </head>
 
 <body class="flex flex-col min-h-screen">
-<!-- Navigation -->
-<nav class="h-20 flex items-center justify-between px-8 md:px-16 max-w-7xl mx-auto">
-    <div class="flex items-center gap-3">
-        <span class="text-2xl font-black tracking-tighter text-slate-900">META-MIND</span>
-        <span
-            class="px-2 py-0.5 rounded bg-slate-900 text-[10px] font-bold text-white tracking-widest uppercase">Root</span>
-    </div>
-    <div class="hidden md:flex gap-8 text-xs font-bold uppercase tracking-widest text-slate-500">
-        <a href="https://github.com/forestneff/meta-mind-core"
-            class="hover:text-orange-600 transition-colors">GitHub</a>
-    </div>
-</nav>
-<!-- Hero Section -->
-<main class="max-w-7xl mx-auto px-8 md:px-16 py-20 text-center">
-    <div class="fade-in" style="animation-delay: 0.1s;">
-        <h1 class="text-5xl md:text-8xl font-black tracking-tighter text-slate-900 mb-6">
-            Architecture of <span class="text-orange-600 text-glow">Thought</span>
-        </h1>
-        <p class="text-lg md:text-2xl text-slate-500 max-w-3xl mx-auto leading-relaxed mb-12">
-            An AI-native federated mapstate platform designed for ethical co-creation,
-            spatial intelligence, and persistent digital evolution.
-        </p>
-    </div>
+
+    <!-- Global Hero Section -->
+    <header class="p-8 md:p-20 text-center md:text-left max-w-7xl mx-auto w-full">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-8">
+            <div class="fade-in" style="animation-delay: 0.1s;">
+                <span
+                    class="px-3 py-1 rounded bg-slate-900 text-[10px] font-black text-white tracking-[0.2em] uppercase">Meta-Mind
+                    Framework</span>
+                <h1 class="text-5xl md:text-8xl font-black tracking-tighter mt-6 mb-4">
+                    THE <span class="text-orange-600 text-glow">KERNEL</span>
+                </h1>
+                <p class="text-slate-400 text-lg md:text-xl max-w-2xl leading-relaxed">
+                    A modular webkit for generating, rendering, and sensing structured mapstates across 2D, 3D, and
+                    textual phases.
+                </p>
+            </div>
+            <div class="flex gap-4 justify-center md:justify-end fade-in" style="animation-delay: 0.2s;">
+                <a href="https://github.com/forestneff/meta-mind-core"
+                    class="px-6 py-3 border border-slate-200 rounded-full text-[10px] font-black tracking-widest hover:bg-slate-50 transition-colors uppercase">Repo</a>
+                <a href="Meta-Mind_Root.html"
+                    class="px-6 py-3 bg-slate-900 text-white rounded-full text-[10px] font-black tracking-widest hover:bg-orange-600 transition-all uppercase shadow-lg shadow-slate-200">Vision</a>
+            </div>
+        </div>
+    </header>
+
     <!-- Production Sandbox Gallery -->
     <main class="flex-grow p-6 md:p-20 max-w-7xl mx-auto w-full">
         <h2 class="text-[11px] font-black uppercase tracking-[0.4em] text-slate-300 mb-10 px-2">Published Toolsets</h2>
@@ -118,12 +120,12 @@
                         →</span>
                     <span
                         class="px-2 py-0.5 rounded-md bg-orange-50 text-[8px] font-bold text-orange-600 uppercase">Build
-                        2.6.0</span>
+                        2.1.0</span>
                 </div>
             </a>
 
             <!-- 2. Strategic Intelligence Dashboard -->
-            <a href="overview.html"
+            <a href="intelligence.html"
                 class="card-link bg-white p-10 rounded-[2.5rem] flex flex-col justify-between h-72 group">
                 <div>
                     <div class="text-3xl mb-4">⌬</div>
@@ -140,7 +142,7 @@
             </a>
 
             <!-- 3. Technical Library Wiki -->
-            <a href="wiki.html"
+            <a href="Meta-Mind_ArchitectureHub.html"
                 class="card-link bg-white p-10 rounded-[2.5rem] flex flex-col justify-between h-72 group">
                 <div>
                     <div class="text-3xl mb-4">📚</div>
@@ -189,7 +191,7 @@
                 <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">System Online</span>
             </div>
             <div class="h-4 w-px bg-slate-200"></div>
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Core: v2.6.0</span>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Core: v2.1.0</span>
         </div>
     </footer>
 

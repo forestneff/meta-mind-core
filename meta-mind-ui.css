@@ -1,0 +1,333 @@
+/* * META-MIND UI COMPONENTS v1.0
+ * Specific styles for the Sandbox interface.
+ */
+
+/* --- VIEWPORT LAYOUT --- */
+#stage {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    position: relative;
+    height: calc(100vh - 3.5rem);
+}
+
+@media (max-width: 1024px) {
+    #stage {
+        flex-direction: column;
+    }
+}
+
+#viewport {
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+    cursor: grab;
+    touch-action: none;
+    outline: none;
+    flex: 1;
+}
+
+#viewport:active {
+    cursor: grabbing;
+}
+
+/* --- UNIFIED WORLD LAYER --- */
+#world-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+}
+
+/* --- NODES --- */
+.node {
+    position: absolute;
+    width: 72px;
+    height: 72px;
+    background: white;
+    border: 2px solid #cbd5e1;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: translate(-50%, -50%);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    pointer-events: auto;
+    cursor: pointer;
+    z-index: 20;
+}
+
+.node:hover {
+    transform: translate(-50%, -50%) scale(1.1);
+    border-color: #64748b;
+}
+
+.node.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 6px rgba(234, 88, 12, 0.15);
+    z-index: 30;
+    transform: translate(-50%, -50%) scale(1.15);
+}
+
+.node-icon {
+    font-size: 24px;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.node-label {
+    position: absolute;
+    bottom: -28px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    text-align: center;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    color: #475569;
+    border: 1px solid var(--border);
+}
+
+/* --- EDGES --- */
+#edge-svg {
+    position: absolute;
+    top: -5000px;
+    left: -5000px;
+    width: 10000px;
+    height: 10000px;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.edge-vis {
+    stroke: #94a3b8;
+    stroke-width: 2;
+    fill: none;
+    transition: stroke 0.2s;
+    pointer-events: none;
+}
+
+.edge-vis.selected {
+    stroke: var(--accent);
+    stroke-width: 4;
+}
+
+.edge-hit {
+    stroke: transparent;
+    stroke-width: 25px;
+    fill: none;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+/* --- RADIAL MENU --- */
+.radial-wrapper {
+    position: absolute;
+    width: 240px;
+    height: 240px;
+    pointer-events: none;
+    z-index: 40;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.15s ease-out;
+}
+
+.radial-wrapper.active {
+    display: block;
+    opacity: 1;
+}
+
+.radial-btn {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.1s;
+}
+
+.radial-btn:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    transform: scale(1.15);
+}
+
+/* Radial Positions */
+.rad-n {
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, 0);
+}
+
+.rad-e {
+    top: 50%;
+    right: 0;
+    transform: translate(0, -50%);
+}
+
+.rad-s {
+    bottom: 0;
+    left: 50%;
+    transform: translate(-50%, 0);
+}
+
+.rad-w {
+    top: 50%;
+    left: 0;
+    transform: translate(0, -50%);
+}
+
+.rad-center {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 56px;
+    height: 56px;
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--accent);
+    border: 2px solid var(--accent);
+    background: #fff7ed;
+}
+
+/* --- SIDEBAR --- */
+#inspector {
+    width: 360px;
+    border-left: 1px solid var(--border);
+    background: var(--bg-alt);
+    display: flex;
+    flex-direction: column;
+    z-index: 50;
+}
+
+@media (max-width: 1024px) {
+    #inspector {
+        width: 100%;
+        height: 50%;
+        border-left: 0;
+        border-top: 1px solid var(--border);
+    }
+}
+
+.sb-tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+}
+
+.sb-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: white;
+}
+
+.phase-option {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: white;
+    margin-bottom: 8px;
+}
+
+.phase-option:hover {
+    border-color: var(--accent);
+}
+
+.phase-option.active {
+    background: #fff7ed;
+    border-color: var(--accent);
+}
+
+/* --- OVERLAYS --- */
+#linking-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+#linking-overlay.active {
+    display: flex;
+}
+
+.linking-badge {
+    background: var(--accent);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 99px;
+    font-weight: 800;
+    font-size: 12px;
+    text-transform: uppercase;
+    box-shadow: 0 10px 20px rgba(234, 88, 12, 0.3);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+#tutorial-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.tut-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 1.5rem;
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+}

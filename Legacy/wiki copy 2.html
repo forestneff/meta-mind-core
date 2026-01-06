@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta-Mind | Technical Documentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --accent: #ea580c;
+            --bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: #0f172a;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Documentation Styles */
+        .doc-section {
+            margin-bottom: 4rem;
+            scroll-margin-top: 6rem;
+        }
+
+        .code-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            color: #334155;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 0.5rem 1rem;
+            border-left: 2px solid transparent;
+            color: #64748b;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            color: var(--accent);
+            border-left-color: #cbd5e1;
+        }
+
+        .nav-link.active {
+            color: var(--accent);
+            border-left-color: var(--accent);
+            font-weight: 600;
+        }
+
+        .api-tag {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 0.5rem;
+        }
+
+        .tag-core {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .tag-ui {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col md:flex-row min-h-screen">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-full md:w-64 bg-white border-r border-slate-200 fixed h-full overflow-y-auto hidden md:block z-50">
+        <div class="p-6 mb-4">
+            <a href="index.html" class="flex items-center gap-2 group">
+                <span
+                    class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
+                <span
+                    class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase group-hover:bg-orange-600 transition-colors">Docs
+                    v2.0</span>
+            </a>
+        </div>
+        <nav class="px-4 space-y-1">
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-4">Architecture
+            </div>
+            <a href="#intro" class="nav-link active">Kernel Overview</a>
+            <a href="#schema" class="nav-link">Data Schema (v3.0)</a>
+            <a href="#state" class="nav-link">State Management</a>
+
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-6">API Reference
+            </div>
+            <a href="#api-nodes" class="nav-link">Nodes & Edges</a>
+            <a href="#api-spatial" class="nav-link">Spatial Engine</a>
+            <a href="#api-layout" class="nav-link">Auto-Layout</a>
+
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-6">Phase Engines
+            </div>
+            <a href="#phase-web" class="nav-link">Web Architect</a>
+            <a href="#phase-text" class="nav-link">Textual Outliner</a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-grow md:ml-64 p-8 md:p-16 max-w-5xl mx-auto w-full">
+
+        <!-- Mobile Header -->
+        <div class="md:hidden flex justify-between items-center mb-12">
+            <span class="text-xl font-black tracking-tighter">META-MIND DOCS</span>
+            <a href="index.html" class="text-xs font-bold text-orange-600">Back to Hub</a>
+        </div>
+
+        <div class="fade-in">
+            <h1 class="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">Kernel Documentation</h1>
+            <p class="text-xl text-slate-500 leading-relaxed max-w-3xl mb-12">
+                The Meta-Mind architecture separates logic (Kernel) from presentation (Shell).
+                This document outlines the core protocols driving the Federated Mapstate.
+            </p>
+        </div>
+
+        <hr class="border-slate-100 mb-16">
+
+        <!-- Section: Intro -->
+        <section id="intro" class="doc-section">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">1. The Kernel Pattern</h2>
+            <p class="text-slate-600 mb-4 leading-relaxed">
+                Meta-Mind uses a singleton class <code>MetaMindKernel</code> (instantiated as <code>MM</code>) to manage
+                the application state.
+                The UI layer subscribes to state changes via <code>MM.subscribe()</code>, ensuring purely reactive
+                rendering.
+            </p>
+            <div class="code-block">
+                // meta-mind-core.js
+                class MetaMindKernel {
+                constructor() {
+                this.state = { nodes: [], edges: [], viewport: {...} };
+                this.listeners = [];
+                }
+                notify() { this.listeners.forEach(cb => cb(this.state)); }
+                }
+            </div>
+        </section>
+
+        <!-- Section: Schema -->
+        <section id="schema" class="doc-section">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">2. Federated Data Schema (v3.0)</h2>
+            <p class="text-slate-600 mb-6 leading-relaxed">
+                Nodes are the atomic units of the metaverse. In v3.0, they include <code>origin</code> and
+                <code>policy</code> objects
+                to support future federation and permissions.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 uppercase mb-2">Node Object</h3>
+                    <div class="code-block">
+                        {
+                        "id": "uuid-v4",
+                        "type": "concept", // widget, section, logic
+                        "title": "Core System",
+                        "content": "...",
+                        "position": { "x": 0, "y": 0 },
+                        "origin": {
+                        "creator": "user_hash",
+                        "created": "ISO-8601"
+                        },
+                        "policy": {
+                        "access": "public"
+                        }
+                        }
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 uppercase mb-2">Edge Object</h3>
+                    <div class="code-block">
+                        {
+                        "id": "uuid-v4",
+                        "source": "node-id-a",
+                        "target": "node-id-b",
+                        "type": "child", // parent, sibling, logic
+                        "meta": {
+                        "weight": 1.0,
+                        "context": "local"
+                        }
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: API -->
+        <section id="api-nodes" class="doc-section">
+            <h2 class="text-2xl font-bold text-slate-900 mb-6">3. Core API Reference</h2>
+
+            <div class="space-y-8">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="api-tag tag-core">MM.addNode(config)</span>
+                        <span class="text-sm font-mono text-slate-500">Returns: String (UUID)</span>
+                    </div>
+                    <p class="text-slate-600 text-sm mb-2">Creates a new node and adds it to the state. Automatically
+                        handles origin metadata.</p>
+                </div>
+
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="api-tag tag-core">MM.addEdge(src, tgt, type)</span>
+                        <span class="text-sm font-mono text-slate-500">Returns: Void</span>
+                    </div>
+                    <p class="text-slate-600 text-sm mb-2">Links two nodes. Prevents duplicate edges automatically.
+                        Triggers <code>notify()</code>.</p>
+                </div>
+
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="api-tag tag-ui">MM.autoLayout()</span>
+                        <span class="text-sm font-mono text-slate-500">Returns: Void</span>
+                    </div>
+                    <p class="text-slate-600 text-sm mb-2">
+                        Executes the hierarchical layout algorithm. It identifies root nodes (no parents) and
+                        recursively
+                        positions children downwards, calculating branch width to prevent overlap.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-20 pt-10 border-t border-slate-200 text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">© 2024 Meta-Mind Project |
+                Documentation</p>
+        </footer>
+
+    </main>
+
+</body>
+
+</html>

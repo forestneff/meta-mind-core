@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta-Mind | Strategic Overview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap');
+
+        :root {
+            --accent: #4f46e5;
+            --bg-main: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: #1e293b;
+            scroll-behavior: smooth;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .cta-gradient {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+    <!-- Navigation -->
+    <nav class="bg-white/90 backdrop-blur border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="index.html"
+                    class="text-xl font-black tracking-tighter text-slate-900 hover:text-indigo-600 transition-colors">MM</a>
+                <span
+                    class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded uppercase tracking-widest">Public
+                    Overview</span>
+            </div>
+            <div class="flex gap-6 text-xs font-bold uppercase tracking-widest text-slate-500 items-center">
+                <a href="#mission" class="hover:text-indigo-600 hidden sm:block">Mission</a>
+                <a href="#roadmap" class="hover:text-indigo-600 hidden sm:block">Roadmap</a>
+                <a href="#invest"
+                    class="text-indigo-600 border border-indigo-600 px-4 py-2 rounded-full hover:bg-indigo-600 hover:text-white transition-all">Get
+                    Involved</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="py-20 px-6 text-center max-w-5xl mx-auto fade-in">
+        <h1 class="text-5xl md:text-7xl font-black text-slate-900 tracking-tight mb-6">
+            Federated <span class="text-indigo-600">Intelligence</span>
+        </h1>
+        <p class="text-xl text-slate-500 leading-relaxed max-w-3xl mx-auto mb-8">
+            Meta-Mind is an AI-native platform uniting real-time interaction, persistent mapstates, and immersive
+            metaverse experiences.
+            We build for <span class="font-bold text-slate-800">Agency</span>, <span
+                class="font-bold text-slate-800">Privacy</span>, and <span class="font-bold text-slate-800">Ethical
+                Co-creation</span>.
+        </p>
+        <div class="flex justify-center gap-4">
+            <a href="sandbox.html?demo=true"
+                class="px-8 py-3 bg-indigo-600 text-white rounded-full font-bold shadow-lg hover:bg-indigo-700 transition-transform hover:scale-105">Try
+                the Sandbox</a>
+            <a href="wiki.html"
+                class="px-8 py-3 bg-white text-slate-700 border border-slate-200 rounded-full font-bold hover:bg-slate-50 transition-colors">Read
+                Whitepaper</a>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-6 w-full space-y-24 pb-24">
+
+        <!-- 1. Mission Intelligence -->
+        <section id="mission" class="fade-in" style="animation-delay: 0.2s;">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-900 mb-6">Core Values Protocol</h2>
+                    <p class="text-slate-600 mb-8 leading-relaxed">
+                        Our architecture enforces our values. The kernel is designed to prioritize user ownership and
+                        data sovereignty over platform lock-in. Every feature, from the Radial Menu to the Federated
+                        Sync, is scored against these pillars.
+                    </p>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
+                            <div
+                                class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
+                                A</div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">User Agency</h4>
+                                <p class="text-xs text-slate-500">Users own their mapstate origins and keys.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
+                            <div
+                                class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold">
+                                F</div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">Federation</h4>
+                                <p class="text-xs text-slate-500">Decentralized storage prevents silos.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card p-8">
+                    <div class="chart-container">
+                        <canvas id="missionRadar"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Roadmap -->
+        <section id="roadmap" class="fade-in" style="animation-delay: 0.4s;">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-900">Execution Timeline</h2>
+                    <p class="text-slate-500 mt-2">The 52-week path from MVP Kernel to Federated Metaverse.</p>
+                </div>
+                <div
+                    class="bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm text-xs font-bold text-indigo-600">
+                    Current Status: Phase 1 (Week 6)
+                </div>
+            </div>
+
+            <div class="glass-card p-8 mb-8">
+                <div class="chart-container">
+                    <canvas id="roadmapGantt"></canvas>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="p-6 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-200">
+                    <div class="text-xs font-bold opacity-60 uppercase mb-2">Phase 1 (Active)</div>
+                    <h3 class="text-2xl font-black mb-2">MVP Core</h3>
+                    <p class="text-sm opacity-90">Kernel logic, Radial UI, Local Persistence, and Web Rendering.</p>
+                </div>
+                <div class="p-6 bg-white border border-slate-200 rounded-2xl text-slate-400">
+                    <div class="text-xs font-bold opacity-60 uppercase mb-2">Phase 3</div>
+                    <h3 class="text-2xl font-black mb-2 text-slate-800">Collaboration</h3>
+                    <p class="text-sm">Real-time multiplayer sync via WebSockets and CRDTs.</p>
+                </div>
+                <div class="p-6 bg-white border border-slate-200 rounded-2xl text-slate-400">
+                    <div class="text-xs font-bold opacity-60 uppercase mb-2">Phase 6</div>
+                    <h3 class="text-2xl font-black mb-2 text-slate-800">Federation</h3>
+                    <p class="text-sm">Global sharding, DAO governance, and public mapstreaming.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. STAKEHOLDER INTERFACE (CTA) -->
+        <section id="invest" class="fade-in" style="animation-delay: 0.6s;">
+            <div
+                class="cta-gradient rounded-[2.5rem] p-10 md:p-16 text-center text-white shadow-2xl relative overflow-hidden">
+                <!-- Decorative Circle -->
+                <div
+                    class="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-[100px] opacity-20 -mr-16 -mt-16">
+                </div>
+
+                <h2 class="text-3xl md:text-5xl font-black mb-6 relative z-10">Join the Federation</h2>
+                <p class="text-slate-300 max-w-2xl mx-auto mb-10 text-lg relative z-10">
+                    We are building the future of collaborative intelligence. Whether you are a developer, investor, or
+                    visionary, there is a place for you in the Meta-Mind ecosystem.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto relative z-10">
+                    <!-- Option 1: User -->
+                    <div class="bg-white/10 backdrop-blur border border-white/10 p-6 rounded-2xl hover:bg-white/20 transition-all cursor-pointer group"
+                        onclick="CRM.trackInterest('user')">
+                        <div class="text-3xl mb-4 group-hover:scale-110 transition-transform">👤</div>
+                        <h3 class="font-bold text-lg mb-2">Create Account</h3>
+                        <p class="text-xs text-slate-300 mb-4">Secure your unique identity on the federated network.</p>
+                        <span class="text-xs font-bold text-indigo-300 uppercase tracking-widest">Sign Up →</span>
+                    </div>
+
+                    <!-- Option 2: Investor -->
+                    <div class="bg-white/10 backdrop-blur border border-white/10 p-6 rounded-2xl hover:bg-white/20 transition-all cursor-pointer group"
+                        onclick="CRM.trackInterest('investor')">
+                        <div class="text-3xl mb-4 group-hover:scale-110 transition-transform">💎</div>
+                        <h3 class="font-bold text-lg mb-2">Invest / Donate</h3>
+                        <p class="text-xs text-slate-300 mb-4">Support the open-source development of the Kernel.</p>
+                        <span class="text-xs font-bold text-emerald-300 uppercase tracking-widest">Contribute →</span>
+                    </div>
+
+                    <!-- Option 3: Developer -->
+                    <div class="bg-white/10 backdrop-blur border border-white/10 p-6 rounded-2xl hover:bg-white/20 transition-all cursor-pointer group"
+                        onclick="CRM.trackInterest('dev')">
+                        <div class="text-3xl mb-4 group-hover:scale-110 transition-transform">🛠️</div>
+                        <h3 class="font-bold text-lg mb-2">Build Plugins</h3>
+                        <p class="text-xs text-slate-300 mb-4">Access the API docs and contribute to the core.</p>
+                        <span class="text-xs font-bold text-amber-300 uppercase tracking-widest">View Docs →</span>
+                    </div>
+                </div>
+
+                <p class="mt-8 text-xs text-slate-500">
+                    By joining, you agree to our <a href="#" class="underline hover:text-white">Federated Ethics
+                        Protocol</a>.
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 py-16 text-center">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
+            <div class="flex items-center gap-3 mb-4 md:mb-0">
+                <span class="text-xl font-black text-white tracking-tighter">MM</span>
+                <span class="text-xs font-bold uppercase tracking-widest">Overview</span>
+            </div>
+            <p class="text-xs">© 2024 Meta-Mind Project. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- CRM STUB LOGIC ---
+        const CRM = {
+            trackInterest(type) {
+                console.log(`[CRM] Interest registered: ${type}`);
+                if (type === 'user') {
+                    // Simulation: Redirect to sandbox with "signup" intent
+                    alert("Redirecting to Identity Provider (Mock)...");
+                    window.location.href = "sandbox.html?intent=signup";
+                } else if (type === 'investor') {
+                    alert("Opening Secure Payment Gateway (Stripe Stub)...");
+                } else {
+                    window.location.href = "wiki.html";
+                }
+            }
+        };
+
+        // --- CHART INITIALIZATION ---
+        window.onload = () => {
+            Chart.defaults.font.family = "'Inter', sans-serif";
+
+            // 1. Radar Chart
+            new Chart(document.getElementById('missionRadar'), {
+                type: 'radar',
+                data: {
+                    labels: ['Agency', 'Privacy', 'Co-creation', 'Open Source', 'Innovation'],
+                    datasets: [{
+                        label: 'Strategic Weight',
+                        data: [95, 90, 85, 95, 80],
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                        borderColor: '#4f46e5',
+                        pointBackgroundColor: '#4f46e5',
+                        pointBorderColor: '#fff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            ticks: { display: false },
+                            pointLabels: { font: { size: 12, weight: 'bold' }, color: '#64748b' }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // 2. Gantt Chart (Roadmap)
+            new Chart(document.getElementById('roadmapGantt'), {
+                type: 'bar',
+                data: {
+                    labels: ['Ph 1: MVP', 'Ph 2: Persistence', 'Ph 3: Collab', 'Ph 4: Social', 'Ph 5: Public', 'Ph 6: Federation'],
+                    datasets: [{
+                        data: [[1, 8], [7, 14], [13, 22], [21, 30], [29, 38], [39, 52]],
+                        backgroundColor: [
+                            '#4f46e5', // Active
+                            '#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0' // Pending
+                        ],
+                        borderRadius: 10,
+                        barPercentage: 0.5
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { min: 0, max: 55, grid: { display: false } },
+                        y: { grid: { display: false }, ticks: { font: { weight: 'bold' } } }
+                    }
+                }
+            });
+        };
+    </script>
+</body>
+
+</html>
