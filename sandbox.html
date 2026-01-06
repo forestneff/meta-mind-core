@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meta-Mind | Sandbox v5.5</title>
+    <title>Meta-Mind | Sandbox v7.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="meta-mind-core.js"></script>
     <script src="phase-engines.js"></script>
@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="meta-mind-ui.css">
     <style>
         /* Sandbox-specific overrides */
+
+        /* EDGE FIX: Top-level SVG, manual coordinate projection */
         #edge-svg {
             position: absolute;
             top: 0;
@@ -19,48 +21,92 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: 10;
-            overflow: visible;
+            z-index: 5;
         }
 
         .edge-vis {
-            stroke: #cbd5e1;
-            stroke-width: 2;
+            stroke: #94a3b8;
+            stroke-width: 2px;
             fill: none;
-            transition: stroke 0.2s;
             pointer-events: none;
         }
 
         .edge-vis.selected {
             stroke: var(--accent);
-            stroke-width: 4;
+            stroke-width: 4px;
         }
 
+        /* Hit area for clicking edges */
         .edge-hit {
             stroke: transparent;
-            stroke-width: 25px;
+            stroke-width: 20px;
             fill: none;
             cursor: pointer;
             pointer-events: auto;
         }
 
-        #world-layer {
+        /* Node Layer: Transformed by CSS */
+        #node-layer {
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
             transform-origin: 0 0;
             will-change: transform;
+            z-index: 10;
             pointer-events: none;
-            width: 0;
-            height: 0;
         }
 
+        /* Nodes themselves need pointer events */
         .node {
-            z-index: 20;
             pointer-events: auto;
         }
 
-        /* Top Phase Widget */
+        /* Login Overlay - Fixed & Top Level */
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .login-card {
+            background: white;
+            padding: 3rem;
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 420px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        /* Phase Views - Absolute Cover */
+        .phase-view {
+            position: absolute;
+            inset: 0;
+            background: white;
+            z-index: 50;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .phase-view.active {
+            display: block;
+        }
+
+        /* Map is special: it sits at z-0 */
+        #view-map.active {
+            z-index: 0;
+            display: block;
+        }
+
+        /* Phase Widget */
         .phase-widget {
             position: absolute;
             top: 20px;
@@ -72,7 +118,8 @@
             display: flex;
             gap: 4px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            z-index: 40;
+            z-index: 60;
+            pointer-events: auto;
         }
 
         .pw-btn {
@@ -100,14 +147,16 @@
 
 <body>
 
-    <header class="h-14 border-b border-slate-200 px-6 flex items-center justify-between shrink-0 bg-white z-50">
+    <!-- Header -->
+    <header
+        class="h-14 border-b border-slate-200 px-6 flex items-center justify-between shrink-0 bg-white z-50 relative">
         <div class="flex items-center gap-3">
             <a href="index.html" class="flex items-center gap-2 group text-decoration-none">
                 <span
                     class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
                 <span
                     class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase group-hover:bg-orange-600 transition-colors">Kernel
-                    v5.5</span>
+                    v7.0</span>
             </a>
         </div>
         <div class="flex gap-4 items-center">
@@ -122,20 +171,23 @@
     <div id="stage">
 
         <main id="viewport" tabindex="0">
-            <!-- Phase Widget (Moved to Canvas) -->
+            <!-- Phase Widget -->
             <div class="phase-widget">
-                <div onclick="UI.setPhase('map')" id="pw-map" class="pw-btn active" title="Spatial Node Graph">Map</div>
-                <div onclick="UI.setPhase('text')" id="pw-text" class="pw-btn" title="Markdown Editor">Text</div>
-                <div onclick="UI.setPhase('web')" id="pw-web" class="pw-btn" title="HTML Preview">Web</div>
+                <div onclick="UI.setPhase('map')" id="pw-map" class="pw-btn active">Map</div>
+                <div onclick="UI.setPhase('text')" id="pw-text" class="pw-btn">Text</div>
+                <div onclick="UI.setPhase('web')" id="pw-web" class="pw-btn">Web</div>
             </div>
 
-            <!-- Phase 1: Visual Map -->
-            <div id="view-map" class="absolute inset-0">
-                <div id="world-layer">
-                    <svg id="edge-svg"></svg>
-                    <div id="node-layer"></div>
+            <!-- Phase 1: Visual Map (Base Layer) -->
+            <div id="view-map" class="active">
+                <!-- SVG Edges (Screen Space) -->
+                <svg id="edge-svg"></svg>
 
-                    <!-- Radial Menu -->
+                <!-- Node Layer (World Space) -->
+                <div id="node-layer">
+                    <!-- Nodes injected here -->
+
+                    <!-- Radial Menu (Child of Node Layer so it moves with world) -->
                     <div id="radial-main" class="radial-wrapper">
                         <div class="radial-btn rad-n" onclick="UI.radialAction('add_child')" title="Add Detail">✚</div>
                         <div class="radial-btn rad-e" onclick="UI.switchRadial('connect')" title="Connect">☍</div>
@@ -154,19 +206,20 @@
                 </div>
             </div>
 
-            <!-- Other Phase Views -->
-            <div id="view-text" class="absolute inset-0 bg-white p-8 hidden overflow-y-auto">
+            <!-- Other Phase Views (Overlay Layers) -->
+            <div id="view-text" class="phase-view p-8">
                 <div id="text-target" class="max-w-4xl mx-auto h-full"></div>
             </div>
-            <div id="view-web" class="absolute inset-0 bg-slate-100 p-8 hidden overflow-y-auto">
+            <div id="view-web" class="phase-view p-8 bg-slate-100">
                 <div id="web-target" class="max-w-5xl mx-auto space-y-6"></div>
             </div>
 
+            <!-- Interaction Overlays -->
             <div id="linking-overlay">
                 <div class="linking-badge">Select Target Node to Link</div>
             </div>
 
-            <div id="map-controls" class="absolute bottom-6 left-6 z-40 flex gap-2">
+            <div id="map-controls" class="absolute bottom-6 left-6 z-40 flex gap-2 pointer-events-auto">
                 <button onclick="MM.zoom(0.1)"
                     class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">＋</button>
                 <button onclick="MM.zoom(-0.1)"
@@ -178,29 +231,34 @@
 
         <aside id="inspector">
             <div class="flex border-b border-slate-200 bg-white shrink-0 h-12 items-center px-6">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Properties</h3>
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Inspector</h3>
             </div>
 
             <div id="node-editor-content" class="flex-grow p-6 overflow-y-auto">
-                <!-- Injected Node Properties -->
                 <div class="h-full flex flex-col items-center justify-center opacity-30">
                     <div class="text-4xl mb-2">⦿</div>
                     <p class="text-xs font-bold uppercase tracking-widest">Select Node</p>
                 </div>
             </div>
 
-            <div class="p-4 bg-slate-50 border-t border-slate-200 shrink-0 mt-auto">
-                <div class="flex justify-between text-[8px] font-mono text-slate-400 uppercase">
-                    <span>Meta-Mind Core</span>
-                    <span id="node-stats">Nodes: 0</span>
-                </div>
+            <div class="p-4 bg-slate-50 border-t border-slate-200 shrink-0 mt-auto space-y-2">
+                <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Tools</h4>
+                <button onclick="UI.initProfile()"
+                    class="w-full py-2 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-100 uppercase tracking-widest">Re-Init
+                    Profile</button>
+                <button onclick="UI.startWebQuest()"
+                    class="w-full py-2 bg-orange-50 border border-orange-100 text-orange-600 rounded-lg text-xs font-bold hover:bg-orange-100 uppercase tracking-widest">Init
+                    Portfolio</button>
+                <button onclick="MM.exportJSON()"
+                    class="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 uppercase tracking-widest">Export
+                    State</button>
             </div>
         </aside>
     </div>
 
-    <!-- Login Overlay -->
+    <!-- Login Overlay (Top Level) -->
     <div id="login-overlay">
-        <div class="bg-white p-10 rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full text-center">
+        <div class="login-card fade-in">
             <div class="text-5xl mb-6">👤</div>
             <h2 class="text-3xl font-black mb-2 text-slate-900">Identity Init</h2>
             <p class="text-slate-500 mb-8 text-sm">Create your root profile node to access the Federated Mapstate.</p>
@@ -212,8 +270,17 @@
                         class="w-full border border-slate-200 p-3 rounded-lg font-bold text-slate-800 focus:border-orange-500 outline-none"
                         required>
                 </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</label>
+                    <select id="login-role"
+                        class="w-full border border-slate-200 p-3 rounded-lg font-bold text-slate-800 focus:border-orange-500 outline-none">
+                        <option value="architect">Architect (Full Access)</option>
+                        <option value="admin">Admin (System Tools)</option>
+                        <option value="tester">Tester (Guided)</option>
+                    </select>
+                </div>
                 <button type="submit"
-                    class="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors shadow-lg">Initialize
+                    class="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors shadow-lg uppercase tracking-widest">Initialize
                     System</button>
             </form>
         </div>
@@ -225,6 +292,7 @@
 
         const UI = {
             isPanning: false, lastMouse: { x: 0, y: 0 }, activePhase: 'map', radialContextId: null, activeLinkType: null, selectedEdgeId: null,
+            userRole: 'architect',
 
             init() {
                 PhaseRegistry.init(MM);
@@ -232,7 +300,7 @@
                 // Map Events
                 const vp = document.getElementById('viewport');
                 vp.onmousedown = (e) => {
-                    if (this.activePhase === 'map' && (e.target.id === 'view-map' || e.target.id === 'viewport' || e.target.id === 'world-layer' || e.target.id === 'edge-svg')) {
+                    if (this.activePhase === 'map' && (e.target.id === 'view-map' || e.target.id === 'viewport' || e.target.id === 'edge-svg')) {
                         this.isPanning = true; this.lastMouse = { x: e.clientX, y: e.clientY }; this.deselectAll();
                     }
                 };
@@ -258,22 +326,51 @@
             handleLogin(e) {
                 e.preventDefault();
                 const name = document.getElementById('login-name').value;
-                const root = MM.addNode({ title: name, position: { x: 0, y: 0 }, type: "profile", content: `Role: Architect` });
+                const role = document.getElementById('login-role').value;
+                this.userRole = role;
+
+                // Create Root Profile
+                this.initProfile(name);
+
                 document.getElementById('login-overlay').style.display = 'none';
-                MM.state.viewport.x = window.innerWidth / 2;
-                MM.state.viewport.y = window.innerHeight / 2;
+
+                if (role === 'tester') {
+                    document.getElementById('pw-outliner').style.opacity = '0.5';
+                    document.getElementById('pw-web').style.opacity = '0.5';
+                }
+            },
+
+            initProfile(name = "My Profile") {
+                MM.state.nodes = []; MM.state.edges = [];
+                const root = MM.addNode({ title: name, position: { x: 0, y: 0 }, type: "profile", content: "Identity Root" });
+                MM.state.viewport.x = window.innerWidth / 2; MM.state.viewport.y = window.innerHeight / 2;
                 MM.state.selectedId = root;
-                this.renderInspector(MM.state);
+                MM.autoLayout(); // Always Auto-Arrange on Init
                 MM.notify();
             },
 
+            startWebQuest() {
+                MM.state.nodes = []; MM.state.edges = [];
+                const qRoot = MM.addNode({ title: "My Portfolio", type: "section", position: { x: 300, y: 0 }, content: "Showcase" });
+                const q1 = MM.addNode({ title: "About Me", type: "hero", position: { x: 450, y: -100 } });
+                const q2 = MM.addNode({ title: "Projects", type: "widget", position: { x: 450, y: 100 } });
+                MM.addEdge(qRoot, q1); MM.addEdge(qRoot, q2);
+                MM.state.viewport.x = window.innerWidth / 2; MM.state.viewport.y = window.innerHeight / 2;
+                MM.autoLayout(); // Auto-Arrange
+            },
+
             setPhase(phaseId) {
+                // RBAC Check
+                if (this.userRole === 'tester' && phaseId !== 'map') return;
+
                 this.activePhase = phaseId;
                 document.querySelectorAll('.pw-btn').forEach(el => el.classList.remove('active'));
                 document.getElementById(`pw-${phaseId}`).classList.add('active');
 
+                // Toggle Views by Class (CSS handles Z-Index)
                 ['map', 'text', 'web'].forEach(p => {
-                    document.getElementById(`view-${p}`).style.display = (p === phaseId) ? 'block' : 'none';
+                    const el = document.getElementById(`view-${p}`);
+                    if (el) el.classList.toggle('active', p === phaseId);
                 });
 
                 document.getElementById('map-controls').style.display = phaseId === 'map' ? 'flex' : 'none';
@@ -312,6 +409,7 @@
                     const childTitle = (bp.allowedChildren && bp.allowedChildren.length > 0) ? bp.allowedChildren[0].label : 'New Node';
                     const cid = MM.addNode({ title: childTitle, type: childType, position: { x: node.position.x + 150, y: node.position.y + 150 } });
                     MM.addEdge(id, cid);
+                    MM.autoLayout(); // Auto-arrange on add
                 }
                 if (act === 'edit') { this.renderInspector(MM.state); document.getElementById('inp-title')?.focus(); }
                 this.hideRadial();
@@ -327,36 +425,42 @@
             },
 
             render(state) {
-                document.getElementById('node-stats').innerText = `Nodes: ${state.nodes.length}`;
                 this.renderInspector(state);
-                if (this.activePhase === 'map') this.renderMap(state);
-                else {
+                // Always render map
+                this.renderMap(state);
+
+                if (this.activePhase !== 'map') {
                     let targetId = this.activePhase === 'web' ? 'web-target' : 'text-target';
                     PhaseRegistry.renderActive(targetId);
                 }
             },
 
             renderMap(state) {
-                const world = document.getElementById('world-layer');
                 const nodeLayer = document.getElementById('node-layer');
                 const svg = document.getElementById('edge-svg');
 
-                world.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+                // Transform ONLY nodes layer
+                nodeLayer.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
 
-                // Render Edges
+                // Manual Projection for Edges (Reliable Fix)
                 svg.innerHTML = '';
                 state.edges.forEach(e => {
                     const s = state.nodes.find(n => n.id === e.source);
                     const t = state.nodes.find(n => n.id === e.target);
                     if (s && t) {
+                        const x1 = s.position.x * state.viewport.scale + state.viewport.x;
+                        const y1 = s.position.y * state.viewport.scale + state.viewport.y;
+                        const x2 = t.position.x * state.viewport.scale + state.viewport.x;
+                        const y2 = t.position.y * state.viewport.scale + state.viewport.y;
+
                         const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                        l.setAttribute("x1", s.position.x); l.setAttribute("y1", s.position.y);
-                        l.setAttribute("x2", t.position.x); l.setAttribute("y2", t.position.y);
+                        l.setAttribute("x1", x1); l.setAttribute("y1", y1);
+                        l.setAttribute("x2", x2); l.setAttribute("y2", y2);
                         l.setAttribute("class", `edge-vis ${this.selectedEdgeId === e.id ? 'selected' : ''}`);
                         svg.appendChild(l);
                         const h = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                        h.setAttribute("x1", s.position.x); h.setAttribute("y1", s.position.y);
-                        h.setAttribute("x2", t.position.x); h.setAttribute("y2", t.position.y);
+                        h.setAttribute("x1", x1); h.setAttribute("y1", y1);
+                        h.setAttribute("x2", x2); h.setAttribute("y2", y2);
                         h.setAttribute("class", "edge-hit");
                         h.onclick = (ev) => { ev.stopPropagation(); this.selectEdge(e.id); };
                         svg.appendChild(h);
@@ -404,7 +508,7 @@
                 }
                 const node = state.nodes.find(n => n.id === state.selectedId);
                 if (!node) {
-                    if (!container.querySelector('.opacity-30')) container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-30 mt-20"><div class="text-4xl mb-2">⦿</div><p class="text-xs font-bold uppercase tracking-widest">Select Element</p></div>`;
+                    if (!container.querySelector('.opacity-30')) container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-30 mt-20"><div class="text-4xl mb-2">⦿</div><p class="text-xs font-bold uppercase tracking-widest">Select Node</p></div>`;
                     return;
                 }
                 if (container.dataset.renderedId === node.id && !this.selectedEdgeId) return;
