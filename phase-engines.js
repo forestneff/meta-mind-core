@@ -45,33 +45,32 @@ class TextPhaseEngine extends PhaseEngineBase {
             children.forEach(c => serialize(c, depth + 1));
         };
 
-        if (roots.length === 0 && state.nodes.length > 0) {
-            // Fallback for non-hierarchical
+        roots.forEach(r => serialize(r, 0));
+
+        // If empty state or flat list
+        if (textContent.trim() === "" && state.nodes.length > 0) {
             state.nodes.forEach(n => textContent += `- ${n.title}\n`);
-        } else {
-            roots.forEach(r => serialize(r, 0));
         }
 
         container.innerHTML = `
             <div class="h-full flex flex-col bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
                 <div class="flex justify-between items-center px-4 py-2 bg-white border-b border-slate-200">
                     <h3 class="text-xs font-bold uppercase text-slate-400 tracking-wider">Quick Edit</h3>
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] text-slate-400 font-mono">Markdown Format</span>
-                        <button id="btn-parse-text" class="px-3 py-1 bg-slate-900 text-white text-[10px] font-bold rounded hover:bg-orange-600 transition-colors">Apply Changes</button>
-                    </div>
+                    <span class="text-[10px] text-slate-400 font-mono">Markdown Format</span>
                 </div>
                 <textarea id="text-phase-input" class="w-full h-full bg-slate-50 p-6 font-mono text-sm text-slate-700 focus:outline-none resize-none leading-relaxed" 
                 placeholder="- Root\n  - Child A\n  - Child B">${textContent}</textarea>
+                <div class="p-2 bg-white border-t border-slate-200 text-right">
+                    <button id="btn-parse" class="px-4 py-1 bg-slate-800 text-white text-xs font-bold rounded hover:bg-orange-600 transition-colors">Update Map</button>
+                </div>
             </div>
         `;
 
         // Bind Events
         const ta = document.getElementById('text-phase-input');
-        const btn = document.getElementById('btn-parse-text');
+        const btn = document.getElementById('btn-parse');
         
         ta.addEventListener('focus', () => { this.isEditing = true; });
-        ta.addEventListener('blur', () => { this.isEditing = false; });
         
         btn.addEventListener('click', () => {
             this.parseTextToMap(ta.value);
@@ -107,10 +106,11 @@ class TextPhaseEngine extends PhaseEngineBase {
             
             // Link to Parent
             if (depth > 0) {
-                // Find nearest parent in stack
+                // Find nearest parent in stack with depth < current depth
+                // If stack doesn't have parent at depth-1, look higher up
                 let parent = stack[depth - 1];
-                // Fallback search
                 if (!parent) {
+                    // Fallback to last known parent if indentation jumped
                     for(let i = depth - 1; i >= 0; i--) {
                         if(stack[i]) { parent = stack[i]; break; }
                     }
@@ -122,6 +122,7 @@ class TextPhaseEngine extends PhaseEngineBase {
             }
             
             stack[depth] = { id, depth };
+            // Clear deeper levels on the stack as we are starting a new branch at 'depth'
             stack.splice(depth + 1); 
         });
         

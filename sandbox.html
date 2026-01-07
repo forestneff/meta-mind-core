@@ -1,325 +1,466 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meta-Mind | Sandbox v10.3</title>
+    <title>Meta-Mind | Sandbox v7.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="meta-mind-core.js"></script>
+    <script src="phase-engines.js"></script>
     <link rel="stylesheet" href="meta-mind-base.css">
     <link rel="stylesheet" href="meta-mind-ui.css">
     <style>
-        /* EDGE FIX: Massive SVG inside world layer */
-        #edge-svg { position: absolute; top: -50000px; left: -50000px; width: 100000px; height: 100000px; pointer-events: none; z-index: 10; overflow: visible; }
-        .edge-vis { stroke: #94a3b8; stroke-width: 2px; fill: none; transition: stroke 0.2s; pointer-events: none; }
-        .edge-vis.selected { stroke: var(--accent); stroke-width: 4px; }
-        .edge-hit { stroke: transparent; stroke-width: 25px; fill: none; cursor: pointer; pointer-events: auto; }
-        
-        #world-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-origin: 0 0; will-change: transform; pointer-events: none; }
-        
-        .phase-view { display: none; width: 100%; height: 100%; position: absolute; inset: 0; background: white; z-index: 30; }
-        .phase-view.active { display: block; }
-        #view-map.active { display: block; background: transparent; z-index: 0; }
-        
-        /* Floating Phase Widget */
-        .phase-widget { position: absolute; top: 20px; right: 20px; background: white; padding: 4px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; gap: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); z-index: 40; pointer-events: auto; }
-        .pw-btn { padding: 8px 16px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; border-radius: 8px; cursor: pointer; transition: all 0.1s; }
-        .pw-btn:hover { background: #f8fafc; color: #0f172a; }
-        .pw-btn.active { background: #0f172a; color: white; }
+        /* Sandbox-specific overrides */
 
-        /* Login Overlay - Fixed & Top */
-        #login-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.98); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        /* EDGE FIX: Top-level SVG, manual coordinate projection */
+        #edge-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .edge-vis {
+            stroke: #94a3b8;
+            stroke-width: 2px;
+            fill: none;
+            pointer-events: none;
+        }
+
+        .edge-vis.selected {
+            stroke: var(--accent);
+            stroke-width: 4px;
+        }
+
+        /* Hit area for clicking edges */
+        .edge-hit {
+            stroke: transparent;
+            stroke-width: 20px;
+            fill: none;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        /* Node Layer: Transformed by CSS */
+        #node-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-origin: 0 0;
+            will-change: transform;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* Nodes themselves need pointer events */
+        .node {
+            pointer-events: auto;
+        }
+
+        /* Login Overlay - Fixed & Top Level */
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .login-card {
+            background: white;
+            padding: 3rem;
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 420px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        /* Phase Views - Absolute Cover */
+        .phase-view {
+            position: absolute;
+            inset: 0;
+            background: white;
+            z-index: 50;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .phase-view.active {
+            display: block;
+        }
+
+        /* Map is special: it sits at z-0 */
+        #view-map.active {
+            z-index: 0;
+            display: block;
+        }
+
+        /* Phase Widget */
+        .phase-widget {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            gap: 4px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            z-index: 60;
+            pointer-events: auto;
+        }
+
+        .pw-btn {
+            padding: 8px 16px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #64748b;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .pw-btn:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+        .pw-btn.active {
+            background: #0f172a;
+            color: white;
+        }
     </style>
 </head>
+
 <body>
 
-    <!-- Login Overlay -->
+    <!-- Header -->
+    <header
+        class="h-14 border-b border-slate-200 px-6 flex items-center justify-between shrink-0 bg-white z-50 relative">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="flex items-center gap-2 group text-decoration-none">
+                <span
+                    class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
+                <span
+                    class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase group-hover:bg-orange-600 transition-colors">Kernel
+                    v7.0</span>
+            </a>
+        </div>
+        <div class="flex gap-4 items-center">
+            <button onclick="MM.resetStorage()"
+                class="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-widest">Reset</button>
+            <div class="h-4 w-px bg-slate-200"></div>
+            <button onclick="MM.autoLayout()"
+                class="text-[10px] font-black text-slate-400 hover:text-orange-600 tracking-widest uppercase">Auto-Layout</button>
+        </div>
+    </header>
+
+    <div id="stage">
+
+        <main id="viewport" tabindex="0">
+            <!-- Phase Widget -->
+            <div class="phase-widget">
+                <div onclick="UI.setPhase('map')" id="pw-map" class="pw-btn active">Map</div>
+                <div onclick="UI.setPhase('text')" id="pw-text" class="pw-btn">Text</div>
+                <div onclick="UI.setPhase('web')" id="pw-web" class="pw-btn">Web</div>
+            </div>
+
+            <!-- Phase 1: Visual Map (Base Layer) -->
+            <div id="view-map" class="active">
+                <!-- SVG Edges (Screen Space) -->
+                <svg id="edge-svg"></svg>
+
+                <!-- Node Layer (World Space) -->
+                <div id="node-layer">
+                    <!-- Nodes injected here -->
+
+                    <!-- Radial Menu (Child of Node Layer so it moves with world) -->
+                    <div id="radial-main" class="radial-wrapper">
+                        <div class="radial-btn rad-n" onclick="UI.radialAction('add_child')" title="Add Detail">✚</div>
+                        <div class="radial-btn rad-e" onclick="UI.switchRadial('connect')" title="Connect">☍</div>
+                        <div class="radial-btn rad-s" onclick="UI.radialAction('delete')" title="Delete">✕</div>
+                        <div class="radial-btn rad-w" onclick="UI.radialAction('edit')" title="Edit">✎</div>
+                    </div>
+
+                    <!-- Connection Sub-Menu -->
+                    <div id="radial-connect" class="radial-wrapper">
+                        <div class="radial-btn rad-center" onclick="UI.switchRadial('main')" title="Back">BACK</div>
+                        <div class="radial-btn rad-n" onclick="UI.startLinking('child')" title="Child">↓</div>
+                        <div class="radial-btn rad-e" onclick="UI.startLinking('sibling')" title="Sibling">↔</div>
+                        <div class="radial-btn rad-s" onclick="UI.startLinking('parent')" title="Parent">↑</div>
+                        <div class="radial-btn rad-w" onclick="UI.startLinking('logic')" title="Logic">⚡</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Other Phase Views (Overlay Layers) -->
+            <div id="view-text" class="phase-view p-8">
+                <div id="text-target" class="max-w-4xl mx-auto h-full"></div>
+            </div>
+            <div id="view-web" class="phase-view p-8 bg-slate-100">
+                <div id="web-target" class="max-w-5xl mx-auto space-y-6"></div>
+            </div>
+
+            <!-- Interaction Overlays -->
+            <div id="linking-overlay">
+                <div class="linking-badge">Select Target Node to Link</div>
+            </div>
+
+            <div id="map-controls" class="absolute bottom-6 left-6 z-40 flex gap-2 pointer-events-auto">
+                <button onclick="MM.zoom(0.1)"
+                    class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">＋</button>
+                <button onclick="MM.zoom(-0.1)"
+                    class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">－</button>
+                <button onclick="MM.autoLayout()"
+                    class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">☍</button>
+            </div>
+        </main>
+
+        <aside id="inspector">
+            <div class="flex border-b border-slate-200 bg-white shrink-0 h-12 items-center px-6">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Inspector</h3>
+            </div>
+
+            <div id="node-editor-content" class="flex-grow p-6 overflow-y-auto">
+                <div class="h-full flex flex-col items-center justify-center opacity-30">
+                    <div class="text-4xl mb-2">⦿</div>
+                    <p class="text-xs font-bold uppercase tracking-widest">Select Node</p>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-200 shrink-0 mt-auto space-y-2">
+                <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Tools</h4>
+                <button onclick="UI.initProfile()"
+                    class="w-full py-2 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-100 uppercase tracking-widest">Re-Init
+                    Profile</button>
+                <button onclick="UI.startWebQuest()"
+                    class="w-full py-2 bg-orange-50 border border-orange-100 text-orange-600 rounded-lg text-xs font-bold hover:bg-orange-100 uppercase tracking-widest">Init
+                    Portfolio</button>
+                <button onclick="MM.exportJSON()"
+                    class="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 uppercase tracking-widest">Export
+                    State</button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Login Overlay (Top Level) -->
     <div id="login-overlay">
-        <div class="bg-white p-10 border border-slate-200 rounded-2xl shadow-xl w-full max-w-sm text-center">
+        <div class="login-card fade-in">
+            <div class="text-5xl mb-6">👤</div>
             <h2 class="text-3xl font-black mb-2 text-slate-900">Identity Init</h2>
-            <p class="text-slate-500 mb-8 text-sm">Create your root profile node.</p>
-            <form id="login-form" class="space-y-4 text-left">
+            <p class="text-slate-500 mb-8 text-sm">Create your root profile node to access the Federated Mapstate.</p>
+
+            <form onsubmit="UI.handleLogin(event)" class="space-y-4 text-left">
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Display Name</label>
-                    <input type="text" id="login-name" class="w-full border border-slate-200 p-3 rounded-lg font-bold text-slate-800 outline-none" required>
+                    <input type="text" id="login-name"
+                        class="w-full border border-slate-200 p-3 rounded-lg font-bold text-slate-800 focus:border-orange-500 outline-none"
+                        required>
                 </div>
-                <button type="submit" class="w-full py-3 bg-slate-900 text-white rounded-lg font-bold text-sm hover:bg-orange-600 transition-colors shadow-lg uppercase tracking-widest">Initialize System</button>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</label>
+                    <select id="login-role"
+                        class="w-full border border-slate-200 p-3 rounded-lg font-bold text-slate-800 focus:border-orange-500 outline-none">
+                        <option value="architect">Architect (Full Access)</option>
+                        <option value="admin">Admin (System Tools)</option>
+                        <option value="tester">Tester (Guided)</option>
+                    </select>
+                </div>
+                <button type="submit"
+                    class="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors shadow-lg uppercase tracking-widest">Initialize
+                    System</button>
             </form>
         </div>
     </div>
 
-    <div id="app" class="h-screen flex flex-col overflow-hidden relative z-0">
-        <!-- Header -->
-        <header class="h-14 border-b border-slate-200 px-6 flex items-center justify-between shrink-0 bg-white z-50 relative">
-            <div class="flex items-center gap-3">
-                <a href="index.html" class="flex items-center gap-2 group text-decoration-none">
-                    <span class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
-                    <span class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase group-hover:bg-orange-600 transition-colors">Kernel v10.3</span>
-                </a>
-            </div>
-            <div class="flex gap-4 items-center">
-                <button id="btn-reset" class="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-widest">Reset</button>
-                <div class="h-4 w-px bg-slate-200"></div>
-                <button id="btn-layout" class="text-[10px] font-black text-slate-400 hover:text-orange-600 tracking-widest uppercase">Auto-Layout</button>
-            </div>
-        </header>
+    <script>
+        const TextEngine = new TextPhaseEngine(MM);
+        const WebEngine = new WebPhaseEngine(MM);
 
-        <div class="flex flex-1 overflow-hidden relative">
-            <!-- Main Viewport -->
-            <main id="viewport" class="flex-1 relative bg-slate-50 cursor-grab active:cursor-grabbing">
-                
-                <!-- Floating Phase Switcher -->
-                <div class="phase-widget">
-                    <div class="pw-btn active" data-phase="map">Map</div>
-                    <div class="pw-btn" data-phase="text">Text</div>
-                    <div class="pw-btn" data-phase="web">Web</div>
-                </div>
-
-                <!-- Phase 1: Map -->
-                <div id="view-map" class="phase-view active">
-                    <div id="world-layer">
-                        <svg id="edge-svg"></svg>
-                        <div id="node-layer"></div>
-                        
-                        <!-- Radial Menu -->
-                        <div id="radial-main" class="radial-wrapper">
-                            <div class="radial-btn rad-n" title="Add Child">✚</div>
-                            <div class="radial-btn rad-e" title="Connect">☍</div>
-                            <div class="radial-btn rad-s" title="Delete">✕</div>
-                            <div class="radial-btn rad-w" title="Edit">✎</div>
-                        </div>
-
-                        <!-- Connection Sub-Menu -->
-                        <div id="radial-connect" class="radial-wrapper">
-                            <div class="radial-btn rad-center" title="Back">BACK</div>
-                            <div class="radial-btn rad-n" title="Child">↓</div>
-                            <div class="radial-btn rad-e" title="Sibling">↔</div>
-                            <div class="radial-btn rad-s" title="Parent">↑</div>
-                            <div class="radial-btn rad-w" title="Logic">⚡</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Phase 2: Text -->
-                <div id="view-text" class="phase-view p-8">
-                    <div id="text-target" class="h-full"></div>
-                </div>
-
-                <!-- Phase 3: Web -->
-                <div id="view-web" class="phase-view bg-slate-100 p-8">
-                    <div id="web-target" class="max-w-4xl mx-auto space-y-4"></div>
-                </div>
-
-                <!-- Linking Overlay -->
-                <div id="linking-overlay" class="absolute inset-0 bg-white/60 z-[60] hidden flex items-center justify-center pointer-events-none"><div class="bg-orange-600 text-white px-4 py-2 rounded-full font-bold shadow-lg">Select Target Node to Link</div></div>
-                
-                <div id="map-controls" class="absolute bottom-6 left-6 z-40 flex gap-2 pointer-events-auto">
-                    <button id="btn-zoom-in" class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">＋</button>
-                    <button id="btn-zoom-out" class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">－</button>
-                    <button id="btn-layout-float" class="w-10 h-10 bg-white border border-slate-200 rounded-full shadow font-bold text-slate-500">☍</button>
-                </div>
-            </main>
-
-            <!-- Sidebar -->
-            <aside class="w-80 bg-white border-l border-slate-200 flex flex-col z-50 shrink-0 relative">
-                <div class="p-4 border-b font-bold text-xs uppercase tracking-widest text-slate-400">Inspector</div>
-                <div id="inspector-content" class="p-4 flex-1 overflow-y-auto">
-                    <div class="text-center opacity-30 mt-10">Select a Node</div>
-                </div>
-                <div class="p-4 border-t bg-slate-50 space-y-2">
-                     <button id="btn-portfolio" class="w-full py-2 bg-orange-50 border border-orange-100 text-orange-600 rounded-lg text-xs font-bold hover:bg-orange-100 uppercase tracking-widest border border-orange-200">Init Portfolio</button>
-                     <button id="btn-export" class="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 uppercase tracking-widest">Export State</button>
-                </div>
-            </aside>
-        </div>
-    </div>
-
-    <!-- MODULE LOADER -->
-    <script type="module">
-        import { MetaMindKernel } from './meta-mind-core.js';
-        import { TextPhaseEngine, WebPhaseEngine, PhaseRegistry } from './phase-engines.js';
-
-        // Initialize Global Kernel
-        window.MM = new MetaMindKernel();
-        const Registry = new PhaseRegistry(window.MM);
-        Registry.register(new TextPhaseEngine(window.MM));
-        Registry.register(new WebPhaseEngine(window.MM));
-
-        // --- UI CONTROLLER ---
-        window.UI = {
-            activePhase: 'map', isPanning: false, lastMouse: {x:0, y:0}, selectedEdgeId: null, radialContextId: null, activeLinkType: null,
+        const UI = {
+            isPanning: false, lastMouse: { x: 0, y: 0 }, activePhase: 'map', radialContextId: null, activeLinkType: null, selectedEdgeId: null,
+            userRole: 'architect',
 
             init() {
-                this.viewport = document.getElementById('viewport');
-                this.world = document.getElementById('world-layer');
-                this.svg = document.getElementById('edge-svg');
-                this.nodeLayer = document.getElementById('node-layer');
-                this.inspector = document.getElementById('inspector-content');
+                PhaseRegistry.init(MM);
 
-                this.bindEvents();
-                
-                // Persistence
-                if(MM.state.nodes.length > 0) {
-                    document.getElementById('login-overlay').style.display = 'none';
-                    this.render(MM.state);
-                }
-                
-                MM.subscribe((state, type) => this.render(state, type));
-            },
-
-            bindEvents() {
-                // Login - FIXED: Ensure preventDefault works and hide logic is robust
-                document.getElementById('login-form').onsubmit = (e) => {
-                    e.preventDefault(); // Stop reload
-                    e.stopPropagation();
-                    console.log("Login submitted");
-                    
-                    try {
-                        const name = document.getElementById('login-name').value;
-                        const root = MM.addNode({ title: name, type: 'profile', position: {x: window.innerWidth/2, y: window.innerHeight/2}});
-                        
-                        MM.autoLayout();
-                        document.getElementById('login-overlay').style.display = 'none'; 
-                    } catch (err) {
-                        console.error("Login failed", err);
-                    }
-                    return false;
-                };
-
-                // Portfolio
-                document.getElementById('btn-portfolio').onclick = () => {
-                    const r = MM.addNode({title:"Portfolio", type:'section', position:{x:0,y:0}});
-                    const h = MM.addNode({title:"Hero", type:'hero', position:{x:0,y:150}});
-                    MM.addEdge(r,h); MM.autoLayout();
-                };
-
-                // Phase Switching
-                document.querySelectorAll('.pw-btn').forEach(btn => {
-                    btn.onclick = () => {
-                        this.activePhase = btn.dataset.phase;
-                        document.querySelectorAll('.pw-btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                        
-                        document.querySelectorAll('.phase-view').forEach(v => {
-                            v.style.display = 'none';
-                            v.classList.remove('active');
-                            v.style.zIndex = 0;
-                        });
-                        const targetView = document.getElementById(`view-${this.activePhase}`);
-                        if(targetView) {
-                            targetView.style.display = 'block';
-                            targetView.classList.add('active');
-                            if(this.activePhase !== 'map') targetView.style.zIndex = 50;
-                        }
-                        
-                        this.render(MM.state);
-                    };
-                });
-
-                // Pan/Zoom
-                this.viewport.onmousedown = (e) => {
-                    if(e.target === this.viewport || e.target === this.svg || e.target.id === 'view-map') {
-                        this.isPanning = true;
-                        this.lastMouse = {x: e.clientX, y: e.clientY};
-                        this.deselectAll();
+                // Map Events
+                const vp = document.getElementById('viewport');
+                vp.onmousedown = (e) => {
+                    if (this.activePhase === 'map' && (e.target.id === 'view-map' || e.target.id === 'viewport' || e.target.id === 'edge-svg')) {
+                        this.isPanning = true; this.lastMouse = { x: e.clientX, y: e.clientY }; this.deselectAll();
                     }
                 };
                 window.onmousemove = (e) => {
-                    if(this.isPanning) {
+                    if (this.isPanning) {
                         MM.pan(e.clientX - this.lastMouse.x, e.clientY - this.lastMouse.y);
-                        this.lastMouse = {x: e.clientX, y: e.clientY};
+                        this.lastMouse = { x: e.clientX, y: e.clientY };
                     }
                 };
                 window.onmouseup = () => this.isPanning = false;
-                this.viewport.onwheel = (e) => { e.preventDefault(); MM.zoom(e.deltaY > 0 ? -0.1 : 0.1, e.clientX, e.clientY); };
+                vp.onwheel = (e) => { if (this.activePhase === 'map') { e.preventDefault(); MM.zoom(e.deltaY > 0 ? -0.05 : 0.05, e.clientX, e.clientY); this.hideRadial(); } };
+                vp.ondblclick = (e) => { if (this.activePhase === 'map') { const pos = MM.screenToWorld(e.clientX, e.clientY); MM.addNode({ position: pos, title: "New Concept" }); } };
 
-                // Add Node
-                this.viewport.ondblclick = (e) => {
-                    if(this.activePhase === 'map') {
-                        const pos = MM.screenToWorld(e.clientX, e.clientY);
-                        MM.addNode({ position: pos });
-                        MM.autoLayout();
-                    }
-                };
+                MM.subscribe(state => this.render(state));
 
-                document.getElementById('btn-reset').onclick = () => MM.resetStorage();
-                document.getElementById('btn-layout').onclick = () => MM.autoLayout();
-                document.getElementById('btn-layout-float').onclick = () => MM.autoLayout();
-                document.getElementById('btn-zoom-in').onclick = () => MM.zoom(0.1, window.innerWidth/2, window.innerHeight/2);
-                document.getElementById('btn-zoom-out').onclick = () => MM.zoom(-0.1, window.innerWidth/2, window.innerHeight/2);
+                // Persistence check
+                if (MM.state.nodes.length > 0) {
+                    document.getElementById('login-overlay').style.display = 'none';
+                    MM.notify();
+                }
+            },
+
+            handleLogin(e) {
+                e.preventDefault();
+                const name = document.getElementById('login-name').value;
+                const role = document.getElementById('login-role').value;
+                this.userRole = role;
+
+                // Create Root Profile
+                this.initProfile(name);
+
+                document.getElementById('login-overlay').style.display = 'none';
+
+                if (role === 'tester') {
+                    document.getElementById('pw-outliner').style.opacity = '0.5';
+                    document.getElementById('pw-web').style.opacity = '0.5';
+                }
+            },
+
+            initProfile(name = "My Profile") {
+                MM.state.nodes = []; MM.state.edges = [];
+                const root = MM.addNode({ title: name, position: { x: 0, y: 0 }, type: "profile", content: "Identity Root" });
+                MM.state.viewport.x = window.innerWidth / 2; MM.state.viewport.y = window.innerHeight / 2;
+                MM.state.selectedId = root;
+                MM.autoLayout(); // Always Auto-Arrange on Init
+                MM.notify();
+            },
+
+            startWebQuest() {
+                MM.state.nodes = []; MM.state.edges = [];
+                const qRoot = MM.addNode({ title: "My Portfolio", type: "section", position: { x: 300, y: 0 }, content: "Showcase" });
+                const q1 = MM.addNode({ title: "About Me", type: "hero", position: { x: 450, y: -100 } });
+                const q2 = MM.addNode({ title: "Projects", type: "widget", position: { x: 450, y: 100 } });
+                MM.addEdge(qRoot, q1); MM.addEdge(qRoot, q2);
+                MM.state.viewport.x = window.innerWidth / 2; MM.state.viewport.y = window.innerHeight / 2;
+                MM.autoLayout(); // Auto-Arrange
+            },
+
+            setPhase(phaseId) {
+                // RBAC Check
+                if (this.userRole === 'tester' && phaseId !== 'map') return;
+
+                this.activePhase = phaseId;
+                document.querySelectorAll('.pw-btn').forEach(el => el.classList.remove('active'));
+                document.getElementById(`pw-${phaseId}`).classList.add('active');
+
+                // Toggle Views by Class (CSS handles Z-Index)
+                ['map', 'text', 'web'].forEach(p => {
+                    const el = document.getElementById(`view-${p}`);
+                    if (el) el.classList.toggle('active', p === phaseId);
+                });
+
+                document.getElementById('map-controls').style.display = phaseId === 'map' ? 'flex' : 'none';
+
+                if (phaseId !== 'map') {
+                    let targetId = phaseId === 'web' ? 'web-target' : 'text-target';
+                    PhaseRegistry.setActive(phaseId);
+                    PhaseRegistry.renderActive(targetId);
+                }
             },
 
             deselectAll() { MM.state.selectedId = null; this.selectedEdgeId = null; this.hideRadial(); MM.notify(); },
             selectEdge(id) { this.selectedEdgeId = id; MM.state.selectedId = null; this.hideRadial(); this.renderInspector(MM.state); MM.notify(); },
 
-            showRadial(id, x, y, type='main') {
-                document.querySelectorAll('.radial-wrapper').forEach(e=>e.classList.remove('active'));
+            showRadial(id, x, y, type = 'main') {
+                document.querySelectorAll('.radial-wrapper').forEach(e => e.classList.remove('active'));
                 const m = document.getElementById(`radial-${type}`);
-                if(m) { 
-                    m.classList.add('active'); 
-                    m.style.left = `${x}px`; m.style.top = `${y}px`; 
-                    m.style.transform = `translate(-50%, -50%) scale(${1/MM.state.viewport.scale})`; 
-                    this.radialContextId = id; 
+                if (m) {
+                    m.classList.add('active');
+                    m.style.left = `${x}px`; m.style.top = `${y}px`;
+                    m.style.transform = `translate(-50%, -50%) scale(${1 / MM.state.viewport.scale})`;
+                    this.radialContextId = id; this.radialPosition = { x, y };
                 }
             },
-            switchRadial(t) { if(this.radialContextId) this.showRadial(this.radialContextId, 0, 0, t); },
-            hideRadial() { document.querySelectorAll('.radial-wrapper').forEach(e=>e.classList.remove('active')); this.radialContextId = null; },
-            
+            switchRadial(t) { if (this.radialContextId) this.showRadial(this.radialContextId, this.radialPosition.x, this.radialPosition.y, t); },
+            hideRadial() { document.querySelectorAll('.radial-wrapper').forEach(e => e.classList.remove('active')); this.radialContextId = null; },
+
             radialAction(act) {
-                if(!this.radialContextId) return;
+                if (!this.radialContextId) return;
                 const id = this.radialContextId;
                 const node = MM.state.nodes.find(n => n.id === id);
-                if(act==='delete') MM.deleteNode(id);
-                if(act==='add_child') { 
+                if (act === 'delete') MM.deleteNode(id);
+                if (act === 'add_child') {
                     const bp = MM.getBlueprint(node.type);
-                    const type = (bp.allowed && bp.allowed.length > 0) ? bp.allowed[0].type : 'concept';
-                    const title = (bp.allowed && bp.allowed.length > 0) ? bp.allowed[0].label : 'Child';
-                    const cid = MM.addNode({title: title, type: type, position:{x:node.position.x+150,y:node.position.y+150}}); 
-                    MM.addEdge(id, cid); MM.autoLayout();
+                    const childType = (bp.allowedChildren && bp.allowedChildren.length > 0) ? bp.allowedChildren[0].type : 'concept';
+                    const childTitle = (bp.allowedChildren && bp.allowedChildren.length > 0) ? bp.allowedChildren[0].label : 'New Node';
+                    const cid = MM.addNode({ title: childTitle, type: childType, position: { x: node.position.x + 150, y: node.position.y + 150 } });
+                    MM.addEdge(id, cid);
+                    MM.autoLayout(); // Auto-arrange on add
                 }
-                if(act==='edit') document.getElementById('inp-title')?.focus();
+                if (act === 'edit') { this.renderInspector(MM.state); document.getElementById('inp-title')?.focus(); }
                 this.hideRadial();
             },
 
-            startLinking(t) { this.activeLinkType=t; this.hideRadial(); document.getElementById('linking-overlay').style.display='flex'; document.getElementById('viewport').style.cursor='crosshair'; },
-            completeLinking(tgt) { if(this.radialContextId && tgt!==this.radialContextId) MM.addEdge(this.radialContextId, tgt, this.activeLinkType); this.cancelLinking(); },
-            cancelLinking() { this.activeLinkType=null; document.getElementById('linking-overlay').style.display='none'; document.getElementById('viewport').style.cursor='grab'; },
+            startLinking(t) { this.activeLinkType = t; this.hideRadial(); document.getElementById('linking-overlay').style.display = 'flex'; document.getElementById('viewport').style.cursor = 'crosshair'; },
+            completeLinking(tgt) { if (this.radialContextId && tgt !== this.radialContextId) MM.addEdge(this.radialContextId, tgt, this.activeLinkType); this.cancelLinking(); },
+            cancelLinking() { this.activeLinkType = null; document.getElementById('linking-overlay').style.display = 'none'; document.getElementById('viewport').style.cursor = 'grab'; },
 
-            getIcon(type) { 
+            getIcon(type) {
                 const bp = MM.getBlueprint(type);
                 return bp ? bp.icon : '⚪';
             },
 
-            render(state, type) {
+            render(state) {
                 this.renderInspector(state);
-                if (this.activePhase === 'map') this.renderMap(state);
-                else {
+                // Always render map
+                this.renderMap(state);
+
+                if (this.activePhase !== 'map') {
                     let targetId = this.activePhase === 'web' ? 'web-target' : 'text-target';
-                    Registry.setActive(this.activePhase);
-                    Registry.renderActive(targetId);
+                    PhaseRegistry.renderActive(targetId);
                 }
             },
 
             renderMap(state) {
-                const world = document.getElementById('world-layer');
                 const nodeLayer = document.getElementById('node-layer');
                 const svg = document.getElementById('edge-svg');
 
-                world.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+                // Transform ONLY nodes layer
+                nodeLayer.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
 
-                // Render Edges
+                // Manual Projection for Edges (Reliable Fix)
                 svg.innerHTML = '';
                 state.edges.forEach(e => {
                     const s = state.nodes.find(n => n.id === e.source);
                     const t = state.nodes.find(n => n.id === e.target);
-                    if(s && t) {
+                    if (s && t) {
+                        const x1 = s.position.x * state.viewport.scale + state.viewport.x;
+                        const y1 = s.position.y * state.viewport.scale + state.viewport.y;
+                        const x2 = t.position.x * state.viewport.scale + state.viewport.x;
+                        const y2 = t.position.y * state.viewport.scale + state.viewport.y;
+
                         const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                        l.setAttribute("x1", s.position.x); l.setAttribute("y1", s.position.y);
-                        l.setAttribute("x2", t.position.x); l.setAttribute("y2", t.position.y);
+                        l.setAttribute("x1", x1); l.setAttribute("y1", y1);
+                        l.setAttribute("x2", x2); l.setAttribute("y2", y2);
                         l.setAttribute("class", `edge-vis ${this.selectedEdgeId === e.id ? 'selected' : ''}`);
                         svg.appendChild(l);
                         const h = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                        h.setAttribute("x1", s.position.x); h.setAttribute("y1", s.position.y);
-                        h.setAttribute("x2", t.position.x); h.setAttribute("y2", t.position.y);
+                        h.setAttribute("x1", x1); h.setAttribute("y1", y1);
+                        h.setAttribute("x2", x2); h.setAttribute("y2", y2);
                         h.setAttribute("class", "edge-hit");
                         h.onclick = (ev) => { ev.stopPropagation(); this.selectEdge(e.id); };
                         svg.appendChild(h);
@@ -328,25 +469,25 @@
 
                 // Render Nodes
                 Array.from(nodeLayer.children).forEach(el => {
-                    if(el.id.startsWith('radial-')) return;
-                    if(!state.nodes.find(n => n.id === el.dataset.id)) el.remove();
+                    if (el.id.startsWith('radial-')) return;
+                    if (!state.nodes.find(n => n.id === el.dataset.id)) el.remove();
                 });
 
                 state.nodes.forEach(n => {
                     let el = nodeLayer.querySelector(`[data-id="${n.id}"]`);
-                    if(!el) {
+                    if (!el) {
                         el = document.createElement('div');
                         el.className = 'node';
                         el.dataset.id = n.id;
                         el.onmousedown = (e) => e.stopPropagation();
-                        el.onclick = (e) => { 
-                            e.stopPropagation(); 
+                        el.onclick = (e) => {
+                            e.stopPropagation();
                             if (this.activeLinkType) { this.completeLinking(n.id); return; }
                             MM.state.selectedId = n.id;
                             MM.zoom(0, n.position.x, n.position.y);
                             this.renderInspector(state);
                             this.showRadial(n.id, n.position.x, n.position.y);
-                            MM.notify(); 
+                            MM.notify();
                         };
                         nodeLayer.appendChild(el);
                     }
@@ -358,37 +499,36 @@
             },
 
             renderInspector(state) {
-                const container = document.getElementById('inspector-content');
+                const container = document.getElementById('node-editor-content');
                 if (this.selectedEdgeId) {
                     const edge = state.edges.find(e => e.id === this.selectedEdgeId);
-                    if(!edge) return;
+                    if (!edge) return;
                     container.innerHTML = `<div class="space-y-6 animate-fade-in"><div class="text-xs font-bold text-orange-600 uppercase tracking-widest mb-4">⚡ Connection</div><section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Weight</label><input type="number" id="inp-weight" value="${edge.meta?.weight || 1.0}" class="w-full border-b border-slate-200 py-2 font-bold"></section><button onclick="MM.deleteEdge('${edge.id}')" class="w-full py-2 bg-red-50 text-red-600 rounded text-xs font-bold mt-4">Delete Connection</button></div>`;
                     return;
                 }
                 const node = state.nodes.find(n => n.id === state.selectedId);
-                if(!node) {
-                    if(!container.querySelector('.opacity-30')) container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-30 mt-20"><div class="text-4xl mb-2">⦿</div><p class="text-xs font-bold uppercase tracking-widest">Select Node</p></div>`;
+                if (!node) {
+                    if (!container.querySelector('.opacity-30')) container.innerHTML = `<div class="h-full flex flex-col items-center justify-center opacity-30 mt-20"><div class="text-4xl mb-2">⦿</div><p class="text-xs font-bold uppercase tracking-widest">Select Node</p></div>`;
                     return;
                 }
-                if(container.dataset.renderedId === node.id && !this.selectedEdgeId) return;
+                if (container.dataset.renderedId === node.id && !this.selectedEdgeId) return;
                 container.dataset.renderedId = node.id;
                 container.innerHTML = `
                     <div class="space-y-6 animate-fade-in">
                         <section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Label</label><input type="text" id="inp-title" value="${node.title}" class="w-full border-b border-slate-200 py-2 font-bold text-xl focus:outline-none focus:border-orange-500 bg-transparent transition-colors"></section>
-                        <section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</label><select id="inp-type" class="w-full mt-1 bg-white border border-slate-200 text-xs p-2 rounded"><option value="section" ${node.type==='section'?'selected':''}>Section</option><option value="hero" ${node.type==='hero'?'selected':''}>Hero</option><option value="button" ${node.type==='button'?'selected':''}>Button</option><option value="nav" ${node.type==='nav'?'selected':''}>Navbar</option><option value="widget" ${node.type==='widget'?'selected':''}>Widget</option><option value="profile" ${node.type==='profile'?'selected':''}>Profile</option></select></section>
+                        <section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</label><select id="inp-type" class="w-full mt-1 bg-white border border-slate-200 text-xs p-2 rounded"><option value="section" ${node.type === 'section' ? 'selected' : ''}>Section</option><option value="hero" ${node.type === 'hero' ? 'selected' : ''}>Hero</option><option value="button" ${node.type === 'button' ? 'selected' : ''}>Button</option><option value="nav" ${node.type === 'nav' ? 'selected' : ''}>Navbar</option><option value="widget" ${node.type === 'widget' ? 'selected' : ''}>Widget</option><option value="profile" ${node.type === 'profile' ? 'selected' : ''}>Profile</option></select></section>
                         <section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Renderer</label><select id="inp-renderer" class="w-full mt-1 bg-white border border-slate-200 text-xs p-2 rounded"><option value="text">Text Outline</option><option value="web">Web Architect</option></select></section>
                         <section><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Content</label><textarea id="inp-content" class="w-full mt-2 bg-white border border-slate-100 p-4 rounded-xl text-sm min-h-[120px] focus:outline-none focus:border-slate-300 transition-colors">${node.content}</textarea></section>
                     </div>`;
-                document.getElementById('inp-title').onchange = (e) => MM.updateNode(node.id, {title: e.target.value});
-                document.getElementById('inp-type').onchange = (e) => MM.updateNode(node.id, {type: e.target.value});
-                document.getElementById('inp-renderer').onchange = (e) => { if(!node.metadata) node.metadata={}; node.metadata.renderer=e.target.value; MM.updateNode(node.id, {metadata: node.metadata}); };
-                document.getElementById('inp-content').onblur = (e) => MM.updateNode(node.id, {content: e.target.value});
+                document.getElementById('inp-title').onchange = (e) => MM.updateNode(node.id, { title: e.target.value });
+                document.getElementById('inp-type').onchange = (e) => MM.updateNode(node.id, { type: e.target.value });
+                document.getElementById('inp-renderer').onchange = (e) => { if (!node.metadata) node.metadata = {}; node.metadata.renderer = e.target.value; MM.updateNode(node.id, { metadata: node.metadata }); };
+                document.getElementById('inp-content').onblur = (e) => MM.updateNode(node.id, { content: e.target.value });
             },
 
-            async triggerSense() { if(!MM.state.selectedId) return; const res = await MM.senseIntent("Contextual Expansion"); alert(`AI SUGGESTION:\n${res.content}`); }
+            async triggerSense() { if (!MM.state.selectedId) return; const res = await MM.senseIntent("Contextual Expansion"); alert(`AI SUGGESTION:\n${res.content}`); }
         };
 
-        // Fix missing deleteEdge in Kernel (Shim for now)
         MM.deleteEdge = (id) => {
             MM.state.edges = MM.state.edges.filter(e => e.id !== id);
             MM.selectedId = null;
@@ -400,4 +540,5 @@
         UI.init();
     </script>
 </body>
+
 </html>
