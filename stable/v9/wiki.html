@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta-Mind | Technical Documentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --accent: #ea580c;
+            --bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: #0f172a;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Documentation Styles */
+        .doc-section {
+            margin-bottom: 4rem;
+            scroll-margin-top: 6rem;
+        }
+
+        .code-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            color: #334155;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 0.5rem 1rem;
+            border-left: 2px solid transparent;
+            color: #64748b;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            color: var(--accent);
+            border-left-color: #cbd5e1;
+        }
+
+        .nav-link.active {
+            color: var(--accent);
+            border-left-color: var(--accent);
+            font-weight: 600;
+        }
+
+        .api-tag {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 0.5rem;
+        }
+
+        .tag-core {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .tag-proto {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col md:flex-row min-h-screen">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-full md:w-64 bg-white border-r border-slate-200 fixed h-full overflow-y-auto hidden md:block z-50">
+        <div class="p-6 mb-4">
+            <a href="index.html" class="flex items-center gap-2 group">
+                <span
+                    class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
+                <span
+                    class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase group-hover:bg-orange-600 transition-colors">Docs
+                    v2.1</span>
+            </a>
+        </div>
+        <nav class="px-4 space-y-1">
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-4">Kernel v3.0
+            </div>
+            <a href="#intro" class="nav-link active">Kernel Overview</a>
+            <a href="#federation" class="nav-link">Federation Protocols</a>
+            <a href="#persistence" class="nav-link">Persistence Engine</a>
+
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-6">API Reference
+            </div>
+            <a href="#api-nodes" class="nav-link">Node Factory</a>
+            <a href="#api-spatial" class="nav-link">Spatial Engine</a>
+
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-6">UIP Standards
+            </div>
+            <a href="#uip-identity" class="nav-link">Identity Context</a>
+            <a href="#uip-policy" class="nav-link">Access Policy</a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-grow md:ml-64 p-8 md:p-16 max-w-5xl mx-auto w-full">
+
+        <!-- Mobile Header -->
+        <div class="md:hidden flex justify-between items-center mb-12">
+            <span class="text-xl font-black tracking-tighter">META-MIND DOCS</span>
+            <a href="index.html" class="text-xs font-bold text-orange-600">Back to Hub</a>
+        </div>
+
+        <div class="fade-in">
+            <h1 class="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">Kernel Documentation</h1>
+            <p class="text-xl text-slate-500 leading-relaxed max-w-3xl mb-12">
+                Documentation for <strong>Kernel v3.1 (Federated)</strong>. This release introduces the Universal
+                Integration Protocol (UIP) and Local Persistence.
+            </p>
+        </div>
+
+        <hr class="border-slate-100 mb-16">
+
+        <!-- Section: Intro -->
+        <section id="intro" class="doc-section">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">1. The Federated Kernel</h2>
+            <p class="text-slate-600 mb-4 leading-relaxed">
+                The Meta-Mind Kernel is designed for a distributed future. Unlike traditional apps that save "files,"
+                the Kernel manages a graph of independent, addressable objects.
+            </p>
+            <div class="code-block">
+                // Global Instance
+                const MM = new MetaMindKernel();
+                MM.subscribe(state => console.log("Mapstate Updated", state));
+            </div>
+        </section>
+
+        <!-- Section: Federation -->
+        <section id="federation" class="doc-section">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">2. Federation Protocols (v3.0)</h2>
+            <p class="text-slate-600 mb-6 leading-relaxed">
+                To support cross-user integration (Phase 3 SSD), every node now carries an <code>origin</code> object.
+                This allows a map to contain nodes created by different users on different servers.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 uppercase mb-2">Federated Node Schema</h3>
+                    <div class="code-block">
+                        {
+                        "id": "uuid-v4",
+                        "type": "concept",
+                        "title": "Core System",
+                        "origin": {
+                        "creator": "user_hash_123",
+                        "server": "mm-node-alpha",
+                        "created": "ISO-8601"
+                        },
+                        "policy": {
+                        "access": "public",
+                        "owner": "user_hash_123"
+                        }
+                        }
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 uppercase mb-2">Identity Context</h3>
+                    <p class="text-sm text-slate-500 mb-4">The Kernel maintains a session identity to sign new nodes
+                        automatically.</p>
+                    <div class="code-block">
+                        MM.state.identity = {
+                        userId: "local-user-992",
+                        homeServer: "local"
+                        };
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Persistence -->
+        <section id="persistence" class="doc-section">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">3. Persistence Engine</h2>
+            <p class="text-slate-600 mb-4">
+                Kernel v3.1 introduces an <code>AutoSave</code> loop. The state is serialized to
+                <code>localStorage</code> every 2 seconds if changes are detected.
+            </p>
+            <div class="flex items-center gap-3 mb-2">
+                <span class="api-tag tag-core">MM.resetStorage()</span>
+                <span class="text-sm font-mono text-slate-500">Action: Clear & Reload</span>
+            </div>
+            <p class="text-slate-600 text-sm">Wipes the local cache and reloads the page to a fresh state. Useful for
+                debugging.</p>
+        </section>
+
+        <footer class="mt-20 pt-10 border-t border-slate-200 text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">© 2024 Meta-Mind Project |
+                Documentation</p>
+        </footer>
+
+    </main>
+
+</body>
+
+</html>

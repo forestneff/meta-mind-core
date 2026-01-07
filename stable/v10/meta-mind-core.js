@@ -1,15 +1,14 @@
 /**
- * META-MIND CORE KERNEL v4.1
+ * META-MIND CORE KERNEL v4.0
  * The central "Webkit" for Federated Mapstate Management.
- * Includes Auto-Arrange, Smart Sorting, and Viewport Centering.
+ * Added Graph Traversal Helpers for Radial Menus & Tree Views.
  */
 
 class MetaMindKernel {
     constructor() {
         this.config = {
             autoSaveInterval: 2000,
-            spacing: { x: 300, y: 120 }, // Tighter vertical spacing
-            autoArrangeEnabled: true     // Toggle for auto-layout on changes
+            spacing: { x: 300, y: 180 }
         };
         
         this.state = this.loadFromStorage() || this.getEmptyState();
@@ -33,7 +32,7 @@ class MetaMindKernel {
             metadata: {
                 title: "Untitled Map",
                 created: new Date().toISOString(),
-                version: "4.1.0"
+                version: "4.0.0"
             }
         };
     }
@@ -41,25 +40,27 @@ class MetaMindKernel {
     // --- NODE BLUEPRINTS ---
     getBlueprint(type) {
         const blueprints = {
-            'profile': { label: "User Profile", icon: "👤", defaultContent: "Identity Root", priority: 0 },
-            'hub': { label: "Central Hub", icon: "💠", defaultContent: "Category Root", priority: 1 },
-            'web-root': { label: "Website Root", icon: "🌐", defaultContent: "My Awesome Site", priority: 2 },
-            'web-nav': { label: "Navigation Bar", icon: "🧭", defaultContent: "Home | About | Contact", priority: 3 },
-            'logic-gate': { label: "Logic Gate", icon: "⚡", defaultContent: "IF (condition) THEN", priority: 5 },
-            'web-hero': { label: "Hero Section", icon: "⭐", defaultContent: "Welcome.", priority: 6 },
-            'web-feature': { label: "Feature Block", icon: "✨", defaultContent: "<h3>Feature</h3>", priority: 7 },
-            'web-footer': { label: "Footer", icon: "🦶", defaultContent: "© 2026", priority: 9 },
-            'note': { label: "Sticky Note", icon: "📝", defaultContent: "Quick thought...", priority: 10 }
+            'profile': { label: "User Profile", icon: "👤", defaultContent: "Identity Root" },
+            'note': { label: "Sticky Note", icon: "📝", defaultContent: "Quick thought..." },
+            'logic-gate': { label: "Logic Gate", icon: "⚡", defaultContent: "IF (condition) THEN" },
+            'hub': { label: "Central Hub", icon: "💠", defaultContent: "Category Root" },
+            
+            // Web Dev Nodes
+            'web-root': { label: "Website Root", icon: "🌐", defaultContent: "My Awesome Site" },
+            'web-nav': { label: "Navigation Bar", icon: "🧭", defaultContent: "Home | About | Contact" },
+            'web-hero': { label: "Hero Section", icon: "⭐", defaultContent: "Welcome to the future." },
+            'web-feature': { label: "Feature Block", icon: "✨", defaultContent: "<h3>Feature Name</h3><p>Description...</p>" },
+            'web-footer': { label: "Footer", icon: "🦶", defaultContent: "© 2026 Company Name" }
         };
-        return blueprints[type] || { label: "Unknown Node", icon: "⚪", defaultContent: "...", priority: 99 };
+        return blueprints[type] || { label: "Unknown Node", icon: "⚪", defaultContent: "..." };
     }
 
-    // --- GRAPH HELPERS ---
+    // --- GRAPH TRAVERSAL HELPERS (New) ---
     getChildren(nodeId) {
         return this.state.edges
             .filter(e => e.source === nodeId)
             .map(e => this.state.nodes.find(n => n.id === e.target))
-            .filter(n => n);
+            .filter(n => n); // filter undefined
     }
 
     getParents(nodeId) {
@@ -67,20 +68,6 @@ class MetaMindKernel {
             .filter(e => e.target === nodeId)
             .map(e => this.state.nodes.find(n => n.id === e.source))
             .filter(n => n);
-    }
-
-    // --- SORTING LOGIC (The "Generic" Sorter) ---
-    nodeComparator(a, b) {
-        // 1. Sort by Blueprint Priority (Hubs/Roots first)
-        const bpA = this.getBlueprint(a.type).priority || 99;
-        const bpB = this.getBlueprint(b.type).priority || 99;
-        if (bpA !== bpB) return bpA - bpB;
-
-        // 2. Sort Alphabetically by Title
-        if (a.title && b.title) return a.title.localeCompare(b.title);
-
-        // 3. Fallback to ID
-        return a.id.localeCompare(b.id);
     }
 
     // --- STATE MUTATION ---
@@ -100,14 +87,7 @@ class MetaMindKernel {
         };
         
         this.state.nodes.push(newNode);
-
-        // Trigger Auto-Arrange if enabled
-        if (this.config.autoArrangeEnabled) {
-            this.autoLayout(id); // Layout and focus new node
-        } else {
-            this.notify();
-        }
-
+        this.notify();
         return newNode;
     }
 
@@ -125,12 +105,7 @@ class MetaMindKernel {
         this.state.nodes = this.state.nodes.filter(n => n.id !== id);
         this.state.edges = this.state.edges.filter(e => e.source !== id && e.target !== id);
         if (this.state.selectedId === id) this.state.selectedId = null;
-        
-        if (this.config.autoArrangeEnabled) {
-            this.autoLayout(); // Re-layout (focuses root default)
-        } else {
-            this.notify();
-        }
+        this.notify();
     }
 
     addEdge(sourceId, targetId) {
@@ -145,12 +120,7 @@ class MetaMindKernel {
             target: targetId,
             relation: "linked"
         });
-        
-        if (this.config.autoArrangeEnabled) {
-            this.autoLayout(targetId); // Re-layout focusing the child
-        } else {
-            this.notify();
-        }
+        this.notify();
     }
 
     deleteEdge(id) {
@@ -164,73 +134,43 @@ class MetaMindKernel {
         this.notify();
     }
 
-    // --- AUTO LAYOUT & CENTERING ---
-    autoLayout(focusNodeId = null) {
-        // 1. Identify Roots (Nodes with no incoming edges)
-        let roots = this.state.nodes.filter(n => !this.state.edges.find(e => e.target === n.id));
-        
-        // Safety: If circular or everything connected, pick first node
+    // --- AUTO LAYOUT ---
+    autoLayout() {
+        this.saveHistory();
+        const roots = this.state.nodes.filter(n => !this.state.edges.find(e => e.target === n.id));
         if (roots.length === 0 && this.state.nodes.length > 0) roots.push(this.state.nodes[0]); 
 
         const visited = new Set();
         let currentY = 0;
 
-        // Recursive Layout Function
-        const layoutNode = (nodeId, x) => {
+        const layoutNode = (nodeId, x, level) => {
             if (visited.has(nodeId)) return;
             visited.add(nodeId);
 
             const node = this.state.nodes.find(n => n.id === nodeId);
             if (!node) return;
 
-            // Get Sorted Children
-            const children = this.getChildren(nodeId).sort((a, b) => this.nodeComparator(a, b));
+            const children = this.getChildren(nodeId);
 
-            // Position X (Depth)
             node.x = x;
             
             if (children.length === 0) {
-                // Leaf Node: Dictates vertical spacing
                 node.y = currentY;
                 currentY += this.config.spacing.y;
             } else {
-                // Parent Node: Centered relative to children
                 let firstChildY = currentY;
-                
-                // Recurse
-                children.forEach(child => layoutNode(child.id, x + this.config.spacing.x));
-                
+                children.forEach(child => layoutNode(child.id, x + this.config.spacing.x, level + 1));
                 let lastChildY = currentY - this.config.spacing.y;
                 node.y = (firstChildY + lastChildY) / 2;
             }
         };
 
-        // Run Layout for each root forest
-        roots.sort((a,b) => this.nodeComparator(a,b)).forEach(root => layoutNode(root.id, 0));
+        roots.forEach(root => layoutNode(root.id, 0, 0));
         
-        // 2. Center Viewport
-        if (focusNodeId) {
-            const target = this.state.nodes.find(n => n.id === focusNodeId);
-            if (target) this.centerOnNode(target);
-        } else if (roots.length > 0) {
-            this.centerOnNode(roots[0]);
-        } else {
-            this.notify(); // Just render if empty
+        if(roots.length > 0) {
+            this.state.viewport.x = window.innerWidth/2 - roots[0].x;
+            this.state.viewport.y = window.innerHeight/2 - roots[0].y;
         }
-    }
-
-    centerOnNode(node) {
-        // Goal: Node (world coords) should be at Screen Center
-        // ScreenX = WorldX * Scale + ViewportX
-        // ViewportX = ScreenCenter - (WorldX * Scale)
-        
-        const screenCX = window.innerWidth / 2;
-        const screenCY = window.innerHeight / 2;
-        
-        // Animate? For now, snap.
-        this.state.viewport.x = screenCX - (node.x * this.state.viewport.scale);
-        this.state.viewport.y = screenCY - (node.y * this.state.viewport.scale);
-        
         this.notify();
     }
 
