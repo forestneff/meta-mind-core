@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta-Mind | Strategic Overview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Consolidated CSS -->
+    <link rel="stylesheet" href="meta-mind-base.css">
+</head>
+
+<body class="bg-slate-50 min-h-screen p-6 md:p-10">
+
+    <!-- Header -->
+    <header class="max-w-7xl mx-auto flex justify-between items-center mb-10 fade-in">
+        <div class="flex items-center gap-4">
+            <a href="index.html" class="flex items-center gap-2 hover:opacity-75 transition-opacity">
+                <div
+                    class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">
+                    ⌬</div>
+                <h1 class="text-xl font-bold text-slate-900">Strategic<span class="text-indigo-600">Intel</span></h1>
+            </a>
+        </div>
+        <div>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Dash v3.1</span>
+        </div>
+    </header>
+
+    <!-- Dashboard Grid -->
+    <main class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 fade-in"
+        style="animation-delay: 0.1s;">
+
+        <!-- 1. Mission Radar -->
+        <section class="glass-card p-6 col-span-1 lg:col-span-1">
+            <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Alignment Radar</h2>
+            <div class="relative h-64 w-full">
+                <canvas id="missionRadar"></canvas>
+            </div>
+            <div class="mt-4 text-xs text-slate-500 text-center">
+                Real-time assessment of platform values.
+            </div>
+        </section>
+
+        <!-- 2. Roadmap Gantt -->
+        <section class="glass-card p-6 col-span-1 md:col-span-2 lg:col-span-2">
+            <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Dev Roadmap (52-Week)</h2>
+            <div class="relative h-64 w-full">
+                <canvas id="roadmapGantt"></canvas>
+            </div>
+        </section>
+
+        <!-- 3. Key Metrics / Requirements -->
+        <section class="glass-card p-6 col-span-1 md:col-span-2 lg:col-span-3">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest">Requirements Matrix</h2>
+                    <p class="text-2xl font-black text-slate-900 mt-1">Active Priorities</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-3xl font-black text-indigo-600">84%</span>
+                    <p class="text-xs text-slate-500 font-bold uppercase">MVP Completion</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Status Cards -->
+                <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-xl">
+                    <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Completed</span>
+                    <h3 class="font-bold text-slate-800 mt-1">Core Kernel v3.7</h3>
+                    <p class="text-xs text-slate-500 mt-2">Mapstate math, Undo/Redo stack, basic rendering loop.</p>
+                </div>
+                <div class="p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                    <span class="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">In Progress</span>
+                    <h3 class="font-bold text-slate-800 mt-1">Persistence Engine</h3>
+                    <p class="text-xs text-slate-500 mt-2">Local storage autosave active. Cloud sync pending.</p>
+                </div>
+                <div class="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pending</span>
+                    <h3 class="font-bold text-slate-800 mt-1">Federation Protocol</h3>
+                    <p class="text-xs text-slate-500 mt-2">Cross-origin node sharing and social graphing.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- CHARTS CONFIGURATION ---
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.color = '#64748b';
+
+        // 1. Mission Radar
+        const ctxRadar = document.getElementById('missionRadar').getContext('2d');
+        new Chart(ctxRadar, {
+            type: 'radar',
+            data: {
+                labels: ['Privacy', 'Agency', 'Utility', 'Speed', 'Stability'],
+                datasets: [{
+                    label: 'Current Build',
+                    data: [90, 85, 75, 95, 80],
+                    backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                    borderColor: '#4f46e5',
+                    pointBackgroundColor: '#4f46e5',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: { color: '#e2e8f0' },
+                        grid: { color: '#e2e8f0' },
+                        pointLabels: { font: { size: 11, weight: 'bold' }, color: '#64748b' },
+                        suggestedMin: 0,
+                        suggestedMax: 100,
+                        ticks: { display: false }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // 2. Roadmap Gantt
+        const ctxGantt = document.getElementById('roadmapGantt').getContext('2d');
+        new Chart(ctxGantt, {
+            type: 'bar',
+            data: {
+                labels: ['Ph 1: MVP', 'Ph 2: Persistence', 'Ph 3: Collab', 'Ph 4: Social', 'Ph 5: Public', 'Ph 6: Federation'],
+                datasets: [{
+                    data: [[1, 8], [7, 14], [13, 22], [21, 30], [29, 38], [39, 52]],
+                    backgroundColor: [
+                        '#4f46e5', // Active (Indigo)
+                        '#cbd5e1', '#cbd5e1', '#cbd5e1', '#cbd5e1', '#cbd5e1' // Future (Slate)
+                    ],
+                    borderRadius: 6,
+                    barPercentage: 0.6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        min: 0, max: 55,
+                        grid: { display: false },
+                        title: { display: true, text: 'Week Number' }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { font: { weight: 'bold' } }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
