@@ -23,17 +23,29 @@ body {
     height: calc(100vh - 3.5rem);
     overflow: hidden;
     position: relative;
+    flex-direction: row;
 }
 
 #viewport {
     flex: 1;
     position: relative;
     overflow: hidden;
+    touch-action: none;
     cursor: grab;
 }
 
 #viewport:active {
     cursor: grabbing;
+}
+
+/* Responsive Scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -47,6 +59,39 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #334155;
     border-radius: 3px;
+}
+
+/* --- MAP LAYERS (ZOOM FIX) --- */
+#world-layer,
+#edge-svg {
+    position: absolute;
+    inset: 0;
+    transform-origin: 0 0;
+    /* CRITICAL: Ensures Nodes and SVGs scale from identical coordinates */
+    will-change: transform;
+}
+
+#edge-svg {
+    z-index: 0;
+    overflow: visible;
+    pointer-events: none;
+}
+
+#world-layer {
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* Layer is click-through, nodes catch clicks */
+
+.edge-vis {
+    stroke: rgba(148, 163, 184, 0.6);
+    stroke-width: 1.5px;
+    transition: stroke 0.3s;
+}
+
+.node:hover~svg .edge-vis {
+    stroke-opacity: 0.1;
 }
 
 /* --- NODES --- */
@@ -63,6 +108,8 @@ body {
     justify-content: center;
     z-index: 10;
     cursor: pointer;
+    touch-action: none;
+    pointer-events: auto;
     transform: translate(-50%, -50%);
     transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
@@ -107,23 +154,21 @@ body {
     pointer-events: none;
 }
 
-/* --- RADIAL MENU --- */
-#radial-menu {
-    position: fixed;
-    z-index: 99999;
-    width: 2px;
-    height: 2px;
-    overflow: visible;
+/* --- NATIVE RADIAL MENU --- */
+.radial-menu-container {
+    position: absolute;
+    width: 0;
+    height: 0;
+    top: 50%;
+    left: 50%;
+    z-index: -1;
     pointer-events: none;
-    display: none;
 }
 
 .radial-btn {
     position: absolute;
     width: 44px;
     height: 44px;
-    left: 0;
-    top: 0;
     margin-left: -22px;
     margin-top: -22px;
     background: rgba(15, 23, 42, 0.85);
@@ -136,19 +181,19 @@ body {
     justify-content: center;
     color: var(--glow-primary);
     cursor: pointer;
-    pointer-events: auto;
     font-size: 16px;
+    z-index: 50;
 
-    /* Pre-Animation State */
     opacity: 0;
     transform: translate(0, 0) scale(0.5);
-    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Post-Animation State (Triggered by .active class on parent) */
-#radial-menu.active .radial-btn {
+.radial-menu-container.active .radial-btn {
     opacity: 1;
     transform: translate(var(--tx), var(--ty)) scale(1);
+    pointer-events: auto;
 }
 
 .radial-btn:hover {
@@ -159,7 +204,31 @@ body {
     transform: translate(var(--tx), var(--ty)) scale(1.15) !important;
 }
 
-/* ... [Sidebar & SVG] ... */
+/* --- MOONS --- */
+.moon-btn {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: rgba(30, 41, 59, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    z-index: 40;
+    pointer-events: auto;
+}
+
+.moon-btn:hover {
+    background: var(--glow-primary);
+    transform: scale(1.3);
+}
+
+/* --- SIDEBAR & UX --- */
 .sidebar-tabs {
     display: flex;
     background: rgba(15, 23, 42, 0.5);
@@ -178,11 +247,18 @@ body {
     color: var(--text-muted);
     cursor: pointer;
     border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.sidebar-tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
 }
 
 .sidebar-tab.active {
-    background: rgba(56, 189, 248, 0.1);
+    background: rgba(56, 189, 248, 0.2);
     color: var(--glow-primary);
+    border: 1px solid rgba(56, 189, 248, 0.3);
 }
 
 .view-card {
@@ -198,17 +274,12 @@ body {
     transition: all 0.2s;
 }
 
+.view-card:hover {
+    border-color: rgba(56, 189, 248, 0.3);
+    background: rgba(30, 41, 59, 0.8);
+}
+
 .view-card.active {
     border-color: var(--glow-primary);
     background: rgba(56, 189, 248, 0.1);
-}
-
-#edge-svg {
-    overflow: visible;
-}
-
-.edge-vis {
-    stroke: rgba(148, 163, 184, 0.6);
-    stroke-width: 1.5px;
-    transition: stroke 0.3s;
 }

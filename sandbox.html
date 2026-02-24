@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meta-Mind | v13.3 Federated Client</title>
+    <title>Meta-Mind | v14.2 Production Release</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="meta-mind-ui.css">
 
@@ -15,16 +15,16 @@
     <script src="meta-mind-sandbox.js"></script>
 </head>
 
-<body class="overflow-hidden bg-slate-950 touch-none">
+<body class="overflow-hidden bg-slate-950 touch-none select-none">
     <nav
-        class="h-14 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center px-4 z-50 relative backdrop-blur">
+        class="h-14 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center px-4 z-50 relative backdrop-blur w-full">
         <!-- Identity & Status -->
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 shrink-0">
             <div
                 class="w-8 h-8 bg-sky-600 rounded flex items-center justify-center text-white font-black shadow-lg shadow-sky-900/50">
                 M</div>
             <div class="flex flex-col">
-                <span id="map-title" class="text-sm font-bold text-slate-200 leading-none">Meta-Mind v13.3</span>
+                <span id="map-title" class="text-sm font-bold text-slate-200 leading-none">Meta-Mind v14.2</span>
                 <div class="flex gap-2 mt-1">
                     <span id="save-status"
                         class="text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1">
@@ -38,46 +38,48 @@
             </div>
         </div>
 
-        <!-- Toolbar -->
-        <div class="flex gap-2">
-            <div class="h-6 w-px bg-slate-700 mx-2 self-center"></div>
+        <!-- Responsive Toolbar -->
+        <div class="flex gap-2 overflow-x-auto no-scrollbar items-center px-2">
+            <div class="h-6 w-px bg-slate-700 mx-1 shrink-0"></div>
             <button id="btn-add"
-                class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded transition-colors shadow-lg shadow-sky-900/20">+
+                class="shrink-0 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded transition-colors shadow-lg shadow-sky-900/20">+
                 Root Node</button>
             <button id="btn-arrange"
-                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors">Arrange</button>
+                class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors"
+                title="Force-Directed Organic Layout">Arrange</button>
             <button id="btn-undo"
-                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors">Undo</button>
-            <div class="h-6 w-px bg-slate-700 mx-2 self-center"></div>
-            <button id="btn-focal" class="transition-all" title="Toggle Focal Lock">👁️ Auto-Focus</button>
+                class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors">Undo</button>
+            <div class="h-6 w-px bg-slate-700 mx-1 shrink-0"></div>
+            <button id="btn-focal" class="shrink-0 transition-all cursor-pointer" title="Toggle Camera Tracking">👁️
+                Auto-Focus</button>
+            <div class="h-6 w-px bg-slate-700 mx-1 shrink-0"></div>
         </div>
     </nav>
 
     <div id="stage">
-        <!-- Left Sidebar (Phase Engines) -->
-        <div class="w-80 border-r border-slate-800 flex flex-col z-30 bg-slate-900/80 backdrop-blur-sm" id="sidebar">
+        <!-- Left Sidebar -->
+        <div class="w-80 max-w-[80vw] border-r border-slate-800 flex flex-col z-30 bg-slate-900/80 backdrop-blur-sm shrink-0"
+            id="sidebar">
             <div class="sidebar-tabs">
-                <div class="sidebar-tab active" onclick="SC.setTab('properties')">Properties</div>
-                <div class="sidebar-tab" onclick="SC.setTab('views')">Phases</div>
-                <div class="sidebar-tab" onclick="SC.setTab('federation')">Data</div>
+                <div class="sidebar-tab active" id="tab-properties" onclick="SC.setTab('properties')">Properties</div>
+                <div class="sidebar-tab" id="tab-views" onclick="SC.setTab('views')">Phases</div>
             </div>
             <div id="panel-properties" class="flex-1 overflow-auto custom-scrollbar"></div>
             <div id="panel-views" class="flex-1 overflow-auto hidden custom-scrollbar">
                 <div id="view-list"></div>
             </div>
-            <div id="panel-federation" class="flex-1 overflow-auto hidden custom-scrollbar"></div>
         </div>
 
         <!-- Main Viewport -->
-        <div id="viewport" class="relative flex-1 bg-slate-950">
+        <div id="viewport" class="relative flex-1 bg-slate-950 min-w-0">
             <!-- Map Layer -->
             <div id="view-map" class="absolute inset-0 overflow-hidden">
-                <svg id="edge-svg" class="absolute inset-0 pointer-events-none" style="z-index: 0;"></svg>
+                <svg id="edge-svg" class="absolute inset-0 pointer-events-none"></svg>
                 <div id="world-layer" class="z-10 absolute inset-0"></div>
             </div>
 
-            <!-- Render Layer (Web/Orbital/Library) -->
-            <div id="view-content" class="absolute inset-0 hidden z-20 bg-slate-900"></div>
+            <!-- Render Layer -->
+            <div id="view-content" class="absolute inset-0 hidden z-20 bg-slate-900 overflow-auto"></div>
 
             <!-- Overlays -->
             <div id="linking-overlay" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-50">
@@ -115,9 +117,9 @@
                 const btnFocal = document.getElementById('btn-focal');
                 const updateFocalUI = () => {
                     if (Kernel.config.autoFocus) {
-                        btnFocal.className = "px-3 py-1.5 bg-sky-600 text-white text-xs font-bold rounded shadow-lg shadow-sky-900/20 border border-sky-500 transition-all";
+                        btnFocal.className = "shrink-0 px-3 py-1.5 bg-sky-600 text-white text-xs font-bold rounded shadow-lg shadow-sky-900/20 border border-sky-500 transition-all";
                     } else {
-                        btnFocal.className = "px-3 py-1.5 bg-slate-800 text-slate-400 text-xs font-bold rounded border border-slate-700 transition-all hover:bg-slate-700";
+                        btnFocal.className = "shrink-0 px-3 py-1.5 bg-slate-800 text-slate-400 text-xs font-bold rounded border border-slate-700 transition-all hover:bg-slate-700";
                     }
                 };
                 updateFocalUI();
@@ -141,6 +143,7 @@
 
             } catch (e) {
                 console.error("Initialization Failed:", e);
+                alert("Failed to initialize. Check console.");
             }
         });
     </script>

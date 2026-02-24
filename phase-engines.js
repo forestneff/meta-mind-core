@@ -1,6 +1,6 @@
 /**
- * META-MIND PHASE ENGINE SYSTEM v13.3
- * Added Federation Engine, Fixed Quick Action arguments.
+ * META-MIND PHASE ENGINE SYSTEM v14.2.1
+ * Features: Native JSON File Handling & Vertical Stack Data Manager.
  */
 
 class PhaseRegistrySystem {
@@ -14,8 +14,7 @@ class PhaseRegistrySystem {
         this.register(new UniversalPhaseEngine(kernel));
         this.register(new WebPhaseEngine(kernel));
         this.register(new OrbitalPhaseEngine(kernel));
-        this.register(new LibraryPhaseEngine(kernel));
-        this.register(new FederationPhaseEngine(kernel)); // New!
+        this.register(new DataPhaseEngine(kernel));
     }
     register(engine) { this.engines.push(engine); }
     get(id) { return this.engines.find(e => e.id === id); }
@@ -27,91 +26,171 @@ class PhaseEngineBase {
     escapeHTML(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 }
 
-// --- FEDERATION ENGINE (NEW) ---
-class FederationPhaseEngine extends PhaseEngineBase {
-    constructor(kernel) { super(kernel); this.id = 'federation'; }
-    render(container, state) {
-        container.innerHTML = `
-            <div class="p-4 flex flex-col gap-6 h-full">
-                <div>
-                    <h2 class="text-sky-400 font-black uppercase text-xs tracking-widest mb-1">Host Integration</h2>
-                    <p class="text-[10px] text-slate-500 mb-2">Connect to local Python desktop host.</p>
-                    <div class="flex gap-2">
-                        <input type="text" id="api-url" value="${this.kernel.bridge.apiUrl}" class="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300 outline-none focus:border-sky-500">
-                        <button onclick="SC.actionUpdateApi()" class="px-3 py-1 bg-slate-800 hover:bg-sky-600 hover:text-white transition-colors text-xs text-slate-300 rounded">Set</button>
-                    </div>
-                </div>
+// --- UNIFIED DATA MANAGER ENGINE ---
+class DataPhaseEngine extends PhaseEngineBase {
+    constructor(kernel) {
+        super(kernel);
+        this.id = 'data';
+        this.ui = { api: false, json: false, library: true, openItems: {} };
+    }
 
-                <div class="flex-1 flex flex-col min-h-0 border-t border-slate-800 pt-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <h2 class="text-emerald-400 font-black uppercase text-xs tracking-widest">Mapstate JSON</h2>
-                        <button onclick="SC.actionCopyJson()" class="text-[10px] text-slate-400 hover:text-white">Copy</button>
+    toggle(section) {
+        this.ui[section] = !this.ui[section];
+        const container = document.getElementById('view-content');
+        if (container) this.render(container, this.kernel.state);
+    }
+
+    toggleItem(id) {
+        this.ui.openItems[id] = !this.ui.openItems[id];
+        const container = document.getElementById('view-content');
+        if (container) this.render(container, this.kernel.state);
+    }
+
+    render(container, state) {
+        const lib = this.kernel.getLibrary();
+
+        container.innerHTML = `
+            <div class="min-h-full w-full overflow-y-auto custom-scrollbar p-6 md:p-10 bg-slate-950 flex flex-col items-center">
+                <div class="max-w-3xl w-full flex flex-col gap-6 pb-20">
+                    
+                    <!-- Header -->
+                    <div class="border-b border-slate-800 pb-4 mb-2">
+                        <h1 class="text-3xl font-black text-white flex items-center gap-3"><span class="text-sky-500">🗄️</span> Data Manager</h1>
+                        <p class="text-slate-400 mt-2 text-sm">Manage local constellations, map API endpoints, and process raw JSON files.</p>
                     </div>
-                    <textarea id="json-exchange" class="w-full flex-1 bg-slate-950 border border-slate-800 rounded p-2 font-mono text-[10px] text-emerald-400 focus:border-emerald-500 outline-none resize-none">${JSON.stringify(state, null, 2)}</textarea>
-                    <button onclick="SC.actionSyncJson()" class="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded shadow-lg shadow-emerald-900/20 transition-colors">Import / Sync State</button>
+
+                    <!-- Vertical Stack Layout -->
+                    <div class="flex flex-col gap-6">
+                        
+                        <!-- 1. Library Accordion (TOP) -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col">
+                            <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('library')">
+                                <h2 class="text-purple-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">📚 Saved Constellations</h2>
+                                <div class="flex items-center gap-3">
+                                    <span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded text-[10px] border border-slate-700">${lib.length} Items</span>
+                                    <span class="text-slate-500 text-xs">${this.ui.library ? '▼' : '▶'}</span>
+                                </div>
+                            </div>
+                            
+                            ${this.ui.library ? `
+                            <div class="p-5 border-t border-slate-800 flex flex-col gap-4 bg-slate-900">
+                                <button onclick="SC.actionSaveCurrentToLibrary()" class="w-full py-3 border border-purple-500/50 hover:bg-purple-600/20 text-purple-400 hover:text-purple-300 font-bold text-xs uppercase tracking-widest rounded-lg transition-colors bg-slate-950">
+                                    + Save Current Session
+                                </button>
+
+                                <div class="flex-1 overflow-y-auto max-h-[500px] custom-scrollbar pr-2 space-y-3" id="library-list">
+                                    ${lib.length === 0 ? '<div class="text-center text-slate-600 text-xs py-10 italic border border-dashed border-slate-800 rounded-lg">Library is empty.</div>' : ''}
+                                    ${lib.map(item => `
+                                        <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden group relative">
+                                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                            
+                                            <div class="p-4 flex justify-between items-center cursor-pointer hover:bg-slate-900/50" onclick="SC.registry.get('data').toggleItem('${item.map_id}')">
+                                                <div class="font-bold text-sm text-slate-200 truncate pr-4 flex items-center gap-2">
+                                                    ${item.meta.title}
+                                                    ${item.meta.shared ? '<span class="text-[10px] bg-blue-900/50 text-blue-400 px-2 rounded-full border border-blue-800">Shared</span>' : '<span class="text-[10px] bg-slate-800 text-slate-400 px-2 rounded-full border border-slate-700">Local</span>'}
+                                                </div>
+                                                <div class="flex items-center gap-4">
+                                                    <div class="text-[10px] text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 shrink-0">${item.nodes.length} nodes</div>
+                                                    <span class="text-slate-600 text-xs">${this.ui.openItems[item.map_id] ? '▼' : '▶'}</span>
+                                                </div>
+                                            </div>
+
+                                            ${this.ui.openItems[item.map_id] ? `
+                                            <div class="p-4 border-t border-slate-800 bg-slate-900/50 flex flex-col gap-3">
+                                                <div class="flex gap-4">
+                                                    <div class="flex-1 flex flex-col gap-1">
+                                                        <label class="text-[10px] font-bold text-slate-500 uppercase">Title</label>
+                                                        <input id="lib-title-${item.map_id}" value="${this.escapeHTML(item.meta.title)}" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 outline-none focus:border-purple-500">
+                                                    </div>
+                                                    <div class="flex-1 flex flex-col gap-1">
+                                                        <label class="text-[10px] font-bold text-slate-500 uppercase">Status</label>
+                                                        <label class="flex items-center gap-2 text-xs text-slate-300 mt-2 cursor-pointer">
+                                                            <input type="checkbox" id="lib-shared-${item.map_id}" ${item.meta.shared ? 'checked' : ''} class="accent-purple-500">
+                                                            Shared
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="flex flex-col gap-1">
+                                                    <label class="text-[10px] font-bold text-slate-500 uppercase">Meta-Notes</label>
+                                                    <textarea id="lib-notes-${item.map_id}" class="w-full h-20 bg-slate-950 border border-slate-700 rounded p-2 text-xs text-slate-300 outline-none focus:border-purple-500 custom-scrollbar resize-none" placeholder="Add descriptions or tags...">${this.escapeHTML(item.meta.notes || '')}</textarea>
+                                                </div>
+                                                <div class="flex gap-2 mt-2">
+                                                    <button onclick="SC.actionUpdateLibraryItem('${item.map_id}')" class="flex-1 bg-slate-800 hover:bg-emerald-600 text-white text-[10px] py-2 rounded font-bold transition-colors border border-slate-700">Save Edits</button>
+                                                    <button onclick="SC.actionLoadFromLibrary('${item.map_id}')" class="flex-1 bg-slate-800 hover:bg-sky-600 text-white text-[10px] py-2 rounded font-bold transition-colors border border-slate-700">Load Map</button>
+                                                    <button onclick="SC.actionDeleteFromLibrary('${item.map_id}')" class="bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white text-[10px] py-2 px-4 rounded font-bold transition-colors border border-slate-700">✕</button>
+                                                </div>
+                                            </div>
+                                            ` : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        <!-- 2. API Accordion (MIDDLE) -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all">
+                            <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('api')">
+                                <h2 class="text-sky-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">📡 API Federation</h2>
+                                <span class="text-slate-500 text-xs">${this.ui.api ? '▼' : '▶'}</span>
+                            </div>
+                            ${this.ui.api ? `
+                            <div class="p-5 border-t border-slate-800 flex flex-col gap-4">
+                                <p class="text-[10px] text-slate-400 mb-2">Configure external host API bindings.</p>
+                                <div class="flex flex-col gap-1">
+                                    <label class="text-[10px] text-slate-500 font-bold uppercase">Push Endpoint</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="api-push-url" value="${this.kernel.bridge.pushUrl}" class="flex-1 bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 outline-none focus:border-sky-500 transition-colors">
+                                        <button onclick="SC.actionPushApi()" class="px-4 py-2 bg-slate-800 hover:bg-sky-600 hover:text-white transition-colors text-xs font-bold rounded shadow border border-slate-700">Push</button>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1 mt-2">
+                                    <label class="text-[10px] text-slate-500 font-bold uppercase">Pull Endpoint</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="api-pull-url" value="${this.kernel.bridge.pullUrl}" class="flex-1 bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 outline-none focus:border-sky-500 transition-colors">
+                                        <button onclick="SC.actionPullApi()" class="px-4 py-2 bg-slate-800 hover:bg-sky-600 hover:text-white transition-colors text-xs font-bold rounded shadow border border-slate-700">Pull</button>
+                                    </div>
+                                </div>
+                                <button onclick="SC.actionSaveEndpoints()" class="w-full mt-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded shadow border border-slate-700 transition-all">Save Endpoints</button>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- 3. JSON Accordion (BOTTOM) -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col">
+                            <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('json')">
+                                <h2 class="text-emerald-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">🧬 Raw JSON Exchange</h2>
+                                <span class="text-slate-500 text-xs">${this.ui.json ? '▼' : '▶'}</span>
+                            </div>
+                            ${this.ui.json ? `
+                            <div class="p-5 border-t border-slate-800 flex flex-col gap-3">
+                                <div class="flex justify-between items-center">
+                                    <p class="text-[10px] text-slate-400">Directly edit the matrix.</p>
+                                    <button onclick="SC.actionCopyJson()" class="px-3 py-1 bg-slate-800 hover:bg-emerald-600 text-slate-400 hover:text-white rounded text-[10px] font-bold transition-colors border border-slate-700">Copy</button>
+                                </div>
+                                
+                                <textarea id="json-exchange" class="w-full h-64 bg-slate-950 border border-slate-700 rounded-lg p-4 font-mono text-[10px] text-emerald-400 focus:border-emerald-500 outline-none resize-none shadow-inner custom-scrollbar break-all overflow-y-auto">${JSON.stringify(state, null, 2)}</textarea>
+                                
+                                <!-- Embedded File Tools -->
+                                <div class="flex gap-2 mt-1">
+                                    <button onclick="SC.actionExportJsonFile()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-indigo-900/20 transition-transform active:scale-95">
+                                        💾 Export File
+                                    </button>
+                                    <label class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-slate-900/20 transition-all active:scale-95 cursor-pointer text-center flex items-center justify-center">
+                                        📂 Import File
+                                        <input type="file" accept=".json" class="hidden" onchange="SC.actionImportJsonFile(event)">
+                                    </label>
+                                </div>
+
+                                <button onclick="SC.actionSyncJson()" class="w-full mt-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-emerald-900/20 transition-transform active:scale-95">Inject / Apply JSON</button>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                    </div>
                 </div>
             </div>
         `;
-    }
-}
-
-// --- LIBRARY ENGINE ---
-class LibraryPhaseEngine extends PhaseEngineBase {
-    constructor(kernel) { super(kernel); this.id = 'library'; }
-    render(container, state) {
-        container.innerHTML = '<div class="p-4"><h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Saved Constellations</h3></div>';
-        const lib = this.kernel.getLibrary();
-
-        const sessDiv = document.createElement('div');
-        sessDiv.className = "px-4 pb-4 border-b border-slate-800 mb-4";
-        sessDiv.innerHTML = `<h4 class="text-xs font-bold text-emerald-400 mb-2">Current Session</h4>`;
-        const saveBtn = document.createElement('button');
-        saveBtn.className = "w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded transition-colors";
-        saveBtn.innerText = "Save Current to Library";
-        saveBtn.onclick = () => {
-            const copy = JSON.parse(JSON.stringify(state));
-            copy.map_id = this.kernel.generateId();
-            copy.meta.title = (state.meta.title || "Untitled") + " (Copy)";
-            this.kernel.saveConstellationToLibrary(copy);
-            this.render(container, state);
-        };
-        sessDiv.appendChild(saveBtn);
-        container.appendChild(sessDiv);
-
-        const list = document.createElement('div');
-        list.className = "px-4 space-y-2 pb-4";
-
-        if (lib.length === 0) list.innerHTML = `<div class="text-slate-600 text-xs italic text-center">Library Empty</div>`;
-
-        lib.forEach(item => {
-            const card = document.createElement('div');
-            card.className = "bg-slate-800 border border-slate-700 p-3 rounded hover:border-sky-500 cursor-pointer transition-colors group";
-            card.innerHTML = `
-                <div class="flex justify-between items-center mb-2">
-                    <div class="font-bold text-sm text-sky-400 truncate">${item.meta.title}</div>
-                    <div class="text-[10px] text-slate-500">${item.nodes.length} nodes</div>
-                </div>
-            `;
-
-            const btnRow = document.createElement('div');
-            btnRow.className = "flex gap-2 opacity-50 group-hover:opacity-100 transition-opacity";
-
-            const btnLoad = document.createElement('button');
-            btnLoad.className = "flex-1 bg-slate-700 hover:bg-sky-600 text-white text-[10px] py-1 rounded";
-            btnLoad.innerText = "Load";
-            btnLoad.onclick = () => { if (confirm("Overwrite current session?")) this.kernel.loadMapState(item); };
-
-            const btnDel = document.createElement('button');
-            btnDel.className = "bg-slate-700 hover:bg-red-600 text-white text-[10px] py-1 px-3 rounded";
-            btnDel.innerText = "✕";
-            btnDel.onclick = () => { if (confirm("Delete from library?")) { this.kernel.deleteFromLibrary(item.map_id); this.render(container, state); } };
-
-            btnRow.appendChild(btnLoad);
-            btnRow.appendChild(btnDel);
-            card.appendChild(btnRow);
-            list.appendChild(card);
-        });
-        container.appendChild(list);
     }
 }
 
@@ -126,7 +205,6 @@ class UniversalPhaseEngine extends PhaseEngineBase {
             return;
         }
 
-        // CRITICAL FIX: Pass node.id directly to SC actions so Quick Tools work without relying on Radial Menu state!
         container.innerHTML = `
             <div class="p-4 flex flex-col gap-4 h-full">
                 <div>
@@ -148,7 +226,7 @@ class UniversalPhaseEngine extends PhaseEngineBase {
                         <button onclick="SC.actionLink('${node.id}')" class="p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors" title="Link">🔗</button>
                         <button onclick="SC.actionAddChild('${node.id}')" class="p-2 bg-slate-800 hover:bg-emerald-600 rounded text-slate-300 hover:text-white transition-colors" title="Add Child">➕</button>
                         <button onclick="SC.actionSaveConstellation('${node.id}')" class="p-2 bg-slate-800 hover:bg-purple-600 rounded text-slate-300 hover:text-white transition-colors" title="Save as Submap">🌌</button>
-                        <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors" title="Delete">🗑️</button>
+                        <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors" title="Delete Downstream">🗑️</button>
                     </div>
                 </div>
                 <div class="text-[9px] text-slate-600 font-mono text-center pt-2">ID: ${node.id}</div>
@@ -199,19 +277,17 @@ class UniversalPhaseEngine extends PhaseEngineBase {
     }
 }
 
-// --- ORBITAL ENGINE ---
+// --- ORBITAL & WEB ENGINES ---
 class OrbitalPhaseEngine extends PhaseEngineBase {
     constructor(kernel) { super(kernel); this.id = 'orbital'; }
     render(container, state) {
         container.innerHTML = '';
         container.style.background = 'radial-gradient(circle at 50% 50%, #1e293b 0%, #020617 100%)';
-
         const sunId = state.session.selectedId || (state.nodes[0] ? state.nodes[0].id : null);
         if (!sunId) { container.innerHTML = '<div class="text-slate-500 p-10 text-center">Select a node to enter orbit.</div>'; return; }
-
         const sun = state.nodes.find(n => n.id === sunId);
+        const parentConn = state.connections.find(c => c.to === sunId && c.type === 'structural');
 
-        const parentConn = state.connections.find(c => c.to === sunId);
         if (parentConn) {
             const parent = state.nodes.find(n => n.id === parentConn.from);
             if (parent) {
@@ -220,7 +296,6 @@ class OrbitalPhaseEngine extends PhaseEngineBase {
                 halo.style.width = "500px"; halo.style.height = "500px";
                 halo.style.left = "calc(50% - 250px)"; halo.style.top = "calc(50% - 250px)";
                 container.appendChild(halo);
-
                 const pEl = this.createBody(parent, 'parent');
                 pEl.style.left = "calc(50% - 30px)"; pEl.style.top = "calc(50% - 280px)";
                 pEl.onclick = () => { this.kernel.selectNode(parent.id); this.render(container, state); };
@@ -241,67 +316,46 @@ class OrbitalPhaseEngine extends PhaseEngineBase {
             planet.style.left = `calc(50% + ${Math.cos(angle) * r}px - 25px)`;
             planet.style.top = `calc(50% + ${Math.sin(angle) * r}px - 25px)`;
             planet.onclick = () => { this.kernel.selectNode(k.id); this.render(container, state); };
-
             const line = document.createElement('div');
             line.className = "absolute bg-sky-500/10 h-px pointer-events-none";
             line.style.width = `${r}px`; line.style.left = "50%"; line.style.top = "50%";
             line.style.transformOrigin = "0 0"; line.style.transform = `rotate(${angle * 180 / Math.PI}deg)`;
-            container.appendChild(line);
-            container.appendChild(planet);
+            container.appendChild(line); container.appendChild(planet);
         });
     }
-
     createBody(node, role) {
         const el = document.createElement('div');
         el.className = "absolute flex flex-col items-center justify-center rounded-full border cursor-pointer transition-all z-10 shadow-lg";
-        if (role === 'sun') {
-            el.className += " bg-slate-800 border-sky-500 text-sky-100 w-[120px] h-[120px]";
-        } else if (role === 'parent') {
-            el.className += " bg-slate-900 border-indigo-500/50 text-indigo-300 w-[60px] h-[60px] hover:border-indigo-400";
-        } else {
-            el.className += " bg-slate-900 border-sky-500/30 text-sky-200 w-[50px] h-[50px] hover:border-sky-400 hover:scale-110";
-        }
+        if (role === 'sun') el.className += " bg-slate-800 border-sky-500 text-sky-100 w-[120px] h-[120px]";
+        else if (role === 'parent') el.className += " bg-slate-900 border-indigo-500/50 text-indigo-300 w-[60px] h-[60px] hover:border-indigo-400";
+        else el.className += " bg-slate-900 border-sky-500/30 text-sky-200 w-[50px] h-[50px] hover:border-sky-400 hover:scale-110";
         el.innerHTML = `<div class="text-xl">${(typeof MetaMindSchema !== 'undefined') ? MetaMindSchema.getDefinition(node.type).icon : '⚪'}</div><div class="text-[8px] uppercase mt-1 max-w-full truncate px-1">${node.title}</div>`;
         return el;
     }
 }
 
-// --- WEB ENGINE ---
 class WebPhaseEngine extends PhaseEngineBase {
     constructor(kernel) { super(kernel); this.id = 'web'; }
-
     render(container, state) {
-        container.innerHTML = '';
-        container.style.background = '#f8fafc';
-
+        container.innerHTML = ''; container.style.background = '#f8fafc';
         const root = state.nodes.find(n => n.type === 'web-root') || state.nodes[0];
-        if (!root) {
-            container.innerHTML = `<div class="flex items-center justify-center h-full text-slate-400">No Web Root Found</div>`;
-            return;
-        }
-
+        if (!root) { container.innerHTML = `<div class="flex items-center justify-center h-full text-slate-400">No Web Root Found</div>`; return; }
         const html = this.generateHTML(root, state);
         const frame = document.createElement('iframe');
-        frame.className = "w-full h-full bg-white shadow-inner";
-        frame.style.border = "none";
-        frame.srcdoc = html;
+        frame.className = "w-full h-full bg-white shadow-inner"; frame.style.border = "none"; frame.srcdoc = html;
         container.appendChild(frame);
     }
-
     generateHTML(root, state) {
         const getKids = (id) => state.connections.filter(c => c.from === id).map(c => state.nodes.find(n => n.id === c.to)).filter(n => n);
-
         const render = (node) => {
             const kids = getKids(node.id).map(render).join('');
             const title = this.escapeHTML(node.title);
             let content = node.content;
-
             if (node.type === 'web-link') {
                 if (state.nodes.find(n => n.id === content)) content = `#${content}`;
                 else if (content && !content.startsWith('http') && !content.startsWith('#')) content = `https://${content}`;
-                return `<a id="${node.id}" href="${content}" class="text-blue-600 hover:text-blue-800 hover:underline transition-colors block py-1">${title}</a>`;
+                return `<a id="${node.id}" href="${content}" class="text-blue-600 hover:underline block py-1">${title}</a>`;
             }
-
             switch (node.type) {
                 case 'web-root': return `<html><head><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-50 font-sans text-slate-900">${kids}</body></html>`;
                 case 'web-nav': return `<nav class="flex items-center gap-6 p-4 bg-white shadow-sm sticky top-0 z-50 border-b border-slate-100">${kids}</nav>`;
