@@ -1,0 +1,81 @@
+{
+    "map_id": "uuid-v4",
+    "meta": {
+        "title": "My Map",
+        "description": "Short summary",
+        "created": "ISO-8601",
+        "last_modified": "ISO-8601",
+        "phase_engines": [
+            "web",
+            "tree",
+            "custom"
+        ],
+        "tags": [
+            "ai",
+            "collaborative"
+        ],
+        "settings": { /* misc map-level settings */}
+    },
+    "source": {
+        "server": "mm-node-alpha",
+        "origin": "user_hash_123",
+        "contributors": [
+            {
+                "user_id": "user_hash_123",
+                "role": "owner",
+                "joined": "ISO"
+            },
+            {
+                "user_id": "ai_agent_011",
+                "role": "ai",
+                "joined": "ISO"
+            }
+        ],
+        "policy": {
+            "access": "public",
+            "edit": [
+                "user_hash_123",
+                "ai_agent_011"
+            ],
+            "view": [
+                "*"
+            ],
+            "federated_origins": [
+                "mm-source_data",
+                "mm-recent_host"
+            ]
+        }
+    },
+    "nodes": [
+        {
+            "id": "node_id#",
+            "type": "node_type",
+            "title": "node_title",
+            "content": "node_content",
+            "data": {},
+            "submap": {
+                "map_id": "...",
+                "meta": {},
+                "source": {},
+                "nodes": [],
+                "connections": []
+            },
+            "origin": {},
+            "history": [],
+            "tags": []
+        }
+    ],
+    "connections": [
+        {
+            "id": "???_edge",
+            "from": "???_nodeID#",
+            "to": "???_nodeID#",
+            "type": "???_type",
+            "meta": {},
+            "origin": {
+                "created": "ISO-8601",
+                "creator": "user_hash_456"
+            }
+        }
+    ]
+}

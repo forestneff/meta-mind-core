@@ -109,11 +109,11 @@
                     class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
                 <span
                     class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase group-hover:bg-orange-600 transition-colors">Docs
-                    v2.1</span>
+                    v4.2</span>
             </a>
         </div>
         <nav class="px-4 space-y-1">
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-4">Kernel v3.0
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-4">Kernel v4.2
             </div>
             <a href="#intro" class="nav-link active">Kernel Overview</a>
             <a href="#federation" class="nav-link">Federation Protocols</a>
@@ -121,13 +121,17 @@
 
             <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-6">API Reference
             </div>
-            <a href="#api-nodes" class="nav-link">Node Factory</a>
+            <a href="#api-nodes" class="nav-link">Map Factory</a>
             <a href="#api-spatial" class="nav-link">Spatial Engine</a>
 
             <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-6">UIP Standards
             </div>
             <a href="#uip-identity" class="nav-link">Identity Context</a>
             <a href="#uip-policy" class="nav-link">Access Policy</a>
+
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-6">Non-Tech Specs
+            </div>
+            <a href="#mm-epk" class="nav-link">Meta-Mind EPK</a>
         </nav>
     </aside>
 
@@ -143,7 +147,7 @@
         <div class="fade-in">
             <h1 class="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">Kernel Documentation</h1>
             <p class="text-xl text-slate-500 leading-relaxed max-w-3xl mb-12">
-                Documentation for <strong>Kernel v3.1 (Federated)</strong>. This release introduces the Universal
+                Documentation for <strong>Kernel v4.2</strong>. This release introduces the Universal
                 Integration Protocol (UIP) and Local Persistence.
             </p>
         </div>
@@ -166,29 +170,90 @@
 
         <!-- Section: Federation -->
         <section id="federation" class="doc-section">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">2. Federation Protocols (v3.0)</h2>
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">2. Federation Protocols (v4.2)</h2>
             <p class="text-slate-600 mb-6 leading-relaxed">
-                To support cross-user integration (Phase 3 SSD), every node now carries an <code>origin</code> object.
-                This allows a map to contain nodes created by different users on different servers.
+                Mapstate json objects consist of a global map_id, meta data, source data, a set of nodes (potentially
+                containing submaps therein), and a library of the connnections between those nodes.
             </p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
                 <div>
-                    <h3 class="text-sm font-bold text-slate-900 uppercase mb-2">Federated Node Schema</h3>
+                    <h3 class="text-sm font-bold text-slate-900 uppercase mb-2">Federated Mapstate Schema</h3>
                     <div class="code-block">
                         {
-                        "id": "uuid-v4",
-                        "type": "concept",
-                        "title": "Core System",
-                        "origin": {
-                        "creator": "user_hash_123",
-                        "server": "mm-node-alpha",
-                        "created": "ISO-8601"
+                        "map_id": "",
+                        "meta": {
+                        "title": "",
+                        "description": "",
+                        "created": "",
+                        "last_modified": "",
+                        "phase_engines": [
+                        "web",
+                        "tree",
+                        "custom",
+                        ""
+                        ],
+                        "tags": [
+                        "all",
+                        ""
+                        ],
+                        "settings": {}
                         },
-                        "policy": {
-                        "access": "public",
-                        "owner": "user_hash_123"
+                        "source": {
+                        "server": "",
+                        "origin": "",
+                        "contributors": [
+                        {
+                        "user_id": "",
+                        "role": "",
+                        "joined": ""
                         }
+                        ],
+                        "policy": {
+                        "access": "",
+                        "edit": [
+                        ""
+                        ],
+                        "view": [
+                        ""
+                        ],
+                        "federated_origins": [
+                        ""
+                        ]
+                        }
+                        },
+                        "nodes": [
+                        {
+                        "id": "",
+                        "type": "",
+                        "title": "",
+                        "content": "",
+                        "data": {},
+                        "submap": {
+                        "map_id": "",
+                        "meta": {},
+                        "source": {},
+                        "nodes": [],
+                        "connections": []
+                        },
+                        "origin": {},
+                        "history": [],
+                        "tags": []
+                        }
+                        ],
+                        "connections": [
+                        {
+                        "id": "",
+                        "from": "",
+                        "to": "",
+                        "type": "",
+                        "meta": {},
+                        "origin": {
+                        "created": "",
+                        "creator": ""
+                        }
+                        }
+                        ]
                         }
                     </div>
                 </div>
@@ -198,8 +263,8 @@
                         automatically.</p>
                     <div class="code-block">
                         MM.state.identity = {
-                        userId: "local-user-992",
-                        homeServer: "local"
+                        user_id: "local-user-992",
+                        server: "local"
                         };
                     </div>
                 </div>
@@ -210,7 +275,7 @@
         <section id="persistence" class="doc-section">
             <h2 class="text-2xl font-bold text-slate-900 mb-4">3. Persistence Engine</h2>
             <p class="text-slate-600 mb-4">
-                Kernel v3.1 introduces an <code>AutoSave</code> loop. The state is serialized to
+                Kernel v4.2 introduces an <code>AutoSave</code> loop. The state is serialized to
                 <code>localStorage</code> every 2 seconds if changes are detected.
             </p>
             <div class="flex items-center gap-3 mb-2">
@@ -220,7 +285,33 @@
             <p class="text-slate-600 text-sm">Wipes the local cache and reloads the page to a fresh state. Useful for
                 debugging.</p>
         </section>
-
+        <section id="api-nodes" class="doc-section">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">4. API - Map builder/factory ( coming soon... )</h2>
+            <p>
+                TODO: build maps from scrapers and json passed mapstates
+            </p>
+        </section>
+        <section id="api-spatial" class="doc-section">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">5. API Map Layout Engine(s) ( coming soon... )</h2>
+            <p>
+                TODO: Vector graphic layout parsed from/w/ mapstate data or rendered for: ???
+            </p>
+        </section>
+        <section id="uip-identity" class="doc-section">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">6. UIP Protocol ( coming soon... )</h2>
+            <p>
+                TODO: Link mapstate user_ids through UIP.
+            </p>
+            <h3>Universal Identity Protocol Info:</h3>
+            <a href="https://uip.digital/">UIP (Overview)</a>
+            <a href="https://docs.uip.digital/">UIP (Documentation)</a>
+        </section>
+        <section id="uip-policy" class="doc-section">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">7. UIP Policy ( coming soon... )</h2>
+            <p>
+                TODO: UIP policies related to individual useres & public/shared/private maps
+            </p>
+        </section>
         <footer class="mt-20 pt-10 border-t border-slate-200 text-center">
             <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">© 2024 Meta-Mind Project |
                 Documentation</p>

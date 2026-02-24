@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,9 +9,19 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-        
-        :root { --accent: #4f46e5; --accent-light: #eef2ff; --text-main: #1e293b; --bg-dashboard: #f8fafc; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dashboard); color: var(--text-main); }
+
+        :root {
+            --accent: #4f46e5;
+            --accent-light: #eef2ff;
+            --text-main: #1e293b;
+            --bg-dashboard: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dashboard);
+            color: var(--text-main);
+        }
 
         /* --- Chart Container Logic (Required) --- */
         .chart-container {
@@ -23,7 +34,12 @@
             margin-right: auto;
             overflow: hidden;
         }
-        @media (min-width: 768px) { .chart-container { height: 350px; } }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
 
         /* --- Dashboard UI Components --- */
         .glass-card {
@@ -34,7 +50,10 @@
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
             transition: transform 0.2s ease;
         }
-        .glass-card:hover { transform: translateY(-2px); }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+        }
 
         .sidebar-link.active {
             background-color: var(--accent);
@@ -43,15 +62,37 @@
         }
 
         /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
 
-        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
     <!-- Chosen Palette: Harmony & Clarity (Warm White, Slate Blue, Indigo Accents) -->
-    
+
     <!-- Application Structure Plan: 
          The SPA is designed as a Strategic Intelligence Dashboard. 
          Instead of a linear report, it provides a thematic exploration path:
@@ -75,6 +116,7 @@
 
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 </head>
+
 <body class="min-h-screen flex flex-col md:flex-row overflow-hidden">
 
     <!-- Sidebar Navigation (Desktop) -->
@@ -86,16 +128,20 @@
             </div>
         </div>
         <nav class="flex-grow p-4 space-y-2 overflow-y-auto">
-            <button onclick="Dashboard.view('overview')" id="nav-overview" class="sidebar-link active w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all">
+            <button onclick="Dashboard.view('overview')" id="nav-overview"
+                class="sidebar-link active w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all">
                 <span>⊞</span> Overview
             </button>
-            <button onclick="Dashboard.view('roadmap')" id="nav-roadmap" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-all">
+            <button onclick="Dashboard.view('roadmap')" id="nav-roadmap"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-all">
                 <span>📅</span> Roadmap
             </button>
-            <button onclick="Dashboard.view('architecture')" id="nav-architecture" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-all">
+            <button onclick="Dashboard.view('architecture')" id="nav-architecture"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-all">
                 <span>⌬</span> Architecture
             </button>
-            <button onclick="Dashboard.view('requirements')" id="nav-requirements" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-all">
+            <button onclick="Dashboard.view('requirements')" id="nav-requirements"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-all">
                 <span>📋</span> Requirements
             </button>
         </nav>
@@ -109,9 +155,10 @@
 
     <!-- Main Content Stage -->
     <main class="flex-grow relative overflow-y-auto h-screen bg-slate-50/50">
-        
+
         <!-- Header -->
-        <header class="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-200 h-16 flex items-center justify-between px-8 z-40">
+        <header
+            class="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-200 h-16 flex items-center justify-between px-8 z-40">
             <h2 id="view-title" class="text-lg font-bold text-slate-800">Mission Overview</h2>
             <div class="flex items-center gap-4">
                 <div class="text-right hidden sm:block">
@@ -127,22 +174,27 @@
             <div id="section-overview" class="fade-in space-y-8">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="glass-card p-6 border-l-4 border-indigo-500">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Project Scope</p>
-                        <h4 class="text-3xl font-black text-slate-800">52 <span class="text-sm font-normal text-slate-400">Weeks</span></h4>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Project
+                            Scope</p>
+                        <h4 class="text-3xl font-black text-slate-800">52 <span
+                                class="text-sm font-normal text-slate-400">Weeks</span></h4>
                     </div>
                     <div class="glass-card p-6 border-l-4 border-emerald-500">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Target Capability</p>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Target
+                            Capability</p>
                         <h4 class="text-xl font-black text-slate-800">Federated AI Hub</h4>
                     </div>
                     <div class="glass-card p-6 border-l-4 border-amber-500">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Architecture State</p>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Architecture
+                            State</p>
                         <h4 class="text-xl font-black text-slate-800">Modular MVP</h4>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div class="glass-card p-8">
-                        <h3 class="text-sm font-bold text-slate-400 uppercase mb-6 tracking-widest">Mission Integrity Radar</h3>
+                        <h3 class="text-sm font-bold text-slate-400 uppercase mb-6 tracking-widest">Mission Integrity
+                            Radar</h3>
                         <div class="chart-container">
                             <canvas id="radarChart"></canvas>
                         </div>
@@ -151,16 +203,22 @@
                         <div class="glass-card p-8 h-full flex flex-col justify-center">
                             <h3 class="text-xl font-bold text-slate-800 mb-4">Meta-Mind Core Identity</h3>
                             <p class="text-sm text-slate-600 leading-relaxed mb-6">
-                                Meta-Mind is an AI-native platform uniting real-time interaction, persistent mapstates, and immersive metaverse experiences. We prioritize <span class="font-bold text-indigo-600">User Agency</span>, <span class="font-bold text-indigo-600">Ethical Co-creation</span>, and <span class="font-bold text-indigo-600">Federated Persistence</span>.
+                                Meta-Mind is an AI-native platform uniting real-time interaction, persistent mapstates,
+                                and immersive metaverse experiences. We prioritize <span
+                                    class="font-bold text-indigo-600">User Agency</span>, <span
+                                    class="font-bold text-indigo-600">Ethical Co-creation</span>, and <span
+                                    class="font-bold text-indigo-600">Federated Persistence</span>.
                             </p>
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
                                     <div class="text-indigo-600 font-bold text-xs uppercase mb-1">Ownership</div>
-                                    <p class="text-[10px] text-indigo-500 leading-tight">Users retain full rights over their mapstate origins.</p>
+                                    <p class="text-[10px] text-indigo-500 leading-tight">Users retain full rights over
+                                        their mapstate origins.</p>
                                 </div>
                                 <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
                                     <div class="text-indigo-600 font-bold text-xs uppercase mb-1">Privacy</div>
-                                    <p class="text-[10px] text-indigo-500 leading-tight">Decentralized storage models baked into federation.</p>
+                                    <p class="text-[10px] text-indigo-500 leading-tight">Decentralized storage models
+                                        baked into federation.</p>
                                 </div>
                             </div>
                         </div>
@@ -171,7 +229,8 @@
             <!-- View: ROADMAP -->
             <div id="section-roadmap" class="hidden fade-in space-y-8">
                 <div class="glass-card p-8">
-                    <h3 class="text-sm font-bold text-slate-400 uppercase mb-6 tracking-widest">Master Execution Timeline</h3>
+                    <h3 class="text-sm font-bold text-slate-400 uppercase mb-6 tracking-widest">Master Execution
+                        Timeline</h3>
                     <div class="chart-container">
                         <canvas id="roadmapChart"></canvas>
                     </div>
@@ -198,7 +257,8 @@
             <!-- View: ARCHITECTURE -->
             <div id="section-architecture" class="hidden fade-in space-y-8">
                 <div class="glass-card p-8">
-                    <h3 class="text-sm font-bold text-slate-400 uppercase mb-8 tracking-widest text-center">AI-Native Stack Hierarchy</h3>
+                    <h3 class="text-sm font-bold text-slate-400 uppercase mb-8 tracking-widest text-center">AI-Native
+                        Stack Hierarchy</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center max-w-5xl mx-auto">
                         <!-- Layer 1 -->
                         <div class="space-y-4">
@@ -206,7 +266,9 @@
                                 <h4 class="font-black text-xl mb-1">Interaction</h4>
                                 <p class="text-[10px] font-bold opacity-60 uppercase">Frontend Client</p>
                             </div>
-                            <div class="bg-white p-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">React / Konva / Tailwind</div>
+                            <div
+                                class="bg-white p-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">
+                                React / Konva / Tailwind</div>
                         </div>
                         <!-- Layer 2 -->
                         <div class="space-y-4">
@@ -214,7 +276,9 @@
                                 <h4 class="font-black text-xl mb-1">Synthesis</h4>
                                 <p class="text-[10px] font-bold opacity-60 uppercase">AI Orchestration</p>
                             </div>
-                            <div class="bg-white p-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Gemini 1.5 Pro / Agents</div>
+                            <div
+                                class="bg-white p-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">
+                                Gemini 1.5 Pro / Agents</div>
                         </div>
                         <!-- Layer 3 -->
                         <div class="space-y-4">
@@ -222,13 +286,16 @@
                                 <h4 class="font-black text-xl mb-1">Persistence</h4>
                                 <p class="text-[10px] font-bold opacity-40 uppercase">Federated Database</p>
                             </div>
-                            <div class="bg-white p-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">IPFS / Vector DB / SQL</div>
+                            <div
+                                class="bg-white p-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">
+                                IPFS / Vector DB / SQL</div>
                         </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div class="glass-card p-8">
-                        <h3 class="text-sm font-bold text-slate-400 uppercase mb-6 tracking-widest">Phase 1 Effort Allocation</h3>
+                        <h3 class="text-sm font-bold text-slate-400 uppercase mb-6 tracking-widest">Phase 1 Effort
+                            Allocation</h3>
                         <div class="chart-container">
                             <canvas id="compositionChart"></canvas>
                         </div>
@@ -236,7 +303,9 @@
                     <div class="glass-card p-8 flex flex-col justify-center">
                         <h3 class="text-lg font-bold text-slate-800 mb-4">Technical Rationale</h3>
                         <p class="text-sm text-slate-600 leading-relaxed">
-                            Meta-Mind utilizes a **Local-First architecture** with cloud augmentation. This ensures that user creativity is never throttled by latency, while federation allows the mapstate to persist and merge seamlessly across the decentralized network.
+                            Meta-Mind utilizes a **Local-First architecture** with cloud augmentation. This ensures that
+                            user creativity is never throttled by latency, while federation allows the mapstate to
+                            persist and merge seamlessly across the decentralized network.
                         </p>
                     </div>
                 </div>
@@ -246,11 +315,15 @@
             <div id="section-requirements" class="hidden fade-in space-y-8">
                 <div class="glass-card p-8 overflow-hidden">
                     <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest">Requirement Traceability Matrix</h3>
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest">Requirement Traceability
+                            Matrix</h3>
                         <div class="flex bg-slate-100 p-1 rounded-lg">
-                            <button onclick="Dashboard.filterRequirements('all')" id="filter-all" class="px-3 py-1 text-[10px] font-bold bg-white shadow-sm rounded-md text-indigo-600">ALL</button>
-                            <button onclick="Dashboard.filterRequirements('mvp')" id="filter-mvp" class="px-3 py-1 text-[10px] font-bold text-slate-500">MVP</button>
-                            <button onclick="Dashboard.filterRequirements('ffs')" id="filter-ffs" class="px-3 py-1 text-[10px] font-bold text-slate-500">FFS</button>
+                            <button onclick="Dashboard.filterRequirements('all')" id="filter-all"
+                                class="px-3 py-1 text-[10px] font-bold bg-white shadow-sm rounded-md text-indigo-600">ALL</button>
+                            <button onclick="Dashboard.filterRequirements('mvp')" id="filter-mvp"
+                                class="px-3 py-1 text-[10px] font-bold text-slate-500">MVP</button>
+                            <button onclick="Dashboard.filterRequirements('ffs')" id="filter-ffs"
+                                class="px-3 py-1 text-[10px] font-bold text-slate-500">FFS</button>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -271,7 +344,8 @@
             </div>
         </div>
 
-        <footer class="p-8 text-center text-[10px] font-bold text-slate-400 border-t border-slate-200 uppercase tracking-widest">
+        <footer
+            class="p-8 text-center text-[10px] font-bold text-slate-400 border-t border-slate-200 uppercase tracking-widest">
             Meta-Mind Strategic Documentation // Unified Humanity & Technology Potential // 2024
         </footer>
     </main>
@@ -300,21 +374,21 @@
                     el.classList.add('text-slate-500');
                 });
                 document.getElementById(`nav-${id}`).classList.add('active');
-                
+
                 // Update Title
                 document.getElementById('view-title').innerText = id.charAt(0).toUpperCase() + id.slice(1) + " Intelligence";
 
                 // Update View Visibility
                 document.querySelectorAll('#dashboard-stage > div').forEach(div => div.classList.add('hidden'));
                 document.getElementById(`section-${id}`).classList.remove('hidden');
-                
+
                 this.state.activeView = id;
             },
 
             filterRequirements(filter) {
                 const body = document.getElementById('requirements-table-body');
                 body.innerHTML = '';
-                
+
                 // Update Filters UI
                 document.querySelectorAll('[id^="filter-"]').forEach(btn => {
                     btn.classList.remove('bg-white', 'shadow-sm', 'text-indigo-600');
@@ -322,8 +396,8 @@
                 });
                 document.getElementById(`filter-${filter}`).classList.add('bg-white', 'shadow-sm', 'text-indigo-600');
 
-                const filtered = filter === 'all' 
-                    ? this.state.requirements 
+                const filtered = filter === 'all'
+                    ? this.state.requirements
                     : this.state.requirements.filter(r => r.type.toLowerCase() === filter);
 
                 filtered.forEach(req => {
@@ -354,8 +428,8 @@
                             pointBackgroundColor: '#4f46e5',
                         }]
                     },
-                    options: { 
-                        maintainAspectRatio: false, 
+                    options: {
+                        maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
                         scales: { r: { suggestedMin: 50, ticks: { display: false } } }
                     }
@@ -366,11 +440,11 @@
                     type: 'bar',
                     data: {
                         labels: [
-                            wrap("Phase 1: MVP Core"), 
-                            wrap("Phase 2: Persistence"), 
-                            wrap("Phase 3: Collaboration"), 
-                            wrap("Phase 4: Social/AI"), 
-                            wrap("Phase 5: Public Meta"), 
+                            wrap("Phase 1: MVP Core"),
+                            wrap("Phase 2: Persistence"),
+                            wrap("Phase 3: Collaboration"),
+                            wrap("Phase 4: Social/AI"),
+                            wrap("Phase 5: Public Meta"),
                             wrap("Phase 6: Federation")
                         ],
                         datasets: [{
@@ -414,4 +488,5 @@
         };
     </script>
 </body>
+
 </html>

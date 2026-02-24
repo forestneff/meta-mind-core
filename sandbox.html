@@ -4,128 +4,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meta-Mind | Sandbox v8.1</title>
+    <title>Meta-Mind | v13.3 Federated Client</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="meta-mind-ui.css">
 
-    <!-- Core Logic -->
+    <!-- CRITICAL LOAD ORDER -->
+    <script src="meta-mind-rules.js"></script>
     <script src="meta-mind-core.js"></script>
     <script src="phase-engines.js"></script>
     <script src="meta-mind-sandbox.js"></script>
-
-    <!-- Styles -->
-    <link rel="stylesheet" href="meta-mind-base.css">
-    <link rel="stylesheet" href="meta-mind-ui.css">
 </head>
 
-<body class="overflow-hidden select-none bg-slate-50 touch-none">
-
-    <!-- Navbar -->
-    <nav class="h-14 border-b border-slate-200 bg-white flex justify-between items-center px-4 z-50 relative shadow-sm">
+<body class="overflow-hidden bg-slate-950 touch-none">
+    <nav
+        class="h-14 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center px-4 z-50 relative backdrop-blur">
+        <!-- Identity & Status -->
         <div class="flex items-center gap-3">
-            <a href="index.html"
-                class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold text-lg hover:bg-orange-700 transition-colors">M</a>
-            <div class="h-6 w-px bg-slate-200 mx-2 hidden md:block"></div>
-            <span id="map-title" class="font-bold text-slate-700 text-sm hidden md:block">Untitled Map</span>
+            <div
+                class="w-8 h-8 bg-sky-600 rounded flex items-center justify-center text-white font-black shadow-lg shadow-sky-900/50">
+                M</div>
+            <div class="flex flex-col">
+                <span id="map-title" class="text-sm font-bold text-slate-200 leading-none">Meta-Mind v13.3</span>
+                <div class="flex gap-2 mt-1">
+                    <span id="save-status"
+                        class="text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Local
+                    </span>
+                    <span id="host-status"
+                        class="text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Host Offline
+                    </span>
+                </div>
+            </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <!-- Toolbar -->
+        <div class="flex gap-2">
+            <div class="h-6 w-px bg-slate-700 mx-2 self-center"></div>
             <button id="btn-add"
-                class="p-2 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors font-bold text-xs flex gap-2 items-center px-3 shadow-sm border border-orange-100">
-                <span>+</span> <span class="hidden md:inline">Node</span>
-            </button>
-            <div class="h-6 w-px bg-slate-200 mx-1"></div>
-            <button id="btn-arrange" class="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
-                title="Auto Arrange">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-            </button>
-            <button id="btn-undo" class="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
-                title="Undo">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M3 10h10a5 5 0 0 1 5 5v2" />
-                    <path d="M7 6L3 10l4 4" />
-                </svg>
-            </button>
+                class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded transition-colors shadow-lg shadow-sky-900/20">+
+                Root Node</button>
+            <button id="btn-arrange"
+                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors">Arrange</button>
+            <button id="btn-undo"
+                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors">Undo</button>
+            <div class="h-6 w-px bg-slate-700 mx-2 self-center"></div>
+            <button id="btn-focal" class="transition-all" title="Toggle Focal Lock">👁️ Auto-Focus</button>
         </div>
     </nav>
 
-    <!-- Main Stage -->
     <div id="stage">
-
-        <!-- Sidebar -->
-        <div class="w-72 bg-white border-r border-slate-200 flex flex-col z-30 shadow-xl absolute md:relative h-full transform -translate-x-full md:translate-x-0 transition-transform duration-300"
-            id="sidebar">
-
-            <!-- Tabs -->
+        <!-- Left Sidebar (Phase Engines) -->
+        <div class="w-80 border-r border-slate-800 flex flex-col z-30 bg-slate-900/80 backdrop-blur-sm" id="sidebar">
             <div class="sidebar-tabs">
-                <div id="tab-props" class="sidebar-tab active" onclick="SC.setTab('properties')">Properties</div>
-                <div id="tab-views" class="sidebar-tab" onclick="SC.setTab('views')">Views</div>
+                <div class="sidebar-tab active" onclick="SC.setTab('properties')">Properties</div>
+                <div class="sidebar-tab" onclick="SC.setTab('views')">Phases</div>
+                <div class="sidebar-tab" onclick="SC.setTab('federation')">Data</div>
             </div>
-
-            <!-- Content Panels -->
-            <div id="panel-properties" class="sidebar-panel active custom-scrollbar"></div>
-            <div id="panel-views" class="sidebar-panel">
-                <div id="view-list" class="flex flex-col gap-2"></div>
+            <div id="panel-properties" class="flex-1 overflow-auto custom-scrollbar"></div>
+            <div id="panel-views" class="flex-1 overflow-auto hidden custom-scrollbar">
+                <div id="view-list"></div>
             </div>
-
-            <!-- Mobile Close -->
-            <button id="close-sidebar" class="absolute top-2 right-2 md:hidden text-slate-400 p-2">✕</button>
+            <div id="panel-federation" class="flex-1 overflow-auto hidden custom-scrollbar"></div>
         </div>
 
-        <!-- Sidebar Toggle -->
-        <button id="toggle-sidebar"
-            class="absolute left-4 bottom-20 z-40 bg-white p-3 rounded-full shadow-lg md:hidden border border-slate-200 text-slate-600">
-            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-        </button>
-
-        <!-- Viewport -->
-        <div id="viewport">
-            <!-- Map Mode Layers -->
-            <div id="view-map" class="view-layer-map">
-                <svg id="edge-svg"></svg>
-                <div id="world-layer"></div>
-                <div id="radial-menu"></div>
+        <!-- Main Viewport -->
+        <div id="viewport" class="relative flex-1 bg-slate-950">
+            <!-- Map Layer -->
+            <div id="view-map" class="absolute inset-0 overflow-hidden">
+                <svg id="edge-svg" class="absolute inset-0 pointer-events-none" style="z-index: 0;"></svg>
+                <div id="world-layer" class="z-10 absolute inset-0"></div>
             </div>
 
-            <!-- Other Modes Container -->
-            <div id="view-content" class="view-layer-content custom-scrollbar"></div>
+            <!-- Render Layer (Web/Orbital/Library) -->
+            <div id="view-content" class="absolute inset-0 hidden z-20 bg-slate-900"></div>
 
-            <!-- Linking Overlay -->
-            <div id="linking-overlay">
-                <div class="linking-badge">Tap Target Node to Connect</div>
+            <!-- Overlays -->
+            <div id="linking-overlay" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-50">
+                <div class="bg-sky-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl animate-pulse">
+                    Select Target to Link</div>
             </div>
         </div>
-
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const Kernel = new MetaMindKernel();
-            const Registry = new PhaseRegistrySystem();
-            Registry.init(Kernel);
+            try {
+                const Kernel = new MetaMindKernel();
+                const Registry = new PhaseRegistrySystem();
+                Registry.init(Kernel);
+                const Controller = new SandboxController(Kernel, Registry);
 
-            // Init Global Controller
-            const Controller = new SandboxController(Kernel, Registry);
+                window.Kernel = Kernel;
+                window.SC = Controller;
 
-            // Bind Header Buttons
-            document.getElementById('btn-undo').onclick = () => Kernel.undo();
-            document.getElementById('btn-add').onclick = () => {
-                const cx = (window.innerWidth / 2 - Kernel.state.viewport.x) / Kernel.state.viewport.scale;
-                const cy = (window.innerHeight / 2 - Kernel.state.viewport.y) / Kernel.state.viewport.scale;
-                Kernel.addNode({ x: cx, y: cy });
-            };
-            document.getElementById('btn-arrange').onclick = () => Kernel.autoLayout();
+                // UI Bindings
+                document.getElementById('btn-undo').onclick = () => Kernel.undo();
+                document.getElementById('btn-arrange').onclick = () => Kernel.autoLayout();
 
-            // Mobile Sidebar
-            const sidebar = document.getElementById('sidebar');
-            document.getElementById('toggle-sidebar').onclick = () => sidebar.classList.remove('-translate-x-full');
-            document.getElementById('close-sidebar').onclick = () => sidebar.classList.add('-translate-x-full');
+                document.getElementById('btn-add').onclick = () => {
+                    const vp = Kernel.state.session.viewport;
+                    const rect = document.getElementById('viewport').getBoundingClientRect();
+                    Kernel.addNode({
+                        x: (rect.width / 2 - vp.x) / vp.scale,
+                        y: (rect.height / 2 - vp.y) / vp.scale
+                    });
+                };
 
-            if (Kernel.state.nodes.length === 0) {
-                Kernel.addNode({ title: "My Website", type: "web-root", x: 0, y: 0 });
+                // Dynamic UI Toggle for Auto-Focus
+                const btnFocal = document.getElementById('btn-focal');
+                const updateFocalUI = () => {
+                    if (Kernel.config.autoFocus) {
+                        btnFocal.className = "px-3 py-1.5 bg-sky-600 text-white text-xs font-bold rounded shadow-lg shadow-sky-900/20 border border-sky-500 transition-all";
+                    } else {
+                        btnFocal.className = "px-3 py-1.5 bg-slate-800 text-slate-400 text-xs font-bold rounded border border-slate-700 transition-all hover:bg-slate-700";
+                    }
+                };
+                updateFocalUI();
+                btnFocal.onclick = () => {
+                    Kernel.config.autoFocus = !Kernel.config.autoFocus;
+                    updateFocalUI();
+                };
+
+                // Host Connection Loop
+                setInterval(async () => {
+                    const statusEl = document.getElementById('host-status');
+                    const isConnected = await Kernel.bridge.checkConnection();
+                    if (isConnected) {
+                        statusEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Host Linked';
+                        statusEl.classList.add('text-emerald-500');
+                    } else {
+                        statusEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Host Offline';
+                        statusEl.classList.remove('text-emerald-500');
+                    }
+                }, 5000);
+
+            } catch (e) {
+                console.error("Initialization Failed:", e);
             }
         });
     </script>
