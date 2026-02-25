@@ -4,319 +4,436 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meta-Mind | Technical Documentation</title>
+    <title>Meta-Mind | Comprehensive Wiki v14.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
-
-        :root {
-            --accent: #ea580c;
-            --bg: #ffffff;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap');
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
-            color: #0f172a;
+            background: #0f172a;
+            color: #f8fafc;
         }
 
-        .mono {
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        /* Documentation Styles */
-        .doc-section {
-            margin-bottom: 4rem;
-            scroll-margin-top: 6rem;
-        }
-
-        .code-block {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            font-size: 0.85rem;
+        pre {
+            background: #020617;
+            color: #38bdf8;
+            padding: 1rem;
+            border-radius: 0.75rem;
             overflow-x: auto;
-            font-family: 'JetBrains Mono', monospace;
-            color: #334155;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        code {
+            color: #f472b6;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.2rem;
         }
 
         .nav-link {
             display: block;
-            padding: 0.5rem 1rem;
+            padding: 0.75rem 1rem;
             border-left: 2px solid transparent;
-            color: #64748b;
-            font-size: 0.9rem;
             transition: all 0.2s;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            font-weight: bold;
         }
 
         .nav-link:hover {
-            color: var(--accent);
-            border-left-color: #cbd5e1;
+            color: #38bdf8;
+            border-left-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.05);
         }
 
-        .nav-link.active {
-            color: var(--accent);
-            border-left-color: var(--accent);
-            font-weight: 600;
-        }
-
-        .api-tag {
-            display: inline-block;
-            padding: 0.1rem 0.4rem;
-            border-radius: 0.25rem;
-            font-size: 0.7rem;
-            font-weight: 700;
+        .table-header {
+            background: rgba(30, 41, 59, 0.8);
             text-transform: uppercase;
-            margin-right: 0.5rem;
+            font-size: 0.75rem;
+            tracking: widest;
+            color: #94a3b8;
         }
 
-        .tag-core {
-            background: #fee2e2;
-            color: #991b1b;
+        .table-row {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .tag-proto {
-            background: #dcfce7;
-            color: #166534;
+        .table-row:hover {
+            background: rgba(255, 255, 255, 0.02);
         }
 
-        .fade-in {
-            animation: fadeIn 0.5s ease-out;
+        /* Custom Scrollbar for Main Content */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
         }
     </style>
 </head>
 
-<body class="flex flex-col md:flex-row min-h-screen">
+<body class="flex h-screen overflow-hidden">
 
     <!-- Sidebar Navigation -->
-    <aside class="w-full md:w-64 bg-white border-r border-slate-200 fixed h-full overflow-y-auto hidden md:block z-50">
-        <div class="p-6 mb-4">
-            <a href="index.html" class="flex items-center gap-2 group">
-                <span
-                    class="text-xl font-black tracking-tighter text-slate-900 group-hover:text-orange-600 transition-colors">MM</span>
-                <span
-                    class="text-[9px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded tracking-widest uppercase group-hover:bg-orange-600 transition-colors">Docs
-                    v4.2</span>
-            </a>
+    <aside class="w-72 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
+        <div class="p-6 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
+            <h1 class="text-xl font-black tracking-tight flex items-center gap-2">
+                <span class="w-6 h-6 rounded bg-sky-600 flex items-center justify-center text-xs text-white">M</span>
+                META-MIND
+            </h1>
+            <div class="text-[10px] uppercase tracking-widest text-sky-400 mt-2 font-bold">Comprehensive Wiki v14.4
+            </div>
         </div>
-        <nav class="px-4 space-y-1">
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-4">Kernel v4.2
+        <nav class="flex-1 py-4">
+            <div class="px-6 text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2 mt-2">I. User Guide
             </div>
-            <a href="#intro" class="nav-link active">Kernel Overview</a>
-            <a href="#federation" class="nav-link">Federation Protocols</a>
-            <a href="#persistence" class="nav-link">Persistence Engine</a>
+            <a href="#getting-started" class="nav-link pl-8">1. Getting Started</a>
+            <a href="#navigation" class="nav-link pl-8">2. Navigation & Controls</a>
+            <a href="#linking" class="nav-link pl-8">3. Two-Step Linking</a>
+            <a href="#phase-engines" class="nav-link pl-8">4. Phase Engines (Views)</a>
+            <a href="#data-manager" class="nav-link pl-8">5. The Data Manager</a>
 
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-6">API Reference
-            </div>
-            <a href="#api-nodes" class="nav-link">Map Factory</a>
-            <a href="#api-spatial" class="nav-link">Spatial Engine</a>
-
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-6">UIP Standards
-            </div>
-            <a href="#uip-identity" class="nav-link">Identity Context</a>
-            <a href="#uip-policy" class="nav-link">Access Policy</a>
-
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-6">Non-Tech Specs
-            </div>
-            <a href="#mm-epk" class="nav-link">Meta-Mind EPK</a>
+            <div class="px-6 text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2 mt-6">II. Developer
+                Docs</div>
+            <a href="#architecture" class="nav-link pl-8">6. Core Architecture</a>
+            <a href="#ontology" class="nav-link pl-8">7. Node & Connection Rules</a>
+            <a href="#json-schema" class="nav-link pl-8">8. Federated JSON Schema</a>
+            <a href="#physics" class="nav-link pl-8">9. Force-Directed Physics</a>
+            <a href="#federation-api" class="nav-link pl-8">10. Companion APIs</a>
         </nav>
+        <div class="p-4 border-t border-slate-800 bg-slate-900 sticky bottom-0">
+            <a href="sandbox.html"
+                class="block w-full py-2 bg-sky-600 hover:bg-sky-500 text-center text-white rounded text-xs font-bold transition-colors">Launch
+                Sandbox</a>
+            <a href="overview.html"
+                class="block w-full py-2 text-slate-400 hover:text-white text-center rounded text-xs font-bold transition-colors mt-2">←
+                Strategic Overview</a>
+        </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-grow md:ml-64 p-8 md:p-16 max-w-5xl mx-auto w-full">
+    <main class="flex-1 overflow-y-auto p-10 lg:p-16 scroll-smooth custom-scrollbar" id="main-scroll">
+        <div class="max-w-5xl mx-auto pb-32">
 
-        <!-- Mobile Header -->
-        <div class="md:hidden flex justify-between items-center mb-12">
-            <span class="text-xl font-black tracking-tighter">META-MIND DOCS</span>
-            <a href="index.html" class="text-xs font-bold text-orange-600">Back to Hub</a>
-        </div>
+            <header class="mb-16 border-b border-slate-800 pb-8">
+                <h1 class="text-5xl font-black mb-4">Meta-Mind Master Reference</h1>
+                <p class="text-xl text-slate-400 leading-relaxed">
+                    Welcome to the definitive documentation for Meta-Mind v14.4. This wiki serves both daily users
+                    navigating the spatial interface and developers building federated companion applications.
+                </p>
+            </header>
 
-        <div class="fade-in">
-            <h1 class="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tight">Kernel Documentation</h1>
-            <p class="text-xl text-slate-500 leading-relaxed max-w-3xl mb-12">
-                Documentation for <strong>Kernel v4.2</strong>. This release introduces the Universal
-                Integration Protocol (UIP) and Local Persistence.
-            </p>
-        </div>
-
-        <hr class="border-slate-100 mb-16">
-
-        <!-- Section: Intro -->
-        <section id="intro" class="doc-section">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">1. The Federated Kernel</h2>
-            <p class="text-slate-600 mb-4 leading-relaxed">
-                The Meta-Mind Kernel is designed for a distributed future. Unlike traditional apps that save "files,"
-                the Kernel manages a graph of independent, addressable objects.
-            </p>
-            <div class="code-block">
-                // Global Instance
-                const MM = new MetaMindKernel();
-                MM.subscribe(state => console.log("Mapstate Updated", state));
+            <!-- ==========================================
+                 PART I: USER GUIDE
+                 ========================================== -->
+            <div class="mb-16">
+                <h2 class="text-sm font-black text-sky-500 uppercase tracking-widest mb-2">Part I</h2>
+                <h3 class="text-4xl font-black">User Guide</h3>
             </div>
-        </section>
 
-        <!-- Section: Federation -->
-        <section id="federation" class="doc-section">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">2. Federation Protocols (v4.2)</h2>
-            <p class="text-slate-600 mb-6 leading-relaxed">
-                Mapstate json objects consist of a global map_id, meta data, source data, a set of nodes (potentially
-                containing submaps therein), and a library of the connnections between those nodes.
-            </p>
+            <!-- 1. Getting Started -->
+            <section id="getting-started" class="mb-20 pt-8 border-t border-slate-800/50">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">1. Getting Started</h3>
+                <p class="text-slate-400 leading-relaxed mb-6">
+                    Meta-Mind is a spatial mapping ecosystem. Instead of folders and files, you organize information
+                    into "Constellations" of interconnected nodes. Every map begins with a <strong>Universe
+                        Root</strong>. From there, you can spawn Hubs, Notes, Portals, and structured Web elements.
+                </p>
+            </section>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
-                <div>
-                    <h3 class="text-sm font-bold text-slate-900 uppercase mb-2">Federated Mapstate Schema</h3>
-                    <div class="code-block">
-                        {
-                        "map_id": "",
-                        "meta": {
-                        "title": "",
-                        "description": "",
-                        "created": "",
-                        "last_modified": "",
-                        "phase_engines": [
-                        "web",
-                        "tree",
-                        "custom",
-                        ""
-                        ],
-                        "tags": [
-                        "all",
-                        ""
-                        ],
-                        "settings": {}
-                        },
-                        "source": {
-                        "server": "",
-                        "origin": "",
-                        "contributors": [
-                        {
-                        "user_id": "",
-                        "role": "",
-                        "joined": ""
-                        }
-                        ],
-                        "policy": {
-                        "access": "",
-                        "edit": [
-                        ""
-                        ],
-                        "view": [
-                        ""
-                        ],
-                        "federated_origins": [
-                        ""
-                        ]
-                        }
-                        },
-                        "nodes": [
-                        {
-                        "id": "",
-                        "type": "",
-                        "title": "",
-                        "content": "",
-                        "data": {},
-                        "submap": {
-                        "map_id": "",
-                        "meta": {},
-                        "source": {},
-                        "nodes": [],
-                        "connections": []
-                        },
-                        "origin": {},
-                        "history": [],
-                        "tags": []
-                        }
-                        ],
-                        "connections": [
-                        {
-                        "id": "",
-                        "from": "",
-                        "to": "",
-                        "type": "",
-                        "meta": {},
-                        "origin": {
-                        "created": "",
-                        "creator": ""
-                        }
-                        }
-                        ]
-                        }
+            <!-- 2. Navigation -->
+            <section id="navigation" class="mb-20 pt-8 border-t border-slate-800/50">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">2. Navigation & Controls</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                        <h4 class="font-bold text-sky-400 mb-2">Desktop (Mouse)</h4>
+                        <ul class="list-disc pl-5 text-sm text-slate-300 space-y-2">
+                            <li><strong>Pan:</strong> Click and drag the background.</li>
+                            <li><strong>Zoom:</strong> Scroll wheel.</li>
+                            <li><strong>Select Node:</strong> Click a node to open its Radial Menu and Inspector
+                                details.</li>
+                            <li><strong>Move Node:</strong> Click and drag a node to pin it manually (Auto-Arrange will
+                                recalculate from this new position).</li>
+                        </ul>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                        <h4 class="font-bold text-emerald-400 mb-2">Mobile (Touch)</h4>
+                        <ul class="list-disc pl-5 text-sm text-slate-300 space-y-2">
+                            <li><strong>Pan:</strong> Single-finger swipe on the background.</li>
+                            <li><strong>Zoom:</strong> Dual-finger pinch-to-zoom.</li>
+                            <li><strong>Tap:</strong> Tapping a node (without dragging) opens the context menu. Tapping
+                                the background clears the selection.</li>
+                        </ul>
                     </div>
                 </div>
-                <div>
-                    <h3 class="text-sm font-bold text-slate-900 uppercase mb-2">Identity Context</h3>
-                    <p class="text-sm text-slate-500 mb-4">The Kernel maintains a session identity to sign new nodes
-                        automatically.</p>
-                    <div class="code-block">
-                        MM.state.identity = {
-                        user_id: "local-user-992",
-                        server: "local"
-                        };
+
+                <h4 class="font-bold text-lg mb-2 mt-8">The Radial Menu & Moons</h4>
+                <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                    Selecting a node opens its Radial Menu—a circular array of quick actions (Edit, Link, Add Child,
+                    Delete, Collapse).
+                    <br><br>
+                    <strong>Non-Destructive Collapse:</strong> When you collapse a node (🌚), its children are hidden
+                    from the map and replaced by orbiting <strong>"Moons"</strong> around the parent. Clicking a Moon
+                    instantly expands the branch and focuses the camera on the child.
+                </p>
+            </section>
+
+            <!-- 3. Linking -->
+            <section id="linking" class="mb-20 pt-8 border-t border-slate-800/50">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">3. Two-Step Targeted Linking</h3>
+                <p class="text-slate-400 leading-relaxed mb-6">
+                    While "Add Child" creates strict hierarchical structures (solid lines), you can draw conceptual
+                    relationships between any two nodes using the Two-Step Linking workflow (dotted lines).
+                </p>
+                <div class="bg-slate-900 border-l-4 border-amber-500 p-6 rounded-r-xl">
+                    <ol class="list-decimal pl-5 text-sm text-slate-300 space-y-3">
+                        <li>Select your source node and click the <strong>Link (🔗)</strong> button on its Radial Menu.
+                        </li>
+                        <li>The system enters <em>Linking Mode</em>. A pulsing gold banner appears at the top of the
+                            screen.</li>
+                        <li>You are free to pan the map, open other nodes, and explore. Your clicks are not hijacked.
+                        </li>
+                        <li>When you find your target node, select it. Its Radial Menu will appear.</li>
+                        <li>Click the pulsing <strong class="text-emerald-400">Green Confirm Link</strong> button to
+                            finalize the connection. (Or click the <strong class="text-red-400">Red Cancel</strong>
+                            button on the original node to abort).</li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- 4. Phase Engines -->
+            <section id="phase-engines" class="mb-20 pt-8 border-t border-slate-800/50">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">4. Phase Engines (Views)</h3>
+                <p class="text-slate-400 leading-relaxed mb-6">
+                    Meta-Mind separates your raw data from how it is displayed. "Phases" are different lenses through
+                    which you can view the exact same Mapstate JSON.
+                </p>
+                <ul class="space-y-4">
+                    <li class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
+                        <strong class="text-sky-400">🗺️ Celestial Map:</strong> The default spatial graph. Free-form
+                        dragging, physics engine enabled.
+                    </li>
+                    <li class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
+                        <strong class="text-purple-400">🔮 Orbital Focus (Magic Circle):</strong> A strict hierarchical
+                        view. Displays only the selected "Sun" node, its immediate "Planets" (children), and its "Halo"
+                        (parent). Clicking planets navigates deep into the tree without visual clutter.
+                    </li>
+                    <li class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
+                        <strong class="text-emerald-400">🌐 Web Architect:</strong> A compiler engine. If your map uses
+                        <code>web-*</code> nodes, this engine dynamically compiles them into live, rendered
+                        HTML/Tailwind inside an iframe.
+                    </li>
+                </ul>
+            </section>
+
+            <!-- 5. Data Manager -->
+            <section id="data-manager" class="mb-20 pt-8 border-t border-slate-800/50">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">5. The Data Manager</h3>
+                <p class="text-slate-400 leading-relaxed mb-6">
+                    Accessible via the "Phases" tab, the Data Manager is your command center for importing, exporting,
+                    and federation. It is built using stateful accordions.
+                </p>
+                <ul class="list-disc pl-5 text-sm text-slate-300 space-y-2">
+                    <li><strong>Saved Constellations (Library):</strong> Save your current session locally. Edit titles
+                        and metadata, or load them back into the canvas. You can embed saved maps into other maps using
+                        <strong>Portal (🌀)</strong> nodes.</li>
+                    <li><strong>API Federation:</strong> Set push/pull endpoints to sync your graph with external local
+                        servers (e.g., Python Desktop daemons).</li>
+                    <li><strong>Raw JSON Exchange:</strong> Directly view the live state matrix. Native file pickers
+                        allow you to download the state as a <code>.json</code> file or import one directly.</li>
+                </ul>
+            </section>
+
+
+            <!-- ==========================================
+                 PART II: DEVELOPER DOCS
+                 ========================================== -->
+            <div class="mb-16 mt-24">
+                <h2 class="text-sm font-black text-sky-500 uppercase tracking-widest mb-2">Part II</h2>
+                <h3 class="text-4xl font-black">Developer Documentation</h3>
+            </div>
+
+            <!-- 6. Architecture -->
+            <section id="architecture" class="mb-20 pt-8 border-t border-slate-800/50">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">6. Core Architecture</h3>
+                <p class="text-slate-400 leading-relaxed mb-4">
+                    The platform relies on a Decoupled State Machine pattern. The DOM never dictates truth.
+                </p>
+                <div class="space-y-4">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
+                        <strong class="text-white">The Kernel (<code>meta-mind-core.js</code>):</strong> Holds the
+                        <code>MapState</code> object. Performs all array mutations, handles UUID generation, runs the
+                        <code>resolveOverlaps()</code> physics loop, and manages the Breadth-First Search (BFS)
+                        algorithm for cascading downstream node deletions. Emits <code>this.notify()</code> on state
+                        change.
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
+                        <strong class="text-white">The Sandbox (<code>meta-mind-sandbox.js</code>):</strong> The View
+                        Controller. Subscribes to the Kernel. Utilizes pure mathematical DOM-Diffing (checking
+                        <code>dataset.stateHash</code>) to apply targeted innerHTML updates without destroying active
+                        mobile keyboards or CSS animation frames.
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Section: Persistence -->
-        <section id="persistence" class="doc-section">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">3. Persistence Engine</h2>
-            <p class="text-slate-600 mb-4">
-                Kernel v4.2 introduces an <code>AutoSave</code> loop. The state is serialized to
-                <code>localStorage</code> every 2 seconds if changes are detected.
-            </p>
-            <div class="flex items-center gap-3 mb-2">
-                <span class="api-tag tag-core">MM.resetStorage()</span>
-                <span class="text-sm font-mono text-slate-500">Action: Clear & Reload</span>
-            </div>
-            <p class="text-slate-600 text-sm">Wipes the local cache and reloads the page to a fresh state. Useful for
-                debugging.</p>
-        </section>
-        <section id="api-nodes" class="doc-section">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">4. API - Map builder/factory ( coming soon... )</h2>
-            <p>
-                TODO: build maps from scrapers and json passed mapstates
-            </p>
-        </section>
-        <section id="api-spatial" class="doc-section">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">5. API Map Layout Engine(s) ( coming soon... )</h2>
-            <p>
-                TODO: Vector graphic layout parsed from/w/ mapstate data or rendered for: ???
-            </p>
-        </section>
-        <section id="uip-identity" class="doc-section">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">6. UIP Protocol ( coming soon... )</h2>
-            <p>
-                TODO: Link mapstate user_ids through UIP.
-            </p>
-            <h3>Universal Identity Protocol Info:</h3>
-            <a href="https://uip.digital/">UIP (Overview)</a>
-            <a href="https://docs.uip.digital/">UIP (Documentation)</a>
-        </section>
-        <section id="uip-policy" class="doc-section">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">7. UIP Policy ( coming soon... )</h2>
-            <p>
-                TODO: UIP policies related to individual useres & public/shared/private maps
-            </p>
-        </section>
-        <footer class="mt-20 pt-10 border-t border-slate-200 text-center">
-            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">© 2024 Meta-Mind Project |
-                Documentation</p>
-        </footer>
+            <!-- 7. Ontology -->
+            <section id="ontology" class="mb-20 pt-8 border-t border-slate-800/50">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">7. Node & Connection Ontology</h3>
+                <p class="text-slate-400 leading-relaxed mb-6">
+                    Defined in <code>meta-mind-rules.js</code>, this schema dictates what types of nodes can exist and
+                    how they are allowed to connect. <em>Rule Exception: Any node is allowed to have a child of type
+                        'note'.</em>
+                </p>
 
+                <h4 class="font-bold text-lg mb-3">Connection Types</h4>
+                <ul class="list-disc pl-5 text-sm text-slate-300 space-y-2 mb-6">
+                    <li><strong class="text-sky-400">Structural (Solid):</strong> Strict Parent/Child hierarchy. Acts as
+                        a spring in the physics engine. Triggers cascading deletions.</li>
+                    <li><strong class="text-sky-400">Association (Dashed):</strong> Loose conceptual relation. Ignored
+                        by physics springs and orbital views.</li>
+                    <li><strong class="text-sky-400">Flow (Dotted):</strong> Directional sequence logic (reserved for
+                        Logic Gates / execution loops).</li>
+                </ul>
+
+                <h4 class="font-bold text-lg mb-3">Web Architect Nodes</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="table-header">
+                            <tr>
+                                <th class="p-3 rounded-tl-lg">Node Type</th>
+                                <th class="p-3">HTML Element</th>
+                                <th class="p-3">Allowed Children (Strict)</th>
+                                <th class="p-3 rounded-tr-lg">Behavior</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-row">
+                                <td class="p-3 font-bold text-white">web-root</td>
+                                <td class="p-3"><code>&lt;body&gt;</code></td>
+                                <td class="p-3">nav, hero, section, footer</td>
+                                <td class="p-3">Entry point for the compiler.</td>
+                            </tr>
+                            <tr class="table-row">
+                                <td class="p-3 font-bold text-white">web-nav</td>
+                                <td class="p-3"><code>&lt;nav&gt;</code></td>
+                                <td class="p-3">link, button</td>
+                                <td class="p-3">Sticks to top of compiled page.</td>
+                            </tr>
+                            <tr class="table-row">
+                                <td class="p-3 font-bold text-white">web-section</td>
+                                <td class="p-3"><code>&lt;section&gt;</code></td>
+                                <td class="p-3">text, image, card, button</td>
+                                <td class="p-3">Standard flex container.</td>
+                            </tr>
+                            <tr class="table-row">
+                                <td class="p-3 font-bold text-white">web-link</td>
+                                <td class="p-3"><code>&lt;a&gt;</code></td>
+                                <td class="p-3 text-slate-500 italic">None (Leaf)</td>
+                                <td class="p-3">Content acts as href target.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 8. JSON Schema -->
+            <section id="json-schema" class="mb-20 pt-8 border-t border-slate-800/50">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">8. Federated JSON Schema</h3>
+                <p class="text-slate-400 leading-relaxed mb-4">
+                    The JSON standard for importing/exporting mapstates. It is designed to be easily parsed by secondary
+                    languages (Python, Go, Rust). Note that visual positions (`x, y`) are segregated into the `data`
+                    sub-object.
+                </p>
+                <pre><code>{
+  "map_id": "u7b9v2z1x",
+  "meta": {
+    "title": "Project Master Plan",
+    "created": "2026-02-24T12:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "abc123xyz",
+      "type": "hub",
+      "title": "Central Architecture",
+      "content": "Description payload here...",
+      "data": {
+        "x": 145.2,
+        "y": -22.4,
+        "isCore": true,
+        "collapsed": false
+      },
+      "submaps": [] 
+    }
+  ],
+  "connections": [
+    {
+      "id": "edge_999",
+      "from": "abc123xyz",
+      "to": "def456lmn",
+      "type": "structural"
+    }
+  ],
+  "submaps": [] // Used to cache local instances of portals
+}</code></pre>
+            </section>
+
+            <!-- 9. Physics -->
+            <section id="physics" class="mb-20 pt-8 border-t border-slate-800/50">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">9. Force-Directed Physics</h3>
+                <p class="text-slate-400 leading-relaxed mb-6">
+                    The layout is driven by a custom iterative algorithm found in <code>Kernel.resolveOverlaps()</code>.
+                    It applies two simultaneous forces:
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+                        <h4 class="font-bold text-sky-400 mb-2">1. Universal Repulsion</h4>
+                        <p class="text-[12px] text-slate-300">An O(N²) calculation where every node pushes away from
+                            every other node if distance < 240px. (kRepel=0.08).</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+                        <h4 class="font-bold text-emerald-400 mb-2">2. Hooke's Law Springs</h4>
+                        <p class="text-[12px] text-slate-300">Only applies to <code>structural</code> connections. Pulls
+                            connected nodes toward an ideal resting distance of 160px. (kSpring = 0.05).</p>
+                    </div>
+                </div>
+                <p class="text-sm text-slate-400 leading-relaxed mt-4">
+                    Upon node creation, a light 40-iteration burst runs to clear space. Clicking the "Arrange" UI button
+                    triggers a deep 150-iteration simulation to organically untangle complex webs.
+                </p>
+            </section>
+
+            <!-- 10. Federation APIs -->
+            <section id="federation-api" class="mb-20 pt-8 border-t border-slate-800/50">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">10. Companion APIs</h3>
+                <p class="text-slate-400 leading-relaxed mb-4">
+                    Meta-Mind is built to run alongside a Python Desktop Environment. The Web Client acts as a visual
+                    interface, while the Python backend can handle intensive operations (LLM generation, filesystem
+                    management).
+                </p>
+                <ul class="list-disc pl-5 text-sm text-slate-300 space-y-2">
+                    <li><strong>Push URL:</strong> The endpoint the web client will POST the active MapState JSON to
+                        (e.g., <code>localhost:8000/api/push</code>).</li>
+                    <li><strong>Pull URL:</strong> The endpoint the web client polls to fetch external state updates
+                        (e.g., <code>localhost:8000/api/pull</code>).</li>
+                    <li><strong>Python Implementation:</strong> Refer to the <code>metamind_models.py</code> Dataclasses
+                        for creating valid JSON schemas that the web engine can seamlessly ingest via
+                        <code>Kernel.loadMapState()</code>.</li>
+                </ul>
+            </section>
+
+        </div>
     </main>
 
 </body>
