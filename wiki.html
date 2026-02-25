@@ -56,7 +56,7 @@
             background: rgba(30, 41, 59, 0.8);
             text-transform: uppercase;
             font-size: 0.75rem;
-            tracking: widest;
+            letter-spacing: 0.05em;
             color: #94a3b8;
         }
 
@@ -71,6 +71,7 @@
         /* Custom Scrollbar for Main Content */
         .custom-scrollbar::-webkit-scrollbar {
             width: 8px;
+            height: 8px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-track {
@@ -84,18 +85,52 @@
     </style>
 </head>
 
-<body class="flex h-screen overflow-hidden">
+<body class="flex h-screen overflow-hidden bg-slate-950 relative">
+
+    <!-- Mobile Header Bar (Visible only on < md screens) -->
+    <div
+        class="md:hidden flex items-center justify-between bg-slate-900/90 backdrop-blur-md border-b border-slate-800 p-4 absolute top-0 w-full z-20">
+        <h1 class="text-lg font-black flex items-center gap-2">
+            <span class="w-6 h-6 rounded bg-sky-600 flex items-center justify-center text-xs text-white">M</span>
+            META-MIND
+        </h1>
+        <button id="mobile-menu-btn"
+            class="text-slate-400 hover:text-white p-2 transition-colors rounded-lg hover:bg-slate-800">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                </path>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Mobile Sidebar Overlay -->
+    <div id="sidebar-overlay"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden md:hidden transition-opacity opacity-0 duration-300">
+    </div>
 
     <!-- Sidebar Navigation -->
-    <aside class="w-72 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
-        <div class="p-6 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
-            <h1 class="text-xl font-black tracking-tight flex items-center gap-2">
-                <span class="w-6 h-6 rounded bg-sky-600 flex items-center justify-center text-xs text-white">M</span>
-                META-MIND
-            </h1>
-            <div class="text-[10px] uppercase tracking-widest text-sky-400 mt-2 font-bold">Comprehensive Wiki v14.4
+    <aside id="sidebar"
+        class="w-72 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto custom-scrollbar fixed inset-y-0 left-0 z-40 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 shadow-2xl md:shadow-none">
+        <div class="p-6 border-b border-slate-800 sticky top-0 bg-slate-900 z-10 flex justify-between items-start">
+            <div>
+                <h1 class="text-xl font-black tracking-tight flex items-center gap-2">
+                    <span
+                        class="w-6 h-6 rounded bg-sky-600 flex items-center justify-center text-xs text-white">M</span>
+                    META-MIND
+                </h1>
+                <div class="text-[10px] uppercase tracking-widest text-sky-400 mt-2 font-bold">Comprehensive Wiki v14.4
+                </div>
             </div>
+            <!-- Close button (Mobile only) -->
+            <button id="close-sidebar-btn"
+                class="md:hidden text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
         </div>
+
         <nav class="flex-1 py-4">
             <div class="px-6 text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2 mt-2">I. User Guide
             </div>
@@ -113,6 +148,7 @@
             <a href="#physics" class="nav-link pl-8">9. Force-Directed Physics</a>
             <a href="#federation-api" class="nav-link pl-8">10. Companion APIs</a>
         </nav>
+
         <div class="p-4 border-t border-slate-800 bg-slate-900 sticky bottom-0">
             <a href="sandbox.html"
                 class="block w-full py-2 bg-sky-600 hover:bg-sky-500 text-center text-white rounded text-xs font-bold transition-colors">Launch
@@ -124,12 +160,14 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto p-10 lg:p-16 scroll-smooth custom-scrollbar" id="main-scroll">
+    <!-- Added pt-24 on mobile to account for the fixed header, resets on md -->
+    <main class="flex-1 overflow-y-auto p-6 pt-24 md:p-10 lg:p-16 scroll-smooth custom-scrollbar w-full"
+        id="main-scroll">
         <div class="max-w-5xl mx-auto pb-32">
 
             <header class="mb-16 border-b border-slate-800 pb-8">
-                <h1 class="text-5xl font-black mb-4">Meta-Mind Master Reference</h1>
-                <p class="text-xl text-slate-400 leading-relaxed">
+                <h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tight">Meta-Mind Master Reference</h1>
+                <p class="text-lg md:text-xl text-slate-400 leading-relaxed">
                     Welcome to the definitive documentation for Meta-Mind v14.4. This wiki serves both daily users
                     navigating the spatial interface and developers building federated companion applications.
                 </p>
@@ -138,13 +176,13 @@
             <!-- ==========================================
                  PART I: USER GUIDE
                  ========================================== -->
-            <div class="mb-16">
+            <div class="mb-12">
                 <h2 class="text-sm font-black text-sky-500 uppercase tracking-widest mb-2">Part I</h2>
-                <h3 class="text-4xl font-black">User Guide</h3>
+                <h3 class="text-3xl md:text-4xl font-black">User Guide</h3>
             </div>
 
             <!-- 1. Getting Started -->
-            <section id="getting-started" class="mb-20 pt-8 border-t border-slate-800/50">
+            <section id="getting-started" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">1. Getting Started</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
                     Meta-Mind is a spatial mapping ecosystem. Instead of folders and files, you organize information
@@ -154,7 +192,7 @@
             </section>
 
             <!-- 2. Navigation -->
-            <section id="navigation" class="mb-20 pt-8 border-t border-slate-800/50">
+            <section id="navigation" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">2. Navigation & Controls</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
@@ -191,7 +229,7 @@
             </section>
 
             <!-- 3. Linking -->
-            <section id="linking" class="mb-20 pt-8 border-t border-slate-800/50">
+            <section id="linking" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">3. Two-Step Targeted Linking</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
                     While "Add Child" creates strict hierarchical structures (solid lines), you can draw conceptual
@@ -214,41 +252,59 @@
             </section>
 
             <!-- 4. Phase Engines -->
-            <section id="phase-engines" class="mb-20 pt-8 border-t border-slate-800/50">
+            <section id="phase-engines" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">4. Phase Engines (Views)</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
                     Meta-Mind separates your raw data from how it is displayed. "Phases" are different lenses through
                     which you can view the exact same Mapstate JSON.
                 </p>
                 <ul class="space-y-4">
-                    <li class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
-                        <strong class="text-sky-400">🗺️ Celestial Map:</strong> The default spatial graph. Free-form
-                        dragging, physics engine enabled.
+                    <li
+                        class="bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-start gap-3">
+                        <span class="text-2xl">🗺️</span>
+                        <div>
+                            <strong class="text-sky-400 text-sm">Celestial Map</strong>
+                            <p class="text-sm text-slate-400 mt-1">The default spatial graph. Free-form dragging,
+                                physics engine enabled.</p>
+                        </div>
                     </li>
-                    <li class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
-                        <strong class="text-purple-400">🔮 Orbital Focus (Magic Circle):</strong> A strict hierarchical
-                        view. Displays only the selected "Sun" node, its immediate "Planets" (children), and its "Halo"
-                        (parent). Clicking planets navigates deep into the tree without visual clutter.
+                    <li
+                        class="bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-start gap-3">
+                        <span class="text-2xl">🔮</span>
+                        <div>
+                            <strong class="text-purple-400 text-sm">Orbital Focus (Magic Circle)</strong>
+                            <p class="text-sm text-slate-400 mt-1">A strict hierarchical view. Displays only the
+                                selected "Sun" node, its immediate "Planets" (children), and its "Halo" (parent).
+                                Clicking planets navigates deep into the tree without visual clutter.</p>
+                        </div>
                     </li>
-                    <li class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
-                        <strong class="text-emerald-400">🌐 Web Architect:</strong> A compiler engine. If your map uses
-                        <code>web-*</code> nodes, this engine dynamically compiles them into live, rendered
-                        HTML/Tailwind inside an iframe.
+                    <li
+                        class="bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-start gap-3">
+                        <span class="text-2xl">🌐</span>
+                        <div>
+                            <strong class="text-emerald-400 text-sm">Web Architect</strong>
+                            <p class="text-sm text-slate-400 mt-1">A compiler engine. If your map uses
+                                <code>web-*</code> nodes, this engine dynamically compiles them into live, rendered
+                                HTML/Tailwind inside an iframe.</p>
+                        </div>
                     </li>
                 </ul>
             </section>
 
             <!-- 5. Data Manager -->
-            <section id="data-manager" class="mb-20 pt-8 border-t border-slate-800/50">
+            <section id="data-manager" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">5. The Data Manager</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
                     Accessible via the "Phases" tab, the Data Manager is your command center for importing, exporting,
                     and federation. It is built using stateful accordions.
                 </p>
-                <ul class="list-disc pl-5 text-sm text-slate-300 space-y-2">
+                <ul class="list-disc pl-5 text-sm text-slate-300 space-y-3">
                     <li><strong>Saved Constellations (Library):</strong> Save your current session locally. Edit titles
                         and metadata, or load them back into the canvas. You can embed saved maps into other maps using
                         <strong>Portal (🌀)</strong> nodes.</li>
+                    <li><strong>Cloud Templates:</strong> Fetch read-only starter configurations (like software
+                        architecture or web structures) directly from an external database and instantiate them as
+                        submaps.</li>
                     <li><strong>API Federation:</strong> Set push/pull endpoints to sync your graph with external local
                         servers (e.g., Python Desktop daemons).</li>
                     <li><strong>Raw JSON Exchange:</strong> Directly view the live state matrix. Native file pickers
@@ -256,40 +312,39 @@
                 </ul>
             </section>
 
-
             <!-- ==========================================
                  PART II: DEVELOPER DOCS
                  ========================================== -->
-            <div class="mb-16 mt-24">
+            <div class="mb-12 mt-24">
                 <h2 class="text-sm font-black text-sky-500 uppercase tracking-widest mb-2">Part II</h2>
-                <h3 class="text-4xl font-black">Developer Documentation</h3>
+                <h3 class="text-3xl md:text-4xl font-black">Developer Documentation</h3>
             </div>
 
             <!-- 6. Architecture -->
-            <section id="architecture" class="mb-20 pt-8 border-t border-slate-800/50">
+            <section id="architecture" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">6. Core Architecture</h3>
                 <p class="text-slate-400 leading-relaxed mb-4">
                     The platform relies on a Decoupled State Machine pattern. The DOM never dictates truth.
                 </p>
                 <div class="space-y-4">
-                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
-                        <strong class="text-white">The Kernel (<code>meta-mind-core.js</code>):</strong> Holds the
-                        <code>MapState</code> object. Performs all array mutations, handles UUID generation, runs the
-                        <code>resolveOverlaps()</code> physics loop, and manages the Breadth-First Search (BFS)
-                        algorithm for cascading downstream node deletions. Emits <code>this.notify()</code> on state
-                        change.
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-lg">
+                        <strong class="text-white text-sm">The Kernel (<code>meta-mind-core.js</code>)</strong>
+                        <p class="text-sm text-slate-400 mt-2">Holds the <code>MapState</code> object. Performs all
+                            array mutations, handles UUID generation, runs the <code>resolveOverlaps()</code> physics
+                            loop, and manages the Breadth-First Search (BFS) algorithm for cascading downstream node
+                            deletions. Emits <code>this.notify()</code> on state change.</p>
                     </div>
-                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
-                        <strong class="text-white">The Sandbox (<code>meta-mind-sandbox.js</code>):</strong> The View
-                        Controller. Subscribes to the Kernel. Utilizes pure mathematical DOM-Diffing (checking
-                        <code>dataset.stateHash</code>) to apply targeted innerHTML updates without destroying active
-                        mobile keyboards or CSS animation frames.
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-lg">
+                        <strong class="text-white text-sm">The Sandbox (<code>meta-mind-sandbox.js</code>)</strong>
+                        <p class="text-sm text-slate-400 mt-2">The View Controller. Subscribes to the Kernel. Utilizes
+                            pure mathematical DOM-Diffing (checking <code>dataset.stateHash</code>) to apply targeted
+                            innerHTML updates without destroying active mobile keyboards or CSS animation frames.</p>
                     </div>
                 </div>
             </section>
 
             <!-- 7. Ontology -->
-            <section id="ontology" class="mb-20 pt-8 border-t border-slate-800/50">
+            <section id="ontology" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">7. Node & Connection Ontology</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
                     Defined in <code>meta-mind-rules.js</code>, this schema dictates what types of nodes can exist and
@@ -302,20 +357,20 @@
                     <li><strong class="text-sky-400">Structural (Solid):</strong> Strict Parent/Child hierarchy. Acts as
                         a spring in the physics engine. Triggers cascading deletions.</li>
                     <li><strong class="text-sky-400">Association (Dashed):</strong> Loose conceptual relation. Ignored
-                        by physics springs and orbital views.</li>
+                        by physics springs and orbital views. Created via 2-Step linking.</li>
                     <li><strong class="text-sky-400">Flow (Dotted):</strong> Directional sequence logic (reserved for
                         Logic Gates / execution loops).</li>
                 </ul>
 
                 <h4 class="font-bold text-lg mb-3">Web Architect Nodes</h4>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-slate-300">
+                <div class="overflow-x-auto rounded-lg border border-slate-800">
+                    <table class="w-full text-left text-sm text-slate-300 whitespace-nowrap">
                         <thead class="table-header">
                             <tr>
-                                <th class="p-3 rounded-tl-lg">Node Type</th>
+                                <th class="p-3">Node Type</th>
                                 <th class="p-3">HTML Element</th>
                                 <th class="p-3">Allowed Children (Strict)</th>
-                                <th class="p-3 rounded-tr-lg">Behavior</th>
+                                <th class="p-3">Behavior</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -349,18 +404,19 @@
             </section>
 
             <!-- 8. JSON Schema -->
-            <section id="json-schema" class="mb-20 pt-8 border-t border-slate-800/50">
+            <section id="json-schema" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">8. Federated JSON Schema</h3>
-                <p class="text-slate-400 leading-relaxed mb-4">
+                <p class="text-slate-400 leading-relaxed mb-4 text-sm">
                     The JSON standard for importing/exporting mapstates. It is designed to be easily parsed by secondary
-                    languages (Python, Go, Rust). Note that visual positions (`x, y`) are segregated into the `data`
-                    sub-object.
+                    languages (Python, Go, Rust). Visual positions (`x, y`) are segregated into the `data` sub-object.
                 </p>
                 <pre><code>{
   "map_id": "u7b9v2z1x",
   "meta": {
     "title": "Project Master Plan",
-    "created": "2026-02-24T12:00:00Z"
+    "created": "2026-02-24T12:00:00Z",
+    "notes": "System schema reference",
+    "shared": false
   },
   "nodes": [
     {
@@ -385,57 +441,93 @@
       "type": "structural"
     }
   ],
-  "submaps": [] // Used to cache local instances of portals
+  "submaps": [] // Caches templates or local portal configurations
 }</code></pre>
             </section>
 
             <!-- 9. Physics -->
-            <section id="physics" class="mb-20 pt-8 border-t border-slate-800/50">
+            <section id="physics" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">9. Force-Directed Physics</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
                     The layout is driven by a custom iterative algorithm found in <code>Kernel.resolveOverlaps()</code>.
-                    It applies two simultaneous forces:
+                    It applies two simultaneous forces to form organic trees dynamically.
                 </p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
                         <h4 class="font-bold text-sky-400 mb-2">1. Universal Repulsion</h4>
-                        <p class="text-[12px] text-slate-300">An O(N²) calculation where every node pushes away from
-                            every other node if distance < 240px. (kRepel=0.08).</p>
+                        <p class="text-sm text-slate-300">An O(N²) calculation where every node pushes away from every
+                            other node if distance &lt; 240px. (kRepel = 0.08).</p>
                     </div>
                     <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
                         <h4 class="font-bold text-emerald-400 mb-2">2. Hooke's Law Springs</h4>
-                        <p class="text-[12px] text-slate-300">Only applies to <code>structural</code> connections. Pulls
+                        <p class="text-sm text-slate-300">Only applies to <code>structural</code> connections. Pulls
                             connected nodes toward an ideal resting distance of 160px. (kSpring = 0.05).</p>
                     </div>
                 </div>
                 <p class="text-sm text-slate-400 leading-relaxed mt-4">
-                    Upon node creation, a light 40-iteration burst runs to clear space. Clicking the "Arrange" UI button
+                    Upon node creation, a fast 40-iteration burst runs to clear space. Clicking the "Arrange" UI button
                     triggers a deep 150-iteration simulation to organically untangle complex webs.
                 </p>
             </section>
 
             <!-- 10. Federation APIs -->
-            <section id="federation-api" class="mb-20 pt-8 border-t border-slate-800/50">
+            <section id="federation-api" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">10. Companion APIs</h3>
                 <p class="text-slate-400 leading-relaxed mb-4">
-                    Meta-Mind is built to run alongside a Python Desktop Environment. The Web Client acts as a visual
-                    interface, while the Python backend can handle intensive operations (LLM generation, filesystem
-                    management).
+                    Meta-Mind is built to run alongside external environments like a Python Desktop Daemon. The Web
+                    Client acts as a visual interface, while backend processes handle heavy file I/O or AI.
                 </p>
-                <ul class="list-disc pl-5 text-sm text-slate-300 space-y-2">
-                    <li><strong>Push URL:</strong> The endpoint the web client will POST the active MapState JSON to
-                        (e.g., <code>localhost:8000/api/push</code>).</li>
-                    <li><strong>Pull URL:</strong> The endpoint the web client polls to fetch external state updates
-                        (e.g., <code>localhost:8000/api/pull</code>).</li>
-                    <li><strong>Python Implementation:</strong> Refer to the <code>metamind_models.py</code> Dataclasses
-                        for creating valid JSON schemas that the web engine can seamlessly ingest via
-                        <code>Kernel.loadMapState()</code>.</li>
-                </ul>
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-5">
+                    <ul class="list-disc pl-5 text-sm text-slate-300 space-y-3">
+                        <li><strong>Push URL:</strong> The endpoint the web client will POST the active MapState JSON to
+                            (e.g., <code>localhost:8000/api/push</code>).</li>
+                        <li><strong>Pull URL:</strong> The endpoint the web client polls to fetch external state updates
+                            (e.g., <code>localhost:8000/api/pull</code>).</li>
+                        <li><strong>Template Manifest:</strong> A remote endpoint returning an array of available
+                            template objects (id, title, desc).</li>
+                    </ul>
+                </div>
             </section>
 
         </div>
     </main>
 
+    <!-- Interactive Sidebar Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const menuBtn = document.getElementById('mobile-menu-btn');
+            const closeBtn = document.getElementById('close-sidebar-btn');
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            function openSidebar() {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                // Small timeout allows the display:block to process before opacity transition
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            }
+
+            function closeSidebar() {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+
+            menuBtn.addEventListener('click', openSidebar);
+            closeBtn.addEventListener('click', closeSidebar);
+            overlay.addEventListener('click', closeSidebar);
+
+            // Automatically close the sidebar when a navigation link is clicked (Mobile only)
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth < 768) {
+                        closeSidebar();
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>
