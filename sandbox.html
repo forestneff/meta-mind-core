@@ -3,8 +3,9 @@
 
 <head>
     <meta charset="UTF-8">
+    <!-- Prevents native browser zoom, handling it all in our app -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meta-Mind | v14.2 Production Release</title>
+    <title>Meta-Mind | v14.3 Mobile Production</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="meta-mind-ui.css">
 
@@ -15,23 +16,33 @@
     <script src="meta-mind-sandbox.js"></script>
 </head>
 
-<body class="overflow-hidden bg-slate-950 touch-none select-none">
+<body class="overflow-hidden bg-slate-950 select-none">
     <nav
-        class="h-14 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center px-4 z-50 relative backdrop-blur w-full">
+        class="h-14 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center px-2 md:px-4 z-50 relative backdrop-blur w-full">
         <!-- Identity & Status -->
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="flex items-center gap-2 shrink-0">
+            <!-- Mobile Hamburger Menu -->
+            <button id="btn-sidebar-toggle"
+                class="md:hidden p-1.5 text-slate-400 hover:text-white transition-colors rounded hover:bg-slate-800"
+                onclick="SC.toggleSidebar()">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                    </path>
+                </svg>
+            </button>
+
             <div
-                class="w-8 h-8 bg-sky-600 rounded flex items-center justify-center text-white font-black shadow-lg shadow-sky-900/50">
+                class="w-8 h-8 bg-sky-600 rounded items-center justify-center text-white font-black shadow-lg shadow-sky-900/50 hidden sm:flex">
                 M</div>
-            <div class="flex flex-col">
-                <span id="map-title" class="text-sm font-bold text-slate-200 leading-none">Meta-Mind v14.2</span>
+            <div class="flex flex-col ml-1">
+                <span id="map-title" class="text-sm font-bold text-slate-200 leading-none">Meta-Mind v14.3</span>
                 <div class="flex gap-2 mt-1">
                     <span id="save-status"
                         class="text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Local
                     </span>
                     <span id="host-status"
-                        class="text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                        class="text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1 hidden sm:flex">
                         <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Host Offline
                     </span>
                 </div>
@@ -40,25 +51,25 @@
 
         <!-- Responsive Toolbar -->
         <div class="flex gap-2 overflow-x-auto no-scrollbar items-center px-2">
-            <div class="h-6 w-px bg-slate-700 mx-1 shrink-0"></div>
+            <div class="h-6 w-px bg-slate-700 mx-1 shrink-0 hidden md:block"></div>
             <button id="btn-add"
                 class="shrink-0 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded transition-colors shadow-lg shadow-sky-900/20">+
-                Root Node</button>
+                Root</button>
             <button id="btn-arrange"
                 class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors"
                 title="Force-Directed Organic Layout">Arrange</button>
             <button id="btn-undo"
-                class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors">Undo</button>
+                class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors hidden sm:block">Undo</button>
             <div class="h-6 w-px bg-slate-700 mx-1 shrink-0"></div>
             <button id="btn-focal" class="shrink-0 transition-all cursor-pointer" title="Toggle Camera Tracking">👁️
                 Auto-Focus</button>
-            <div class="h-6 w-px bg-slate-700 mx-1 shrink-0"></div>
+            <div class="h-6 w-px bg-slate-700 mx-1 shrink-0 hidden md:block"></div>
         </div>
     </nav>
 
     <div id="stage">
-        <!-- Left Sidebar -->
-        <div class="w-80 max-w-[80vw] border-r border-slate-800 flex flex-col z-30 bg-slate-900/80 backdrop-blur-sm shrink-0"
+        <!-- Left Sidebar (Responsive Overlay on Mobile) -->
+        <div class="w-80 max-w-[85vw] border-r border-slate-800 flex flex-col z-40 bg-slate-900/95 md:bg-slate-900/80 backdrop-blur-md shrink-0"
             id="sidebar">
             <div class="sidebar-tabs">
                 <div class="sidebar-tab active" id="tab-properties" onclick="SC.setTab('properties')">Properties</div>
@@ -100,7 +111,6 @@
                 window.Kernel = Kernel;
                 window.SC = Controller;
 
-                // UI Bindings
                 document.getElementById('btn-undo').onclick = () => Kernel.undo();
                 document.getElementById('btn-arrange').onclick = () => Kernel.autoLayout();
 
@@ -113,7 +123,6 @@
                     });
                 };
 
-                // Dynamic UI Toggle for Auto-Focus
                 const btnFocal = document.getElementById('btn-focal');
                 const updateFocalUI = () => {
                     if (Kernel.config.autoFocus) {
@@ -128,9 +137,9 @@
                     updateFocalUI();
                 };
 
-                // Host Connection Loop
                 setInterval(async () => {
                     const statusEl = document.getElementById('host-status');
+                    if (!statusEl) return;
                     const isConnected = await Kernel.bridge.checkConnection();
                     if (isConnected) {
                         statusEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Host Linked';
@@ -143,7 +152,6 @@
 
             } catch (e) {
                 console.error("Initialization Failed:", e);
-                alert("Failed to initialize. Check console.");
             }
         });
     </script>

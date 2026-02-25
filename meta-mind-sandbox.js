@@ -1,6 +1,6 @@
 /**
- * META-MIND SANDBOX CONTROLLER v14.2
- * Features: Native JSON File Parsing, Restored Non-Destructive Collapse logic.
+ * META-MIND SANDBOX CONTROLLER v14.3
+ * Features: Multi-Touch Gestures (Pinch to Zoom), Responsive Sidebar.
  */
 
 class SandboxController {
@@ -20,17 +20,23 @@ class SandboxController {
             panelProperties: document.getElementById('panel-properties'),
             panelViews: document.getElementById('panel-views'),
             viewMap: document.getElementById('view-map'),
-            viewContent: document.getElementById('view-content')
+            viewContent: document.getElementById('view-content'),
+            sidebar: document.getElementById('sidebar')
         };
-
-        this.dom.edgeSvg.style.overflow = 'visible';
 
         this.viewMode = 'map';
         this.activeTab = 'properties';
+
+        // Interaction State
+        this.activePointers = new Map(); // Tracks multi-touch
         this.isDragging = false;
         this.lastMouse = { x: 0, y: 0 };
         this.clickStart = { x: 0, y: 0 };
+        this.lastPinchDist = null;
+        this.lastPinchCenter = null;
+
         this.draggedNode = null;
+        this.activeRadialNodeId = null;
         this.userHasPanned = false;
 
         this.initDOM();
@@ -57,14 +63,24 @@ class SandboxController {
         window.SC = this;
         const vp = this.dom.viewport;
 
+        // Multi-touch tracking
         vp.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
         window.addEventListener('pointermove', (e) => this.handlePointerMove(e));
         window.addEventListener('pointerup', (e) => this.handlePointerUp(e));
+        window.addEventListener('pointercancel', (e) => this.handlePointerUp(e));
+
         vp.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
         window.addEventListener('resize', () => this.render());
     }
 
-    setTab(tab) { this.activeTab = tab; this.renderSidebar(); }
+    toggleSidebar() {
+        this.dom.sidebar.classList.toggle('open');
+    }
+
+    setTab(tab) {
+        this.activeTab = tab;
+        this.renderSidebar();
+    }
 
     setView(mode) {
         this.viewMode = mode;
@@ -72,6 +88,12 @@ class SandboxController {
         cards.forEach(c => c.classList.remove('active'));
         const idx = ['map', 'data', 'orbital', 'web'].indexOf(mode);
         if (idx !== -1 && cards[idx]) cards[idx].classList.add('active');
+
+        // Auto-close sidebar on mobile after selecting a view
+        if (window.innerWidth <= 768) {
+            this.dom.sidebar.classList.remove('open');
+        }
+
         this.render();
     }
 
@@ -105,25 +127,81 @@ class SandboxController {
         this.dom.edgeSvg.style.transform = transform;
     }
 
-    // --- Interaction ---
+    // --- Interaction & Multi-Touch Gestures ---
     handlePointerDown(e) {
         if (this.viewMode !== 'map') return;
+
+        // Auto-close sidebar on mobile if clicking the map
+        if (window.innerWidth <= 768 && this.dom.sidebar.classList.contains('open')) {
+            this.dom.sidebar.classList.remove('open');
+        }
+
         if (e.target.closest('.node')) return;
 
-        this.isDragging = true;
-        this.userHasPanned = true;
-        this.lastMouse = { x: e.clientX, y: e.clientY };
-        this.clickStart = { x: e.clientX, y: e.clientY };
+        // Register pointer
+        this.activePointers.set(e.pointerId, e);
+
+        // Single touch initialization
+        if (this.activePointers.size === 1) {
+            this.isDragging = true;
+            this.userHasPanned = true;
+            this.lastMouse = { x: e.clientX, y: e.clientY };
+            this.clickStart = { x: e.clientX, y: e.clientY };
+        }
     }
 
     handlePointerMove(e) {
-        if (this.isDragging) {
+        // Track the updated pointer coordinates
+        if (this.activePointers.has(e.pointerId)) {
+            this.activePointers.set(e.pointerId, e);
+        }
+
+        // Pinch-to-Zoom (2 Fingers)
+        if (this.activePointers.size === 2) {
+            const pts = Array.from(this.activePointers.values());
+            const p1 = pts[0], p2 = pts[1];
+
+            // Calculate distance and midpoint between two fingers
+            const dist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+            const cx = (p1.clientX + p2.clientX) / 2;
+            const cy = (p1.clientY + p2.clientY) / 2;
+
+            if (this.lastPinchDist) {
+                const zoomFactor = dist / this.lastPinchDist;
+                const vp = this.kernel.state.session.viewport;
+
+                // Math: Scale viewport relative to the pinch center point
+                const newScale = Math.max(0.1, Math.min(5, vp.scale * zoomFactor));
+                const actualZoom = newScale / vp.scale;
+
+                // 1. Zoom calculation
+                vp.x = cx - actualZoom * (cx - vp.x);
+                vp.y = cy - actualZoom * (cy - vp.y);
+                vp.scale = newScale;
+
+                // 2. Dual-finger pan (drift of the center point)
+                if (this.lastPinchCenter) {
+                    vp.x += (cx - this.lastPinchCenter.x);
+                    vp.y += (cy - this.lastPinchCenter.y);
+                }
+                this.updateTransform();
+            }
+
+            this.lastPinchDist = dist;
+            this.lastPinchCenter = { x: cx, y: cy };
+            this.userHasPanned = true;
+            this.isDragging = false; // Disable single-finger drag
+        }
+        // Standard Pan (1 Finger / Mouse Drag)
+        else if (this.isDragging && this.activePointers.size === 1) {
             const dx = e.clientX - this.lastMouse.x, dy = e.clientY - this.lastMouse.y;
             this.kernel.state.session.viewport.x += dx;
             this.kernel.state.session.viewport.y += dy;
             this.lastMouse = { x: e.clientX, y: e.clientY };
             this.updateTransform();
-        } else if (this.draggedNode) {
+        }
+        // Node Dragging (Captured by Node)
+        else if (this.draggedNode) {
             const vp = this.kernel.state.session.viewport;
             this.draggedNode.data.x += (e.clientX - this.lastMouse.x) / vp.scale;
             this.draggedNode.data.y += (e.clientY - this.lastMouse.y) / vp.scale;
@@ -133,24 +211,39 @@ class SandboxController {
     }
 
     handlePointerUp(e) {
-        if (this.isDragging) {
-            const dist = Math.hypot(e.clientX - this.clickStart.x, e.clientY - this.clickStart.y);
-            if (dist < 5) this.kernel.selectNode(null);
+        // Clear pointer from registry
+        if (this.activePointers.has(e.pointerId)) {
+            this.activePointers.delete(e.pointerId);
         }
-        this.isDragging = false;
+
+        // Reset pinch tracking if we drop below 2 fingers
+        if (this.activePointers.size < 2) {
+            this.lastPinchDist = null;
+            this.lastPinchCenter = null;
+        }
+
+        // Tap Detection (Only if all fingers are lifted and we barely moved)
+        if (this.activePointers.size === 0) {
+            if (this.isDragging) {
+                const dist = Math.hypot(e.clientX - this.clickStart.x, e.clientY - this.clickStart.y);
+                if (dist < 5) this.kernel.selectNode(null); // Clicked background
+            }
+            this.isDragging = false;
+        }
+
         if (this.draggedNode) this.userHasPanned = false;
         this.draggedNode = null;
     }
 
     handleWheel(e) {
-        if (this.viewMode !== 'map') return;
+        if (this.viewMode !== 'map') return; // Restores native scroll in data/web engine!
         e.preventDefault();
         const s = this.kernel.state.session, factor = Math.exp(-e.deltaY * 0.001);
         s.viewport.scale = Math.max(0.1, Math.min(5, s.viewport.scale * factor));
         this.updateTransform();
     }
 
-    // Tools
+    // --- Actions ---
     actionEdit(id) { const tgt = id || this.kernel.state.session.selectedId; this.kernel.selectNode(tgt); this.setTab('properties'); }
     actionLink(id) { const tgt = id || this.kernel.state.session.selectedId; this.kernel.linkingMode = true; this.kernel.linkingSourceId = tgt; this.dom.overlay.classList.remove('hidden'); }
     actionDelete(id) { const tgt = id || this.kernel.state.session.selectedId; if (confirm("Delete this node and cascade to all children?")) this.kernel.deleteNode(tgt); }
@@ -186,91 +279,6 @@ class SandboxController {
         const tgt = id || this.kernel.state.session.selectedId;
         const json = this.kernel.extractConstellation(tgt);
         if (json) { this.kernel.saveConstellationToLibrary(json); alert("Saved to Library."); }
-    }
-
-    // --- API Federation & File I/O Tools ---
-    actionUpdateApi() {
-        this.kernel.bridge.pushUrl = document.getElementById('api-push-url').value;
-        this.kernel.bridge.pullUrl = document.getElementById('api-pull-url').value;
-        alert(`Endpoints mapped temporarily.`);
-    }
-    actionPushApi() { alert(`POST to ${this.kernel.bridge.pushUrl}`); }
-    actionPullApi() { alert(`GET from ${this.kernel.bridge.pullUrl}`); }
-
-    actionSyncJson() {
-        try {
-            const val = document.getElementById('json-exchange').value;
-            const state = JSON.parse(val);
-            this.kernel.loadMapState(state);
-            alert("Mapstate Applied Successfully.");
-        } catch (e) { alert("Invalid JSON format."); }
-    }
-    actionCopyJson() {
-        const val = document.getElementById('json-exchange');
-        val.select(); document.execCommand('copy');
-        alert("Copied to clipboard.");
-    }
-
-    // File I/O
-    actionExportJsonFile() {
-        const json = this.kernel.exportMapState();
-        const blob = new Blob([json], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `metamind_map_${this.kernel.state.map_id}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-    actionImportJsonFile(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const state = JSON.parse(e.target.result);
-                this.kernel.loadMapState(state);
-                alert("Mapstate Imported Successfully.");
-                this.render();
-            } catch (err) {
-                alert("Invalid JSON file.");
-            }
-        };
-        reader.readAsText(file);
-        event.target.value = ''; // Reset input so same file can be uploaded again
-    }
-
-    actionSaveCurrentToLibrary() {
-        const copy = JSON.parse(JSON.stringify(this.kernel.state));
-        copy.map_id = this.kernel.generateId();
-        copy.meta.title = (copy.meta.title || "Untitled") + " (Copy)";
-        this.kernel.saveConstellationToLibrary(copy);
-        this.render();
-    }
-    actionLoadFromLibrary(id) {
-        const lib = this.kernel.getLibrary();
-        const map = lib.find(m => m.map_id === id);
-        if (map) { this.kernel.loadMapState(map); this.setView('map'); }
-    }
-    actionDeleteFromLibrary(id) {
-        if (confirm("Permanently delete this saved constellation?")) {
-            this.kernel.deleteFromLibrary(id);
-            this.render();
-        }
-    }
-    actionUpdateLibraryItem(id) {
-        const titleInput = document.getElementById(`lib-title-${id}`);
-        const notesInput = document.getElementById(`lib-notes-${id}`);
-        const sharedInput = document.getElementById(`lib-shared-${id}`);
-        if (titleInput) {
-            this.kernel.updateLibraryItem(id, {
-                title: titleInput.value,
-                notes: notesInput.value,
-                shared: sharedInput.checked
-            });
-            alert("Details Saved.");
-            this.render();
-        }
     }
 
     // --- HTML Generators ---
@@ -311,9 +319,7 @@ class SandboxController {
             const mx = Math.cos(angle) * 55;
             const my = Math.sin(angle) * 55;
             const icon = this.kernel.getBlueprint(child.type).icon;
-
-            // Clicking a moon explicitly forces the parent to expand natively (without wiping child state)
-            html += `<div class="moon-btn" style="left: calc(50% + ${mx}px - 12px); top: calc(50% + ${my}px - 12px);" onpointerdown="event.stopPropagation(); SC.kernel.updateNode('${node.id}', { data: { ...SC.kernel.state.nodes.find(n=>n.id==='${node.id}').data, collapsed: false }}); SC.kernel.selectNode('${child.id}');" title="${child.title}">${icon}</div>`;
+            html += `<div class="moon-btn" style="left: calc(50% + ${mx}px - 12px); top: calc(50% + ${my}px - 12px);" onpointerdown="event.stopPropagation(); SC.kernel.expandAndFocus('${child.id}');" title="${child.title}">${icon}</div>`;
         });
         return html;
     }
@@ -413,7 +419,7 @@ class SandboxController {
                 }
             }
 
-            // Bind pure pointer events
+            // Bind pure pointer events for node dragging
             let startX = 0, startY = 0;
             el.onpointerdown = (e) => {
                 if (e.target.closest('.radial-btn') || e.target.closest('.moon-btn')) return;
@@ -439,6 +445,10 @@ class SandboxController {
                         this.dom.overlay.classList.add('hidden');
                     } else {
                         this.setTab('properties');
+                        // On mobile, if sidebar is closed, open it to show properties
+                        if (window.innerWidth <= 768 && !this.dom.sidebar.classList.contains('open')) {
+                            this.toggleSidebar();
+                        }
                     }
                 }
             };
