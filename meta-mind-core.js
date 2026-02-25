@@ -1,16 +1,58 @@
 /**
- * META-MIND CORE KERNEL v14.3
- * Features: Non-Destructive Collapse, Organic Physics, and Expanded Federation API.
+ * META-MIND CORE KERNEL v14.5
+ * Features: Cloud Template Stubs, Non-Destructive Collapse, Organic Physics.
  */
 
 class HostBridge {
     constructor() {
         this.pushUrl = "http://localhost:8000/api/push";
         this.pullUrl = "http://localhost:8000/api/pull";
+        this.manifestUrl = "https://api.meta-mind.local/v1/templates";
         this.isConnected = false;
     }
+
     async checkConnection() { return false; }
     async sync(mapState) { }
+
+    // --- Phase 2 API Stubs ---
+    async fetchTemplates() {
+        // Stub: Simulates fetching a manifest.json of available cloud templates
+        return new Promise(resolve => {
+            setTimeout(() => {
+                resolve([
+                    { id: "tpl_sw_arch", title: "Software Architecture", desc: "Standard frontend, backend, and db layout.", nodes: 4 },
+                    { id: "tpl_business", title: "Business Strategy", desc: "SWOT analysis and Q1 Planning.", nodes: 5 },
+                    { id: "tpl_story", title: "Hero's Journey", desc: "Classic narrative outline structure.", nodes: 6 }
+                ]);
+            }, 600); // Simulated network delay
+        });
+    }
+
+    async fetchTemplateData(id) {
+        // Stub: Simulates fetching a specific template's MapState JSON
+        return new Promise(resolve => {
+            setTimeout(() => {
+                // Dynamically generate a valid MapState for testing the import pipeline
+                const tpl = {
+                    map_id: id,
+                    meta: { title: `Template: ${id}`, created: new Date().toISOString(), notes: "Imported from Cloud Library", shared: false },
+                    nodes: [
+                        { id: `root_${id}`, type: "hub", title: "Template Root", content: "Imported entry point.", data: { x: 0, y: 0, isCore: true, collapsed: false }, submaps: [] },
+                        { id: `c1_${id}`, type: "note", title: "Section A", content: "Details...", data: { x: 100, y: 50, isCore: false, collapsed: false }, submaps: [] },
+                        { id: `c2_${id}`, type: "note", title: "Section B", content: "Details...", data: { x: 100, y: -50, isCore: false, collapsed: false }, submaps: [] },
+                        { id: `c3_${id}`, type: "logic-gate", title: "Evaluate", content: "Condition...", data: { x: 200, y: 0, isCore: false, collapsed: false }, submaps: [] }
+                    ],
+                    connections: [
+                        { id: `conn1_${id}`, from: `root_${id}`, to: `c1_${id}`, type: "structural" },
+                        { id: `conn2_${id}`, from: `root_${id}`, to: `c2_${id}`, type: "structural" },
+                        { id: `conn3_${id}`, from: `c1_${id}`, to: `c3_${id}`, type: "flow" }
+                    ],
+                    submaps: []
+                };
+                resolve(tpl);
+            }, 400);
+        });
+    }
 }
 
 class MetaMindKernel {
@@ -42,7 +84,7 @@ class MetaMindKernel {
             map_id: this.generateId(),
             meta: { title: "New Map", created: new Date().toISOString() },
             nodes: [], connections: [], submaps: [],
-            session: { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null }
+            session: { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null, remoteTemplates: [] }
         };
     }
 
@@ -51,7 +93,9 @@ class MetaMindKernel {
         if (!Array.isArray(state.nodes)) state.nodes = [];
         if (!Array.isArray(state.connections)) state.connections = state.edges || [];
         delete state.edges;
-        if (!state.session) state.session = { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null };
+        if (!state.session) state.session = { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null, remoteTemplates: [] };
+        if (!state.session.remoteTemplates) state.session.remoteTemplates = []; // Schema patch
+
         state.nodes.forEach(n => {
             if (!n.data) n.data = { x: 0, y: 0 };
             if (n.data.collapsed === undefined) n.data.collapsed = false;
@@ -126,16 +170,12 @@ class MetaMindKernel {
     toggleCollapse(nodeId) {
         const node = this.state.nodes.find(n => n.id === nodeId);
         if (!node) return;
-
-        // Purely Non-Destructive: Only alters this specific node's state.
-        // The Renderer's BFS mask handles the visual cascade.
         node.data.collapsed = !node.data.collapsed;
         this.notify();
     }
 
     deleteNode(id) {
         this.saveHistory();
-
         const toDelete = this.getDownstreamNodes(id);
         this.state.nodes = this.state.nodes.filter(n => !toDelete.has(n.id));
         this.state.connections = this.state.connections.filter(c => !toDelete.has(c.from) && !toDelete.has(c.to));
@@ -226,6 +266,15 @@ class MetaMindKernel {
         this.notify();
     }
 
+    // Phase 2: Template & Library Federation
+    async loadRemoteTemplates() {
+        try {
+            const tpls = await this.bridge.fetchTemplates();
+            this.state.session.remoteTemplates = tpls;
+            this.notify();
+        } catch (e) { console.error(e); }
+    }
+
     importSubmap(portalId, submapState) {
         this.saveHistory();
         const portal = this.state.nodes.find(n => n.id === portalId);
@@ -236,7 +285,8 @@ class MetaMindKernel {
         const newNodes = validSub.nodes.map(n => {
             const newId = this.generateId();
             idMap[n.id] = newId;
-            return { ...n, id: newId, data: { ...n.data, x: n.data.x + portal.data.x + 300, y: n.data.y + portal.data.y } };
+            // Spawn just to the right of the portal
+            return { ...n, id: newId, data: { ...n.data, x: n.data.x + portal.data.x + 250, y: n.data.y + portal.data.y } };
         });
 
         const newConns = [];
@@ -247,6 +297,7 @@ class MetaMindKernel {
         this.state.nodes.push(...newNodes);
         this.state.connections.push(...newConns);
 
+        // Link Portal to the Root of the imported submap
         if (newNodes.length > 0) {
             const linkTarget = (validSub.meta && validSub.meta.original_root && idMap[validSub.meta.original_root]) ? idMap[validSub.meta.original_root] : newNodes[0].id;
             this.addConnection(portalId, linkTarget);

@@ -1,6 +1,6 @@
 /**
- * META-MIND SANDBOX CONTROLLER v14.4
- * Features: Restored Menu Visibility, Free-Nav Linking, Red/Green Connect Logic.
+ * META-MIND SANDBOX CONTROLLER v14.4.1
+ * Features: Safely Delayed Interaction State (Interaction Locking).
  */
 
 class SandboxController {
@@ -109,7 +109,7 @@ class SandboxController {
 
         const focalId = this.kernel.state.session.selectedId;
 
-        // Position Radial Menu on the Focal Node
+        // Radial Menu Position strictly tracked by frame loop
         if (focalId && this.viewMode === 'map') {
             const node = this.kernel.state.nodes.find(n => n.id === focalId);
             if (node) this.updateMenuPosition(node);
@@ -230,7 +230,6 @@ class SandboxController {
             if (this.isDragging) {
                 const dist = Math.hypot(e.clientX - this.clickStart.x, e.clientY - this.clickStart.y);
                 if (dist < 5) {
-                    // Clicked Background -> Clear Selection & Cancel Linking
                     this.kernel.linkingMode = false;
                     this.dom.overlay.classList.add('hidden');
                     this.kernel.selectNode(null);
@@ -252,7 +251,6 @@ class SandboxController {
         this.updateTransform();
     }
 
-    // --- Radial Menu Logical Overlay ---
     updateMenuPosition(node) {
         const vp = this.kernel.state.session.viewport;
         const rect = this.dom.viewport.getBoundingClientRect();
@@ -273,24 +271,34 @@ class SandboxController {
         menu.style.display = 'block';
 
         const isLinking = this.kernel.linkingMode;
-
-        // Hash forces a re-render of the menu if the linking mode or target relative to THIS node changes
         const stateHash = `${node.id}-${isLinking}-${this.kernel.linkingSourceId === node.id}`;
 
         if (menu.dataset.activeNode === stateHash && menu.innerHTML !== '') {
             menu.classList.add('active');
+            // Ensures safety catch if it re-opens without regenerating HTML
+            if (!menu.classList.contains('ready')) {
+                setTimeout(() => { if (menu.dataset.activeNode === stateHash) menu.classList.add('ready'); }, 300);
+            }
             return;
         }
 
         menu.dataset.activeNode = stateHash;
+
+        // CRITICAL FIX: Instantly drop the active and ready states before rebuilding
         menu.classList.remove('active');
+        menu.classList.remove('ready');
 
         const off = 80;
         const isCollapsed = node.data.collapsed;
 
+        let linkTitle = 'Link to Node';
+        if (isLinking) {
+            linkTitle = (node.id === this.kernel.linkingSourceId) ? 'Cancel Link' : 'Confirm Link';
+        }
+
         let actions = [
             { icon: '📝', action: 'Edit', title: 'Edit' },
-            { icon: '🔗', action: 'Link', title: 'Link' },
+            { icon: '🔗', action: 'Link', title: linkTitle },
             { icon: '➕', action: 'AddChild', title: 'Add Child' },
             { icon: '🗑️', action: 'Delete', title: 'Delete Downstream' },
             { icon: (isCollapsed ? '🌞' : '🌚'), action: 'ToggleCollapse', title: (isCollapsed ? 'Expand' : 'Collapse') }
@@ -305,18 +313,14 @@ class SandboxController {
             const tx = Math.cos(angle) * off;
             const ty = Math.sin(angle) * off;
 
-            let btnStyle = `left:0; top:0; margin-left:-22px; margin-top:-22px; pointer-events:auto; position:absolute; --tx: ${tx}px; --ty: ${ty}px;`;
+            // Removed inline pointer-events:auto; CSS .ready class handles it securely now.
+            let btnStyle = `left:0; top:0; margin-left:-22px; margin-top:-22px; position:absolute; --tx: ${tx}px; --ty: ${ty}px;`;
 
-            // RED / GREEN LINKING LOGIC
             if (action.action === 'Link' && isLinking) {
                 if (node.id === this.kernel.linkingSourceId) {
-                    // It's the source node: Red (Cancel)
                     btnStyle += ` color: #ef4444; border-color: #ef4444; box-shadow: 0 0 15px rgba(239,68,68,0.6);`;
-                    action.title = "Cancel Link";
                 } else {
-                    // It's an eligible target: Green (Confirm)
                     btnStyle += ` color: #10b981; border-color: #10b981; box-shadow: 0 0 15px rgba(16,185,129,0.6);`;
-                    action.title = "Confirm Link";
                 }
             }
 
@@ -324,12 +328,25 @@ class SandboxController {
         });
         menu.innerHTML = html;
 
-        requestAnimationFrame(() => menu.classList.add('active'));
+        requestAnimationFrame(() => {
+            menu.classList.add('active'); // Triggers Visual CSS animation
+
+            // CRITICAL FIX: Delays interaction capability until animation completes (300ms)
+            setTimeout(() => {
+                if (menu.dataset.activeNode === stateHash) {
+                    menu.classList.add('ready');
+                }
+            }, 300);
+        });
     }
 
     hideRadialMenu(force) {
         if (force) {
             this.dom.radialMenu.classList.remove('active');
+
+            // CRITICAL FIX: Instantly strip interaction privileges before it visually shrinks
+            this.dom.radialMenu.classList.remove('ready');
+
             setTimeout(() => {
                 if (!this.dom.radialMenu.classList.contains('active')) {
                     this.dom.radialMenu.style.display = 'none';
@@ -340,24 +357,19 @@ class SandboxController {
         }
     }
 
-    // --- Tools ---
+    // Tools
     actionEdit(id) { const tgt = id || this.kernel.state.session.selectedId; this.kernel.selectNode(tgt); this.setTab('properties'); }
 
-    // TWO-CLICK LINKING WORKFLOW (Unblocked Navigation)
     actionLink(id) {
         const tgt = id || this.kernel.state.session.selectedId;
-
         if (this.kernel.linkingMode) {
             if (this.kernel.linkingSourceId !== tgt) {
-                // Creates an association link
                 this.kernel.addConnection(this.kernel.linkingSourceId, tgt, 'association');
             }
-            // Reset mode whether clicked same node (cancel) or new node (confirm)
             this.kernel.linkingMode = false;
             this.dom.overlay.classList.add('hidden');
             this.render();
         } else {
-            // Enter Linking Mode
             this.kernel.linkingMode = true;
             this.kernel.linkingSourceId = tgt;
             this.dom.overlay.classList.remove('hidden');
@@ -400,7 +412,7 @@ class SandboxController {
         if (json) { this.kernel.saveConstellationToLibrary(json); alert("Saved to Library."); }
     }
 
-    // --- API Federation & File I/O Tools ---
+    // API Federation Tools
     actionUpdateApi() {
         this.kernel.bridge.pushUrl = document.getElementById('api-push-url').value;
         this.kernel.bridge.pullUrl = document.getElementById('api-pull-url').value;
@@ -461,20 +473,17 @@ class SandboxController {
         alert("Session saved to Library!");
         this.render();
     }
-
     actionLoadFromLibrary(id) {
         const lib = this.kernel.getLibrary();
         const map = lib.find(m => m.map_id === id);
         if (map) { this.kernel.loadMapState(map); this.setView('map'); }
     }
-
     actionDeleteFromLibrary(id) {
         if (confirm("Permanently delete this saved constellation?")) {
             this.kernel.deleteFromLibrary(id);
             this.render();
         }
     }
-
     actionUpdateLibraryItem(id) {
         const titleInput = document.getElementById(`lib-title-${id}`);
         const notesInput = document.getElementById(`lib-notes-${id}`);
@@ -606,7 +615,6 @@ class SandboxController {
                 });
             }
 
-            // Bind pure pointer events for node dragging
             let startX = 0, startY = 0;
             el.onpointerdown = (e) => {
                 if (e.target.closest('.radial-btn') || e.target.closest('.moon-btn')) return;
@@ -616,7 +624,6 @@ class SandboxController {
                 this.draggedNode = node;
                 this.lastMouse = { x: e.clientX, y: e.clientY };
 
-                // Select node freely WITHOUT forcing link resolution
                 this.kernel.selectNode(node.id);
                 this.userHasPanned = false;
             };
@@ -638,7 +645,6 @@ class SandboxController {
 
             this.dom.worldLayer.appendChild(el);
 
-            // Menu renders contextually if it is the selected node
             if (selId === node.id) {
                 this.showRadialMenu(node);
             }

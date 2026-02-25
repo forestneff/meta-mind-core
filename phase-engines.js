@@ -1,6 +1,6 @@
 /**
- * META-MIND PHASE ENGINE SYSTEM v14.4
- * Features: Visual Red/Green Linking State inside Inspector.
+ * META-MIND PHASE ENGINE SYSTEM v14.5
+ * Features: Tooltip-driven Linking UI & Data Manager Refinements.
  */
 
 class PhaseRegistrySystem {
@@ -30,7 +30,7 @@ class DataPhaseEngine extends PhaseEngineBase {
     constructor(kernel) {
         super(kernel);
         this.id = 'data';
-        this.ui = { api: false, json: false, library: true, openItems: {} };
+        this.ui = { templates: true, api: false, json: false, library: true, openItems: {} };
     }
 
     toggle(section) {
@@ -54,11 +54,44 @@ class DataPhaseEngine extends PhaseEngineBase {
                     
                     <div class="border-b border-slate-800 pb-4 mb-2">
                         <h1 class="text-3xl font-black text-white flex items-center gap-3"><span class="text-sky-500">🗄️</span> Data Manager</h1>
-                        <p class="text-slate-400 mt-2 text-sm">Manage local constellations, map API endpoints, and process raw JSON files.</p>
+                        <p class="text-slate-400 mt-2 text-sm">Manage local constellations, import cloud templates, map APIs, and process raw JSON.</p>
                     </div>
 
                     <div class="flex flex-col gap-6">
                         
+                        <!-- 0. Cloud Templates Accordion -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col">
+                            <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('templates')">
+                                <h2 class="text-blue-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">🌐 Cloud Templates</h2>
+                                <div class="flex items-center gap-3">
+                                    <span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded text-[10px] border border-slate-700">${state.session.remoteTemplates ? state.session.remoteTemplates.length : 0} Available</span>
+                                    <span class="text-slate-500 text-xs">${this.ui.templates ? '▼' : '▶'}</span>
+                                </div>
+                            </div>
+                            
+                            ${this.ui.templates ? `
+                            <div class="p-5 border-t border-slate-800 flex flex-col gap-4 bg-slate-900">
+                                <p class="text-[11px] text-slate-400">Fetch public, read-only map templates from the global repository. Importing a template automatically drops a portal into your map and merges the template's graph structure via that portal.</p>
+                                
+                                <button onclick="SC.actionLoadRemoteTemplates()" class="w-full py-2 bg-slate-800 hover:bg-blue-600 hover:text-white transition-colors text-xs font-bold rounded shadow border border-slate-700">Refresh Template Manifest</button>
+
+                                <div class="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar pr-2 space-y-3">
+                                    ${(!state.session.remoteTemplates || state.session.remoteTemplates.length === 0) ? '<div class="text-center text-slate-600 text-xs py-6 italic border border-dashed border-slate-800 rounded-lg">No templates loaded. Click refresh.</div>' : ''}
+                                    ${(state.session.remoteTemplates || []).map(tpl => `
+                                        <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl hover:border-blue-500 transition-colors group relative overflow-hidden flex justify-between items-center">
+                                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                            <div class="flex flex-col gap-1 pr-4">
+                                                <div class="font-bold text-sm text-slate-200">${tpl.title}</div>
+                                                <div class="text-[10px] text-slate-500">${tpl.desc} <span class="ml-2 px-1 bg-slate-800 rounded">${tpl.nodes} nodes</span></div>
+                                            </div>
+                                            <button onclick="SC.actionSpawnTemplate('${tpl.id}')" class="bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white text-[10px] py-2 px-4 rounded font-bold transition-colors border border-slate-700 shrink-0 shadow">Import</button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+
                         <!-- 1. Library Accordion -->
                         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col">
                             <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('library')">
@@ -213,27 +246,25 @@ class UniversalPhaseEngine extends PhaseEngineBase {
             const ta = container.querySelector('textarea');
             if (ta && document.activeElement !== ta) ta.value = node.content || '';
 
-            // RED/GREEN LINKING UPDATE
+            // RED/GREEN LINKING UPDATE (Visuals Only)
             const actionsContainer = container.querySelector('#node-actions-container');
             if (actionsContainer) {
                 const isLinking = this.kernel.linkingMode;
                 let linkBtnClass = "p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors border-2 border-transparent";
-                let linkIcon = "🔗";
+                let linkTitle = "Link to Node";
 
                 if (isLinking) {
                     if (node.id === this.kernel.linkingSourceId) {
-                        // Cancel (Red)
                         linkBtnClass = "p-2 bg-slate-900 border-2 border-red-500 text-red-500 rounded font-bold shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all";
-                        linkIcon = "🔗 (Cancel)";
+                        linkTitle = "Cancel Link";
                     } else {
-                        // Confirm (Green)
                         linkBtnClass = "p-2 bg-slate-900 border-2 border-emerald-500 text-emerald-500 rounded font-bold shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse transition-all";
-                        linkIcon = "🔗 (Confirm)";
+                        linkTitle = "Confirm Link";
                     }
                 }
 
                 actionsContainer.innerHTML = `
-                    <button onclick="SC.actionLink('${node.id}')" class="${linkBtnClass}" title="Link">${linkIcon}</button>
+                    <button onclick="SC.actionLink('${node.id}')" class="${linkBtnClass}" title="${linkTitle}">🔗</button>
                     <button onclick="SC.actionAddChild('${node.id}')" class="p-2 bg-slate-800 hover:bg-emerald-600 rounded text-slate-300 hover:text-white transition-colors" title="Add Child">➕</button>
                     <button onclick="SC.actionSaveConstellation('${node.id}')" class="p-2 bg-slate-800 hover:bg-purple-600 rounded text-slate-300 hover:text-white transition-colors" title="Save as Submap">🌌</button>
                     <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors" title="Delete Downstream">🗑️</button>
@@ -246,15 +277,15 @@ class UniversalPhaseEngine extends PhaseEngineBase {
         const isLinking = this.kernel.linkingMode;
 
         let linkBtnClass = "p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors border-2 border-transparent";
-        let linkIcon = "🔗";
+        let linkTitle = "Link to Node";
 
         if (isLinking) {
             if (node.id === this.kernel.linkingSourceId) {
                 linkBtnClass = "p-2 bg-slate-900 border-2 border-red-500 text-red-500 rounded font-bold shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all";
-                linkIcon = "🔗 (Cancel)";
+                linkTitle = "Cancel Link";
             } else {
                 linkBtnClass = "p-2 bg-slate-900 border-2 border-emerald-500 text-emerald-500 rounded font-bold shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse transition-all";
-                linkIcon = "🔗 (Confirm)";
+                linkTitle = "Confirm Link";
             }
         }
 
@@ -276,7 +307,7 @@ class UniversalPhaseEngine extends PhaseEngineBase {
                 <div class="pt-4 border-t border-slate-800 mt-auto">
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Node Actions</label>
                     <div id="node-actions-container" class="grid grid-cols-4 gap-2">
-                        <button onclick="SC.actionLink('${node.id}')" class="${linkBtnClass}" title="Link">${linkIcon}</button>
+                        <button onclick="SC.actionLink('${node.id}')" class="${linkBtnClass}" title="${linkTitle}">🔗</button>
                         <button onclick="SC.actionAddChild('${node.id}')" class="p-2 bg-slate-800 hover:bg-emerald-600 rounded text-slate-300 hover:text-white transition-colors" title="Add Child">➕</button>
                         <button onclick="SC.actionSaveConstellation('${node.id}')" class="p-2 bg-slate-800 hover:bg-purple-600 rounded text-slate-300 hover:text-white transition-colors" title="Save as Submap">🌌</button>
                         <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors" title="Delete Downstream">🗑️</button>
@@ -330,7 +361,6 @@ class UniversalPhaseEngine extends PhaseEngineBase {
     }
 }
 
-// --- ORBITAL & WEB ENGINES ---
 class OrbitalPhaseEngine extends PhaseEngineBase {
     constructor(kernel) { super(kernel); this.id = 'orbital'; }
     render(container, state) {

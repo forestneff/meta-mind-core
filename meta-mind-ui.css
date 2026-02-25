@@ -181,18 +181,22 @@ body {
     font-size: 16px;
     z-index: 50;
 
-    /* Pre-Animation */
+    /* Pre-Animation: Hidden and utterly unclickable */
     opacity: 0;
     transform: translate(0, 0) scale(0.5);
-    pointer-events: none;
+    pointer-events: none !important;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Post-Animation Active State */
+/* Post-Animation Active State (Visuals Only) */
 #radial-menu.active .radial-btn {
     opacity: 1;
     transform: translate(var(--tx), var(--ty)) scale(1);
-    pointer-events: auto;
+}
+
+/* INTERACTION LOCK: Only becomes clickable 300ms later when JS adds .ready */
+#radial-menu.ready .radial-btn {
+    pointer-events: auto !important;
 }
 
 .radial-btn:hover {
@@ -293,7 +297,6 @@ body {
         transform: translateX(-100%);
         transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
-        /* OVERRIDE: Forces sidebar above the fixed radial menu (z:99999) */
         z-index: 100000;
     }
 
