@@ -1,6 +1,6 @@
 /**
- * META-MIND PHASE ENGINE SYSTEM v14.2.1
- * Features: Native JSON File Handling & Vertical Stack Data Manager.
+ * META-MIND PHASE ENGINE SYSTEM v14.4
+ * Features: Visual Red/Green Linking State inside Inspector.
  */
 
 class PhaseRegistrySystem {
@@ -26,7 +26,6 @@ class PhaseEngineBase {
     escapeHTML(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 }
 
-// --- UNIFIED DATA MANAGER ENGINE ---
 class DataPhaseEngine extends PhaseEngineBase {
     constructor(kernel) {
         super(kernel);
@@ -53,16 +52,14 @@ class DataPhaseEngine extends PhaseEngineBase {
             <div class="min-h-full w-full overflow-y-auto custom-scrollbar p-6 md:p-10 bg-slate-950 flex flex-col items-center">
                 <div class="max-w-3xl w-full flex flex-col gap-6 pb-20">
                     
-                    <!-- Header -->
                     <div class="border-b border-slate-800 pb-4 mb-2">
                         <h1 class="text-3xl font-black text-white flex items-center gap-3"><span class="text-sky-500">🗄️</span> Data Manager</h1>
                         <p class="text-slate-400 mt-2 text-sm">Manage local constellations, map API endpoints, and process raw JSON files.</p>
                     </div>
 
-                    <!-- Vertical Stack Layout -->
                     <div class="flex flex-col gap-6">
                         
-                        <!-- 1. Library Accordion (TOP) -->
+                        <!-- 1. Library Accordion -->
                         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col">
                             <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('library')">
                                 <h2 class="text-purple-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">📚 Saved Constellations</h2>
@@ -128,7 +125,7 @@ class DataPhaseEngine extends PhaseEngineBase {
                             ` : ''}
                         </div>
                         
-                        <!-- 2. API Accordion (MIDDLE) -->
+                        <!-- 2. API Accordion -->
                         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all">
                             <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('api')">
                                 <h2 class="text-sky-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">📡 API Federation</h2>
@@ -156,7 +153,7 @@ class DataPhaseEngine extends PhaseEngineBase {
                             ` : ''}
                         </div>
 
-                        <!-- 3. JSON Accordion (BOTTOM) -->
+                        <!-- 3. JSON Accordion -->
                         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col">
                             <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('json')">
                                 <h2 class="text-emerald-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">🧬 Raw JSON Exchange</h2>
@@ -171,7 +168,6 @@ class DataPhaseEngine extends PhaseEngineBase {
                                 
                                 <textarea id="json-exchange" class="w-full h-64 bg-slate-950 border border-slate-700 rounded-lg p-4 font-mono text-[10px] text-emerald-400 focus:border-emerald-500 outline-none resize-none shadow-inner custom-scrollbar break-all overflow-y-auto">${JSON.stringify(state, null, 2)}</textarea>
                                 
-                                <!-- Embedded File Tools -->
                                 <div class="flex gap-2 mt-1">
                                     <button onclick="SC.actionExportJsonFile()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-indigo-900/20 transition-transform active:scale-95">
                                         💾 Export File
@@ -202,7 +198,64 @@ class UniversalPhaseEngine extends PhaseEngineBase {
 
         if (!node) {
             container.innerHTML = '<div class="text-slate-500 italic text-xs text-center mt-10">Select a node to inspect.</div>';
+            container.dataset.renderedNodeId = '';
             return;
+        }
+
+        // DOM DIFFING: Preserves mobile keyboard focus
+        if (container.dataset.renderedNodeId === node.id) {
+            const titleEl = container.querySelector('#edit-title');
+            if (titleEl && document.activeElement !== titleEl) titleEl.value = node.title;
+
+            const typeEl = container.querySelector('#edit-type');
+            if (typeEl && document.activeElement !== typeEl) typeEl.value = node.type;
+
+            const ta = container.querySelector('textarea');
+            if (ta && document.activeElement !== ta) ta.value = node.content || '';
+
+            // RED/GREEN LINKING UPDATE
+            const actionsContainer = container.querySelector('#node-actions-container');
+            if (actionsContainer) {
+                const isLinking = this.kernel.linkingMode;
+                let linkBtnClass = "p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors border-2 border-transparent";
+                let linkIcon = "🔗";
+
+                if (isLinking) {
+                    if (node.id === this.kernel.linkingSourceId) {
+                        // Cancel (Red)
+                        linkBtnClass = "p-2 bg-slate-900 border-2 border-red-500 text-red-500 rounded font-bold shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all";
+                        linkIcon = "🔗 (Cancel)";
+                    } else {
+                        // Confirm (Green)
+                        linkBtnClass = "p-2 bg-slate-900 border-2 border-emerald-500 text-emerald-500 rounded font-bold shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse transition-all";
+                        linkIcon = "🔗 (Confirm)";
+                    }
+                }
+
+                actionsContainer.innerHTML = `
+                    <button onclick="SC.actionLink('${node.id}')" class="${linkBtnClass}" title="Link">${linkIcon}</button>
+                    <button onclick="SC.actionAddChild('${node.id}')" class="p-2 bg-slate-800 hover:bg-emerald-600 rounded text-slate-300 hover:text-white transition-colors" title="Add Child">➕</button>
+                    <button onclick="SC.actionSaveConstellation('${node.id}')" class="p-2 bg-slate-800 hover:bg-purple-600 rounded text-slate-300 hover:text-white transition-colors" title="Save as Submap">🌌</button>
+                    <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors" title="Delete Downstream">🗑️</button>
+                `;
+            }
+            return;
+        }
+
+        container.dataset.renderedNodeId = node.id;
+        const isLinking = this.kernel.linkingMode;
+
+        let linkBtnClass = "p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors border-2 border-transparent";
+        let linkIcon = "🔗";
+
+        if (isLinking) {
+            if (node.id === this.kernel.linkingSourceId) {
+                linkBtnClass = "p-2 bg-slate-900 border-2 border-red-500 text-red-500 rounded font-bold shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all";
+                linkIcon = "🔗 (Cancel)";
+            } else {
+                linkBtnClass = "p-2 bg-slate-900 border-2 border-emerald-500 text-emerald-500 rounded font-bold shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse transition-all";
+                linkIcon = "🔗 (Confirm)";
+            }
         }
 
         container.innerHTML = `
@@ -222,8 +275,8 @@ class UniversalPhaseEngine extends PhaseEngineBase {
                 
                 <div class="pt-4 border-t border-slate-800 mt-auto">
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Node Actions</label>
-                    <div class="grid grid-cols-4 gap-2">
-                        <button onclick="SC.actionLink('${node.id}')" class="p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors" title="Link">🔗</button>
+                    <div id="node-actions-container" class="grid grid-cols-4 gap-2">
+                        <button onclick="SC.actionLink('${node.id}')" class="${linkBtnClass}" title="Link">${linkIcon}</button>
                         <button onclick="SC.actionAddChild('${node.id}')" class="p-2 bg-slate-800 hover:bg-emerald-600 rounded text-slate-300 hover:text-white transition-colors" title="Add Child">➕</button>
                         <button onclick="SC.actionSaveConstellation('${node.id}')" class="p-2 bg-slate-800 hover:bg-purple-600 rounded text-slate-300 hover:text-white transition-colors" title="Save as Submap">🌌</button>
                         <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors" title="Delete Downstream">🗑️</button>

@@ -1,5 +1,5 @@
 /**
- * META-MIND CORE KERNEL v14.2
+ * META-MIND CORE KERNEL v14.3
  * Features: Non-Destructive Collapse, Organic Physics, and Expanded Federation API.
  */
 
@@ -127,9 +127,8 @@ class MetaMindKernel {
         const node = this.state.nodes.find(n => n.id === nodeId);
         if (!node) return;
 
-        // CRITICAL FIX: Only toggle the target node's state. 
-        // The visual cascade in renderMap will handle hiding descendants 
-        // WITHOUT destroying their custom open/closed states!
+        // Purely Non-Destructive: Only alters this specific node's state.
+        // The Renderer's BFS mask handles the visual cascade.
         node.data.collapsed = !node.data.collapsed;
         this.notify();
     }
@@ -137,7 +136,6 @@ class MetaMindKernel {
     deleteNode(id) {
         this.saveHistory();
 
-        // Deletion remains destructive and cascades to prevent orphaned branches
         const toDelete = this.getDownstreamNodes(id);
         this.state.nodes = this.state.nodes.filter(n => !toDelete.has(n.id));
         this.state.connections = this.state.connections.filter(c => !toDelete.has(c.from) && !toDelete.has(c.to));
@@ -204,15 +202,19 @@ class MetaMindKernel {
         return node;
     }
 
-    addConnection(f, t) {
+    addConnection(f, t, connType = 'structural') {
         if (f === t || this.state.connections.find(c => c.from === f && c.to === t)) return { success: false };
         if (typeof MetaMindSchema !== 'undefined') {
             const s = this.state.nodes.find(n => n.id === f), tg = this.state.nodes.find(n => n.id === t);
             if (s && tg && !MetaMindSchema.canConnect(s.type, tg.type)) return { success: false };
         }
         this.saveHistory();
-        this.state.connections.push({ id: this.generateId(), from: f, to: t, type: 'structural' });
-        setTimeout(() => this.resolveOverlaps(40), 10);
+        this.state.connections.push({ id: this.generateId(), from: f, to: t, type: connType });
+
+        if (connType === 'structural') {
+            setTimeout(() => this.resolveOverlaps(40), 10);
+        }
+
         this.notify();
         return { success: true };
     }

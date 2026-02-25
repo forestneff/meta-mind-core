@@ -3,9 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <!-- Prevents native browser zoom, handling it all in our app -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meta-Mind | v14.3 Mobile Production</title>
+    <title>Meta-Mind | v14.4 Mobile Production</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="meta-mind-ui.css">
 
@@ -35,7 +34,7 @@
                 class="w-8 h-8 bg-sky-600 rounded items-center justify-center text-white font-black shadow-lg shadow-sky-900/50 hidden sm:flex">
                 M</div>
             <div class="flex flex-col ml-1">
-                <span id="map-title" class="text-sm font-bold text-slate-200 leading-none">Meta-Mind v14.3</span>
+                <span id="map-title" class="text-sm font-bold text-slate-200 leading-none">Meta-Mind v14.4</span>
                 <div class="flex gap-2 mt-1">
                     <span id="save-status"
                         class="text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1">
@@ -63,7 +62,6 @@
             <div class="h-6 w-px bg-slate-700 mx-1 shrink-0"></div>
             <button id="btn-focal" class="shrink-0 transition-all cursor-pointer" title="Toggle Camera Tracking">👁️
                 Auto-Focus</button>
-            <div class="h-6 w-px bg-slate-700 mx-1 shrink-0 hidden md:block"></div>
         </div>
     </nav>
 
@@ -93,9 +91,11 @@
             <div id="view-content" class="absolute inset-0 hidden z-20 bg-slate-900 overflow-auto"></div>
 
             <!-- Overlays -->
-            <div id="linking-overlay" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-50">
-                <div class="bg-sky-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl animate-pulse">
-                    Select Target to Link</div>
+            <div id="linking-overlay" class="hidden absolute top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+                <div
+                    class="border-2 border-amber-500 bg-slate-900/90 text-amber-500 px-6 py-2 rounded-full text-xs font-black tracking-widest uppercase shadow-[0_0_15px_rgba(245,158,11,0.4)] animate-pulse backdrop-blur">
+                    Select Target & Click Link
+                </div>
             </div>
         </div>
     </div>
