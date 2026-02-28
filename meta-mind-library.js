@@ -1,18 +1,17 @@
 /**
- * META-MIND LIBRARY SYSTEM v1.1
- * A serverless, modular registry for templates and mapstates.
- * Features: Full CRUD for custom user templates via LocalStorage.
+ * META-MIND LIBRARY SYSTEM v1.2
+ * Features: Targeted Templates (Node-Specific Application) & Profile Defaults.
  */
 
 const MetaMindLibrary = {
-    // 1. HARDCODED MASTER TEMPLATES
     defaults: [
         {
             map_id: "tpl_web_standard",
             meta: {
                 title: "Standard Landing Page",
+                target_type: "web-root",
                 created: "2026-02-25T12:00:00Z",
-                notes: "A pre-configured, responsive website structure featuring a navigation bar, hero banner, content sections, and a footer.",
+                notes: "A pre-configured, responsive website structure.",
                 shared: true
             },
             nodes: [
@@ -50,6 +49,7 @@ const MetaMindLibrary = {
             map_id: "tpl_sw_arch",
             meta: {
                 title: "Software Architecture",
+                target_type: "hub",
                 created: "2026-02-25T12:00:00Z",
                 notes: "A basic starting node framework for mapping out a web application stack.",
                 shared: true
@@ -63,41 +63,54 @@ const MetaMindLibrary = {
             connections: [
                 { id: "sa_c1", from: "sa_root", to: "sa_db", type: "structural" },
                 { id: "sa_c2", from: "sa_root", to: "sa_api", "type": "structural" },
-                { id: "sa_c3", "from": "sa_root", to: "sa_client", "type": "structural" },
-                { id: "sa_c4", "from": "sa_client", "to": "sa_api", "type": "flow" },
-                { id: "sa_c5", "from": "sa_api", "to": "sa_db", "type": "flow" }
+                { id: "sa_c3", from: "sa_root", to: "sa_client", "type": "structural" },
+                { id: "sa_c4", from: "sa_client", "to": "sa_api", type: "flow" },
+                { id: "sa_c5", "from": "sa_api", "to": "sa_db", type: "flow" }
+            ],
+            submaps: []
+        },
+        {
+            map_id: "tpl_user_profile",
+            meta: {
+                title: "Standard User Profile",
+                target_type: "profile",
+                created: "2026-02-27T12:00:00Z",
+                notes: "Generates the standard data fields for a user identity node.",
+                shared: true
+            },
+            nodes: [
+                { id: "p_root", type: "profile", title: "User Profile", content: '{"Name":"","Email":"","Phone":"","Address":""}', data: { x: 0, y: 0, isCore: true, collapsed: false }, submaps: [] },
+                { id: "p_name", type: "note", title: "Name", content: "", data: { x: 0, y: -120, isCore: false, collapsed: false }, submaps: [] },
+                { id: "p_email", type: "note", title: "Email", content: "", data: { x: 120, y: 0, isCore: false, collapsed: false }, submaps: [] },
+                { id: "p_phone", type: "note", title: "Phone", content: "", data: { x: 0, y: 120, isCore: false, collapsed: false }, submaps: [] },
+                { id: "p_addr", type: "note", title: "Address", content: "", data: { x: -120, y: 0, isCore: false, collapsed: false }, submaps: [] }
+            ],
+            connections: [
+                { id: "pc1", from: "p_root", to: "p_name", type: "structural" },
+                { id: "pc2", from: "p_root", to: "p_email", type: "structural" },
+                { id: "pc3", from: "p_root", to: "p_phone", type: "structural" },
+                { id: "pc4", from: "p_root", to: "p_addr", type: "structural" }
             ],
             submaps: []
         }
     ],
 
-    // 2. DYNAMIC STORAGE (Reads/Writes user-added templates)
     getCustomTemplates() {
         try {
             const data = localStorage.getItem('mm_custom_templates');
             return data ? JSON.parse(data) : [];
-        } catch (e) {
-            console.error("Failed to parse custom templates", e);
-            return [];
-        }
+        } catch (e) { return []; }
     },
 
     saveCustomTemplate(templateData) {
         try {
             const customs = this.getCustomTemplates();
-            // Update if exists, otherwise add new
             const idx = customs.findIndex(t => t.map_id === templateData.map_id);
-            if (idx > -1) {
-                customs[idx] = templateData;
-            } else {
-                customs.push(templateData);
-            }
+            if (idx > -1) customs[idx] = templateData;
+            else customs.push(templateData);
             localStorage.setItem('mm_custom_templates', JSON.stringify(customs));
             return true;
-        } catch (e) {
-            console.error("Failed to save custom template", e);
-            return false;
-        }
+        } catch (e) { return false; }
     },
 
     deleteCustomTemplate(id) {
@@ -106,33 +119,25 @@ const MetaMindLibrary = {
             customs = customs.filter(t => t.map_id !== id);
             localStorage.setItem('mm_custom_templates', JSON.stringify(customs));
             return true;
-        } catch (e) {
-            console.error("Failed to delete custom template", e);
-            return false;
-        }
+        } catch (e) { return false; }
     },
 
-    // 3. API BRIDGE METHODS (Called by the Kernel)
     async getManifest() {
-        // Combines hardcoded defaults with any custom templates the user has written
         const allTemplates = [...this.defaults, ...this.getCustomTemplates()];
-        
         return allTemplates.map(t => ({
             id: t.map_id,
             title: t.meta?.title || "Untitled Template",
             desc: t.meta?.notes || "A pre-configured mapstate.",
+            target_type: t.meta?.target_type || "any",
             nodes: t.nodes?.length || 0,
-            isCustom: !this.defaults.find(d => d.map_id === t.map_id) // Flag for UI
+            isCustom: !this.defaults.find(d => d.map_id === t.map_id)
         }));
     },
 
     async getTemplateData(id) {
         const allTemplates = [...this.defaults, ...this.getCustomTemplates()];
         const tpl = allTemplates.find(t => t.map_id === id);
-        
-        if (!tpl) throw new Error(`Template ${id} not found in MetaMindLibrary.`);
-        
-        // Deep copy the JSON so the engine doesn't accidentally mutate the master template!
+        if (!tpl) throw new Error(`Template ${id} not found.`);
         return JSON.parse(JSON.stringify(tpl));
     }
 };

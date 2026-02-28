@@ -1,6 +1,6 @@
 /**
- * META-MIND PHASE ENGINE SYSTEM v14.9
- * Features: Unified Constellation Import/Export UI.
+ * META-MIND PHASE ENGINE SYSTEM v14.10.1
+ * Features: Intelligent Web Architect URL Overlays & Metadata Scraping.
  */
 
 class PhaseRegistrySystem {
@@ -71,12 +71,14 @@ class DataPhaseEngine extends PhaseEngineBase {
                             
                             ${this.ui.templates ? `
                             <div class="p-5 border-t border-slate-800 flex flex-col gap-4 bg-slate-900">
-                                <p class="text-[11px] text-slate-400">Manage your global template repository. You can import templates directly into your active workspace as recursive portals, or upload custom JSON templates to expand your library.</p>
+                                <p class="text-[11px] text-slate-400">Fetch public, read-only map templates from the global repository. Importing a template automatically drops a portal into your map and merges the template's graph structure via that portal.</p>
                                 
                                 <div class="flex gap-2">
-                                    <button onclick="SC.actionLoadRemoteTemplates()" class="flex-1 py-2 bg-slate-800 hover:bg-blue-600 hover:text-white transition-colors text-xs font-bold rounded shadow border border-slate-700">🔄 Refresh Library</button>
-                                    <label class="flex-1 py-2 bg-slate-800 hover:bg-emerald-600 hover:text-white transition-colors text-xs font-bold rounded shadow border border-slate-700 cursor-pointer text-center flex items-center justify-center">
-                                        ⬆️ Upload Template
+                                    <button onclick="SC.actionLoadRemoteTemplates()" class="flex-1 py-2 bg-slate-800 hover:bg-blue-600 hover:text-white transition-colors text-xs font-bold rounded shadow border border-slate-700 flex items-center justify-center gap-2" title="Refresh Library">
+                                        🔄 <span class="hidden sm:inline">Refresh Library</span>
+                                    </button>
+                                    <label class="flex-1 py-2 bg-slate-800 hover:bg-emerald-600 hover:text-white transition-colors text-xs font-bold rounded shadow border border-slate-700 cursor-pointer text-center flex items-center justify-center gap-2" title="Upload Template">
+                                        ⬆️ <span class="hidden sm:inline">Upload Template</span>
                                         <input type="file" accept=".json" class="hidden" onchange="SC.actionUploadTemplateFile(event)">
                                     </label>
                                 </div>
@@ -98,7 +100,9 @@ class DataPhaseEngine extends PhaseEngineBase {
                                             </div>
 
                                             <div class="flex gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                                                <button onclick="SC.actionSpawnTemplate('${tpl.id}')" class="flex-1 bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white text-[10px] py-1.5 rounded font-bold transition-colors border border-slate-700 shadow">Import to Map</button>
+                                                <button onclick="SC.actionSpawnTemplate('${tpl.id}')" class="flex-1 bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white text-[10px] py-1.5 rounded font-bold transition-colors border border-slate-700 shadow flex items-center justify-center gap-1" title="Import to Map">
+                                                    🌀 <span class="hidden sm:inline">Import to Map</span>
+                                                </button>
                                                 <button onclick="SC.actionDownloadTemplate('${tpl.id}')" class="bg-slate-800 hover:bg-sky-600 text-slate-300 hover:text-white text-[10px] py-1.5 px-3 rounded font-bold transition-colors border border-slate-700 shadow" title="Download JSON">⬇️</button>
                                                 ${tpl.isCustom ? `<button onclick="SC.actionDeleteRemoteTemplate('${tpl.id}')" class="bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white text-[10px] py-1.5 px-3 rounded font-bold transition-colors border border-slate-700 shadow" title="Delete Custom Template">🗑️</button>` : ''}
                                             </div>
@@ -123,15 +127,15 @@ class DataPhaseEngine extends PhaseEngineBase {
                             <div class="p-5 border-t border-slate-800 flex flex-col gap-4 bg-slate-900">
                                 
                                 <div class="flex flex-col sm:flex-row gap-2">
-                                    <button onclick="SC.actionSaveCurrentToLibrary()" class="flex-1 py-3 border border-purple-500/50 hover:bg-purple-600/20 text-purple-400 hover:text-purple-300 font-bold text-xs uppercase tracking-widest rounded-lg transition-colors bg-slate-950">
-                                        + Save Current Session
+                                    <button onclick="SC.actionSaveCurrentToLibrary()" class="flex-1 py-3 border border-purple-500/50 hover:bg-purple-600/20 text-purple-400 hover:text-purple-300 font-bold text-xs uppercase tracking-widest rounded-lg transition-colors bg-slate-950 flex justify-center items-center gap-2">
+                                        ➕ <span class="hidden sm:inline">Save Current Session</span>
                                     </button>
                                     <div class="flex flex-1 gap-2">
-                                        <button onclick="SC.actionDownloadLibrary()" class="flex-1 py-3 bg-slate-800 hover:bg-sky-600 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition-colors border border-slate-700 shadow" title="Download all saved constellations as a single library file">
-                                            💾 Export
+                                        <button onclick="SC.actionDownloadLibrary()" class="flex-1 py-3 bg-slate-800 hover:bg-sky-600 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition-colors border border-slate-700 shadow flex justify-center items-center gap-2" title="Export entire library as a single JSON file">
+                                            💾 <span class="hidden sm:inline">Export</span>
                                         </button>
-                                        <label class="flex-1 py-3 bg-slate-800 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition-colors border border-slate-700 shadow cursor-pointer text-center flex items-center justify-center">
-                                            📂 Import
+                                        <label class="flex-1 py-3 bg-slate-800 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition-colors border border-slate-700 shadow cursor-pointer text-center flex items-center justify-center gap-2" title="Import maps into library">
+                                            📂 <span class="hidden sm:inline">Import</span>
                                             <input type="file" accept=".json" class="hidden" onchange="SC.actionUploadLibraryFile(event)">
                                         </label>
                                     </div>
@@ -177,7 +181,7 @@ class DataPhaseEngine extends PhaseEngineBase {
                                                     <button onclick="SC.actionUpdateLibraryItem('${item.map_id}')" class="flex-1 bg-slate-800 hover:bg-emerald-600 text-white text-[10px] py-2 rounded font-bold transition-colors border border-slate-700">Save</button>
                                                     <button onclick="SC.actionLoadFromLibrary('${item.map_id}')" class="flex-1 bg-slate-800 hover:bg-sky-600 text-white text-[10px] py-2 rounded font-bold transition-colors border border-slate-700">Load</button>
                                                     <button onclick="SC.actionDownloadSingleConstellation('${item.map_id}')" class="flex-1 bg-slate-800 hover:bg-indigo-600 text-white text-[10px] py-2 rounded font-bold transition-colors border border-slate-700" title="Download this map">Download</button>
-                                                    <button onclick="SC.actionDeleteFromLibrary('${item.map_id}')" class="bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white text-[10px] py-2 px-3 rounded font-bold transition-colors border border-slate-700">✕</button>
+                                                    <button onclick="SC.actionDeleteFromLibrary('${item.map_id}')" class="bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white text-[10px] py-2 px-3 rounded font-bold transition-colors border border-slate-700" title="Delete Map">🗑️</button>
                                                 </div>
                                             </div>
                                             ` : ''}
@@ -232,16 +236,18 @@ class DataPhaseEngine extends PhaseEngineBase {
                                 <textarea id="json-exchange" class="w-full h-64 bg-slate-950 border border-slate-700 rounded-lg p-4 font-mono text-[10px] text-emerald-400 focus:border-emerald-500 outline-none resize-none shadow-inner custom-scrollbar break-all overflow-y-auto">${JSON.stringify(state, null, 2)}</textarea>
                                 
                                 <div class="flex gap-2 mt-1">
-                                    <button onclick="SC.actionExportJsonFile()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-indigo-900/20 transition-transform active:scale-95">
-                                        💾 Export File
+                                    <button onclick="SC.actionExportJsonFile()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-indigo-900/20 transition-transform active:scale-95 flex items-center justify-center gap-2" title="Export File">
+                                        💾 <span class="hidden sm:inline">Export File</span>
                                     </button>
-                                    <label class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-slate-900/20 transition-all active:scale-95 cursor-pointer text-center flex items-center justify-center">
-                                        📂 Import File
+                                    <label class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-slate-900/20 transition-all active:scale-95 cursor-pointer text-center flex items-center justify-center gap-2" title="Import File">
+                                        📂 <span class="hidden sm:inline">Import File</span>
                                         <input type="file" accept=".json" class="hidden" onchange="SC.actionImportJsonFile(event)">
                                     </label>
                                 </div>
 
-                                <button onclick="SC.actionSyncJson()" class="w-full mt-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-emerald-900/20 transition-transform active:scale-95">Inject / Apply JSON</button>
+                                <button onclick="SC.actionSyncJson()" class="w-full mt-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-emerald-900/20 transition-transform active:scale-95 flex justify-center items-center gap-2" title="Apply JSON">
+                                    💉 <span class="hidden sm:inline">Inject / Apply JSON</span>
+                                </button>
                             </div>
                             ` : ''}
                         </div>
@@ -259,7 +265,13 @@ class UniversalPhaseEngine extends PhaseEngineBase {
         const node = state.nodes.find(n => n.id === state.session.selectedId);
 
         if (!node) {
-            container.innerHTML = '<div class="text-slate-500 italic text-xs text-center mt-10">Select a node to inspect.</div>';
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-slate-500 opacity-70 p-6 text-center">
+                    <span class="text-4xl mb-4">✨</span>
+                    <p class="text-sm font-bold tracking-widest uppercase mb-2">No Node Selected</p>
+                    <p class="text-xs">Click on any celestial body in the spatial map to view and edit its properties here.</p>
+                </div>
+            `;
             container.dataset.renderedNodeId = '';
             return;
         }
@@ -271,30 +283,41 @@ class UniversalPhaseEngine extends PhaseEngineBase {
             const typeEl = container.querySelector('#edit-type');
             if (typeEl && document.activeElement !== typeEl) typeEl.value = node.type;
             
-            const ta = container.querySelector('textarea');
-            if (ta && document.activeElement !== ta) ta.value = node.content || '';
+            if (node.type === 'profile') {
+                let pData = {};
+                try { pData = JSON.parse(node.content || '{}'); } catch(e) {}
+                const inputs = container.querySelectorAll('.profile-input');
+                inputs.forEach(inp => {
+                    const field = inp.dataset.field;
+                    const val = pData[field] || '';
+                    if (document.activeElement !== inp && inp.value !== val) inp.value = val;
+                });
+            } else {
+                const ta = container.querySelector('textarea');
+                if (ta && document.activeElement !== ta) ta.value = node.content || '';
+            }
             
             const actionsContainer = container.querySelector('#node-actions-container');
             if (actionsContainer) {
                 const isLinking = this.kernel.linkingMode;
-                let linkBtnClass = "p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors border-2 border-transparent";
+                let linkBtnClass = "p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors border-2 border-transparent flex justify-center items-center";
                 let linkTitle = "Link to Node";
                 
                 if (isLinking) {
                     if (node.id === this.kernel.linkingSourceId) {
-                        linkBtnClass = "p-2 bg-slate-900 border-2 border-red-500 text-red-500 rounded font-bold shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all";
+                        linkBtnClass = "p-2 bg-slate-900 border-2 border-red-500 text-red-500 rounded font-bold shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all flex justify-center items-center";
                         linkTitle = "Cancel Link";
                     } else {
-                        linkBtnClass = "p-2 bg-slate-900 border-2 border-emerald-500 text-emerald-500 rounded font-bold shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse transition-all";
+                        linkBtnClass = "p-2 bg-slate-900 border-2 border-emerald-500 text-emerald-500 rounded font-bold shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse transition-all flex justify-center items-center";
                         linkTitle = "Confirm Link";
                     }
                 }
                 
                 actionsContainer.innerHTML = `
                     <button onclick="SC.actionLink('${node.id}')" class="${linkBtnClass}" title="${linkTitle}">🔗</button>
-                    <button onclick="SC.actionAddChild('${node.id}')" class="p-2 bg-slate-800 hover:bg-emerald-600 rounded text-slate-300 hover:text-white transition-colors" title="Add Child">➕</button>
-                    <button onclick="SC.actionSaveConstellation('${node.id}')" class="p-2 bg-slate-800 hover:bg-purple-600 rounded text-slate-300 hover:text-white transition-colors" title="Save as Submap">🌌</button>
-                    <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors" title="Delete Downstream">🗑️</button>
+                    <button onclick="SC.actionAddChild('${node.id}')" class="p-2 bg-slate-800 hover:bg-emerald-600 rounded text-slate-300 hover:text-white transition-colors flex justify-center items-center" title="Add Child">➕</button>
+                    <button onclick="SC.actionSaveConstellation('${node.id}')" class="p-2 bg-slate-800 hover:bg-purple-600 rounded text-slate-300 hover:text-white transition-colors flex justify-center items-center" title="Save as Submap">🌌</button>
+                    <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors flex justify-center items-center" title="Delete Downstream">🗑️</button>
                 `;
             }
             return;
@@ -303,21 +326,64 @@ class UniversalPhaseEngine extends PhaseEngineBase {
         container.dataset.renderedNodeId = node.id;
         const isLinking = this.kernel.linkingMode;
         
-        let linkBtnClass = "p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors border-2 border-transparent";
+        let linkBtnClass = "p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors border-2 border-transparent flex justify-center items-center";
         let linkTitle = "Link to Node";
-        
         if (isLinking) {
             if (node.id === this.kernel.linkingSourceId) {
-                linkBtnClass = "p-2 bg-slate-900 border-2 border-red-500 text-red-500 rounded font-bold shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all";
+                linkBtnClass = "p-2 bg-slate-900 border-2 border-red-500 text-red-500 rounded font-bold shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all flex justify-center items-center";
                 linkTitle = "Cancel Link";
             } else {
-                linkBtnClass = "p-2 bg-slate-900 border-2 border-emerald-500 text-emerald-500 rounded font-bold shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse transition-all";
+                linkBtnClass = "p-2 bg-slate-900 border-2 border-emerald-500 text-emerald-500 rounded font-bold shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse transition-all flex justify-center items-center";
                 linkTitle = "Confirm Link";
             }
         }
 
+        // --- PAYLOAD RENDERER (CMS or Raw Text) ---
+        let contentAreaHtml = '';
+        if (node.type === 'profile') {
+            let pData = {};
+            try { pData = JSON.parse(node.content || '{}'); } catch(e) {}
+            const fields = ['Name', 'Email', 'Phone', 'Address'];
+            contentAreaHtml = `<div class="flex flex-col gap-3 mt-1">`;
+            fields.forEach(f => {
+                contentAreaHtml += `
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] font-bold text-slate-500 tracking-wider">${f}</label>
+                        <input type="text" class="profile-input bg-slate-900 border border-slate-700 text-white p-2 rounded text-sm focus:border-sky-500 outline-none shadow-inner" data-field="${f}" value="${this.escapeHTML(pData[f] || '')}" oninput="SC.actionUpdateProfileField('${node.id}', '${f}', this.value)">
+                    </div>
+                `;
+            });
+            contentAreaHtml += `</div>`;
+        } else if (node.type === 'portal') {
+            const lib = this.kernel.getLibrary();
+            contentAreaHtml = `<select id="portal-sel" class="w-full bg-slate-800 border border-slate-700 p-2 rounded text-xs text-white outline-none focus:border-sky-500 mt-1">
+                <option value="">-- Select Destination --</option>
+                ${lib.map(c => `<option value="${c.map_id}" ${node.content === c.map_id ? 'selected' : ''}>${c.meta.title}</option>`).join('')}
+            </select>
+            <button onclick="SC.actionEnterPortal('${node.id}')" class="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded shadow transition-colors">Enter Portal 🌀</button>`;
+        } else {
+            contentAreaHtml = `<textarea id="raw-content" class="w-full flex-1 bg-slate-900 border border-slate-700 text-white p-2 rounded text-sm font-mono focus:border-sky-500 outline-none resize-none shadow-inner mt-1">${node.content || ''}</textarea>`;
+        }
+
+        // --- TEMPLATE SELECTOR INJECTOR ---
+        let templateHtml = '';
+        const tpls = state.session.remoteTemplates || [];
+        const applicableTemplates = tpls.filter(t => t.target_type === node.type || t.target_type === 'any');
+        
+        if (applicableTemplates.length > 0) {
+            templateHtml = `
+                <div class="mt-4 pt-4 border-t border-slate-800">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Apply Structure</label>
+                    <select class="w-full bg-slate-800 border border-slate-700 text-sky-400 p-2 rounded text-xs focus:border-sky-500 outline-none" onchange="if(this.value) { SC.actionApplyTemplateToNode('${node.id}', this.value); this.value=''; }">
+                        <option value="">-- Choose Template --</option>
+                        ${applicableTemplates.map(t => `<option value="${t.id}">${t.title}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+        }
+
         container.innerHTML = `
-            <div class="p-4 flex flex-col gap-4 h-full">
+            <div class="p-4 flex flex-col h-full gap-4 relative">
                 <div>
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Title</label>
                     <input id="edit-title" value="${this.escapeHTML(node.title)}" class="w-full bg-slate-800 border border-slate-700 text-white p-2 rounded text-sm focus:border-sky-500 outline-none transition-colors">
@@ -326,18 +392,21 @@ class UniversalPhaseEngine extends PhaseEngineBase {
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Type</label>
                     <select id="edit-type" class="w-full bg-slate-800 border border-slate-700 text-white p-2 rounded text-sm focus:border-sky-500 outline-none"></select>
                 </div>
+                
                 <div class="flex-1 flex flex-col min-h-0">
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Content / Payload</label>
-                    <div id="content-area" class="flex-1 overflow-hidden flex flex-col"></div>
+                    ${contentAreaHtml}
                 </div>
                 
+                ${templateHtml}
+
                 <div class="pt-4 border-t border-slate-800 mt-auto">
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Node Actions</label>
                     <div id="node-actions-container" class="grid grid-cols-4 gap-2">
                         <button onclick="SC.actionLink('${node.id}')" class="${linkBtnClass}" title="${linkTitle}">🔗</button>
-                        <button onclick="SC.actionAddChild('${node.id}')" class="p-2 bg-slate-800 hover:bg-emerald-600 rounded text-slate-300 hover:text-white transition-colors" title="Add Child">➕</button>
-                        <button onclick="SC.actionSaveConstellation('${node.id}')" class="p-2 bg-slate-800 hover:bg-purple-600 rounded text-slate-300 hover:text-white transition-colors" title="Save as Submap">🌌</button>
-                        <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors" title="Delete Downstream">🗑️</button>
+                        <button onclick="SC.actionAddChild('${node.id}')" class="p-2 bg-slate-800 hover:bg-emerald-600 rounded text-slate-300 hover:text-white transition-colors flex justify-center items-center" title="Add Child">➕</button>
+                        <button onclick="SC.actionSaveConstellation('${node.id}')" class="p-2 bg-slate-800 hover:bg-purple-600 rounded text-slate-300 hover:text-white transition-colors flex justify-center items-center" title="Save as Submap">🌌</button>
+                        <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors flex justify-center items-center" title="Delete Downstream">🗑️</button>
                     </div>
                 </div>
                 <div class="text-[9px] text-slate-600 font-mono text-center pt-2">ID: ${node.id}</div>
@@ -357,33 +426,10 @@ class UniversalPhaseEngine extends PhaseEngineBase {
         container.querySelector('#edit-title').oninput = (e) => this.kernel.updateNode(node.id, { title: e.target.value });
         sel.onchange = (e) => { this.kernel.updateNode(node.id, { type: e.target.value }); this.render(container, state); };
 
-        const contentArea = container.querySelector('#content-area');
         if (node.type === 'portal') {
-            const lib = this.kernel.getLibrary();
-            const portSel = document.createElement('select');
-            portSel.className = "w-full bg-slate-800 border border-slate-700 p-2 rounded text-xs text-white";
-            portSel.innerHTML = '<option value="">-- Select Destination --</option>';
-            lib.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.map_id; opt.innerText = c.meta.title;
-                if (node.content === c.map_id) opt.selected = true;
-                portSel.appendChild(opt);
-            });
-            portSel.onchange = (e) => this.kernel.updateNode(node.id, { content: e.target.value });
-            contentArea.appendChild(portSel);
-
-            const enterBtn = document.createElement('button');
-            enterBtn.className = "mt-2 w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded";
-            enterBtn.innerText = "Enter Portal 🌀";
-            enterBtn.onclick = () => SC.actionEnterPortal(node.id);
-            contentArea.appendChild(enterBtn);
-
-        } else {
-            const ta = document.createElement('textarea');
-            ta.className = "w-full flex-1 bg-slate-800 border border-slate-700 text-white p-2 rounded text-sm font-mono focus:border-sky-500 outline-none resize-none";
-            ta.value = node.content || '';
-            ta.oninput = (e) => this.kernel.updateNode(node.id, { content: e.target.value });
-            contentArea.appendChild(ta);
+            container.querySelector('#portal-sel').onchange = (e) => { this.kernel.updateNode(node.id, { content: e.target.value }); };
+        } else if (node.type !== 'profile') {
+            container.querySelector('#raw-content').oninput = (e) => { this.kernel.updateNode(node.id, { content: e.target.value }); };
         }
     }
 }
@@ -504,16 +550,62 @@ class WebPhaseEngine extends PhaseEngineBase {
                     if (isUrl) {
                         const iframeClass = kids ? 'w-full h-[85vh] border-none block' : 'w-full h-screen border-none block';
                         
+                        // Intelligent Escape Hatch & Open-Graph Overlay
                         const externalLinkBtn = `
-                            <div class="absolute top-4 right-8 z-50">
-                                <a href="${url}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 px-4 py-2 bg-slate-900/80 hover:bg-sky-600 text-white text-xs font-bold rounded-full backdrop-blur border border-slate-700 shadow-xl transition-colors">
-                                    <span>Open in New Tab</span>
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                </a>
+                            <div id="preview-overlay" class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm pointer-events-auto">
+                                <div class="bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl max-w-md w-full flex flex-col items-center text-center relative overflow-hidden">
+                                    <button onclick="document.getElementById('preview-overlay').style.display='none'" class="absolute top-3 right-3 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-full p-1.5 transition-colors" title="Hide Preview to view iframe">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                    <div id="meta-img" class="hidden w-full h-32 bg-cover bg-center rounded-lg mb-4 border border-slate-800 shadow-inner"></div>
+                                    <h2 id="meta-title" class="text-xl font-black text-white mb-2 line-clamp-2 w-full">Loading Link...</h2>
+                                    <p id="meta-desc" class="text-xs text-slate-400 mb-6 line-clamp-3 w-full">Attempting to fetch metadata...</p>
+                                    <div class="flex gap-3 w-full">
+                                        <a href="${url}" target="_blank" rel="noopener noreferrer" class="flex-1 px-4 py-3 bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2">
+                                            <span>Open in New Tab</span>
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
+                            <script>
+                                fetch('https://api.allorigins.win/get?url=${encodeURIComponent(url)}')
+                                .then(r => r.json())
+                                .then(data => {
+                                    const parser = new DOMParser();
+                                    const doc = parser.parseFromString(data.contents, 'text/html');
+                                    const title = doc.querySelector('title')?.innerText || '${url}';
+                                    let desc = doc.querySelector('meta[name="description"]')?.content || doc.querySelector('meta[property="og:description"]')?.content || doc.querySelector('meta[name="twitter:description"]')?.content || '';
+                                    let img = doc.querySelector('meta[property="og:image"]')?.content || doc.querySelector('meta[name="twitter:image"]')?.content;
+                                    
+                                    if(img && !img.startsWith('http')) {
+                                        try {
+                                            const urlObj = new URL('${url}');
+                                            img = urlObj.origin + (img.startsWith('/') ? '' : '/') + img;
+                                        } catch(e){}
+                                    }
+                                    
+                                    document.getElementById('meta-title').innerText = title;
+                                    if(desc) {
+                                        document.getElementById('meta-desc').innerText = desc;
+                                    } else {
+                                        document.getElementById('meta-desc').innerText = '${url}';
+                                    }
+                                    
+                                    if(img) {
+                                        const imgEl = document.getElementById('meta-img');
+                                        imgEl.style.backgroundImage = 'url(' + img + ')';
+                                        imgEl.classList.remove('hidden');
+                                    }
+                                })
+                                .catch(e => {
+                                    document.getElementById('meta-title').innerText = 'External Link';
+                                    document.getElementById('meta-desc').innerText = '${url}';
+                                });
+                            </script>
                         `;
                         
-                        iframeHtml = `<div class="relative w-full">${externalLinkBtn}<iframe src="${url}" class="${iframeClass}" title="Embedded Webpage"></iframe></div>`;
+                        iframeHtml = `<div class="relative w-full h-full">${externalLinkBtn}<iframe src="${url}" class="${iframeClass}" title="Embedded Webpage"></iframe></div>`;
                     }
 
                     let textContent = (!isUrl && content) ? `<div class="py-12 px-8 max-w-5xl mx-auto prose text-slate-700">${content.replace(/\n/g, '<br>')}</div>` : '';

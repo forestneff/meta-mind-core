@@ -3,12 +3,13 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Meta-Mind | v14.6 Mobile Production</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meta-Mind | v14.9.3 Mobile Production</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="meta-mind-ui.css">
 
     <!-- CRITICAL LOAD ORDER -->
-    <script src="meta-mind-library.js"></script> <!-- NEW LIBRARY FILE -->
+    <script src="meta-mind-library.js"></script>
     <script src="meta-mind-rules.js"></script>
     <script src="meta-mind-core.js"></script>
     <script src="phase-engines.js"></script>
@@ -20,10 +21,10 @@
         class="h-14 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center px-2 md:px-4 z-50 relative backdrop-blur w-full">
         <!-- Identity & Status -->
         <div class="flex items-center gap-2 shrink-0">
-            <!-- Mobile Hamburger Menu -->
+            <!-- Universal Hamburger Menu (Toggles the properties panel) -->
             <button id="btn-sidebar-toggle"
-                class="md:hidden p-1.5 text-slate-400 hover:text-white transition-colors rounded hover:bg-slate-800"
-                onclick="SC.toggleSidebar()">
+                class="p-1.5 text-slate-400 hover:text-white transition-colors rounded hover:bg-slate-800"
+                onclick="SC.toggleSidebar()" title="Toggle Inspector">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
                     </path>
@@ -31,10 +32,10 @@
             </button>
 
             <div
-                class="w-8 h-8 bg-sky-600 rounded items-center justify-center text-white font-black shadow-lg shadow-sky-900/50 hidden sm:flex">
+                class="w-8 h-8 bg-sky-600 rounded items-center justify-center text-white font-black shadow-lg shadow-sky-900/50 hidden sm:flex ml-2">
                 M</div>
             <div class="flex flex-col ml-1">
-                <span id="map-title" class="text-sm font-bold text-slate-200 leading-none">Meta-Mind v14.5</span>
+                <span id="map-title" class="text-sm font-bold text-slate-200 leading-none">Meta-Mind v14.9</span>
                 <div class="flex gap-2 mt-1">
                     <span id="save-status"
                         class="text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1">
@@ -48,52 +49,82 @@
             </div>
         </div>
 
-        <!-- Responsive Toolbar (Icons on Mobile, Text on Desktop) -->
+        <!-- Responsive Toolbar: Button text vanishes on mobile -->
         <div class="flex gap-2 overflow-x-auto no-scrollbar items-center px-2">
             <div class="h-6 w-px bg-slate-700 mx-1 shrink-0 hidden md:block"></div>
 
             <button id="btn-add"
-                class="shrink-0 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded transition-colors shadow-lg shadow-sky-900/20"
+                class="shrink-0 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded transition-colors shadow-lg flex items-center gap-1"
                 title="Add Root Node">
-                ➕<span class="hidden sm:inline"> Root</span>
+                ➕<span class="hidden sm:inline">Root</span>
             </button>
 
             <button id="btn-arrange"
-                class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors"
+                class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors flex items-center gap-1"
                 title="Force-Directed Organic Layout">
-                ✨<span class="hidden sm:inline"> Arrange</span>
+                ✨<span class="hidden sm:inline">Arrange</span>
             </button>
 
             <button id="btn-undo"
-                class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors"
+                class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors flex items-center gap-1"
                 title="Undo Last Action">
-                ↩️<span class="hidden sm:inline"> Undo</span>
+                ↩️<span class="hidden sm:inline">Undo</span>
             </button>
 
             <div class="h-6 w-px bg-slate-700 mx-1 shrink-0"></div>
 
-            <button id="btn-focal" class="shrink-0 transition-all cursor-pointer" title="Toggle Camera Tracking">
-                👁️<span class="hidden sm:inline"> Auto-Focus</span>
+            <button id="btn-focal"
+                class="shrink-0 px-3 py-1.5 bg-slate-800 text-slate-400 text-xs font-bold rounded border border-slate-700 flex items-center gap-1 transition-all"
+                title="Toggle Camera Tracking">
+                👁️<span class="hidden sm:inline">Focus</span>
             </button>
         </div>
     </nav>
 
     <div id="stage">
-        <!-- Left Sidebar (Responsive Overlay on Mobile) -->
-        <div class="w-80 max-w-[85vw] border-r border-slate-800 flex flex-col z-40 bg-slate-900/95 md:bg-slate-900/80 backdrop-blur-md shrink-0"
-            id="sidebar">
-            <div class="sidebar-tabs">
-                <div class="sidebar-tab active" id="tab-properties" onclick="SC.setTab('properties')">Properties</div>
-                <div class="sidebar-tab" id="tab-views" onclick="SC.setTab('views')">Phases</div>
+        <!-- New Universal Rail & Slide-out Inspector (JS assigns 'open' dynamically based on screen size) -->
+        <div id="sidebar"
+            class="border-r border-slate-800 flex z-40 bg-slate-900/95 backdrop-blur-md shrink-0 transition-all duration-300 overflow-hidden">
+
+            <!-- Narrow Tool Rail (Always visible) -->
+            <div
+                class="w-[56px] shrink-0 flex flex-col items-center py-4 gap-2 bg-slate-950 border-r border-slate-800 z-10 shadow-lg h-full">
+                <button id="btn-phase-map"
+                    class="phase-btn w-12 h-12 rounded-xl hover:bg-slate-800 text-xl transition-all active flex items-center justify-center"
+                    onclick="SC.setView('map')" title="Map Phase">🗺️</button>
+                <button id="btn-phase-data"
+                    class="phase-btn w-12 h-12 rounded-xl hover:bg-slate-800 text-xl transition-all flex items-center justify-center"
+                    onclick="SC.setView('data')" title="Data Manager">🗄️</button>
+                <button id="btn-phase-orbital"
+                    class="phase-btn w-12 h-12 rounded-xl hover:bg-slate-800 text-xl transition-all flex items-center justify-center"
+                    onclick="SC.setView('orbital')" title="Orbital Focus">🔮</button>
+                <button id="btn-phase-web"
+                    class="phase-btn w-12 h-12 rounded-xl hover:bg-slate-800 text-xl transition-all flex items-center justify-center"
+                    onclick="SC.setView('web')" title="Web Architect">🌐</button>
+
+                <div class="w-8 h-px bg-slate-800 my-2"></div>
+
+                <!-- Universal Inspector Toggle (Mobile shortcut) -->
+                <button
+                    class="w-12 h-12 rounded-xl hover:bg-slate-800 text-xl md:hidden flex items-center justify-center"
+                    onclick="SC.toggleSidebar()" title="Toggle Properties">📝</button>
             </div>
-            <div id="panel-properties" class="flex-1 overflow-auto custom-scrollbar"></div>
-            <div id="panel-views" class="flex-1 overflow-auto hidden custom-scrollbar">
-                <div id="view-list"></div>
+
+            <!-- Expandable Inspector Panel (Fixed width, clipped by CSS overflow when closed) -->
+            <div id="sidebar-content" class="flex flex-col w-[256px] shrink-0 bg-slate-900/90 h-full">
+                <div class="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                    <span class="font-bold text-xs uppercase tracking-widest text-slate-400">Inspector</span>
+                    <!-- Universal Close Button -->
+                    <button class="p-1 text-slate-400 hover:text-white" onclick="SC.toggleSidebar()"
+                        title="Close Inspector">✕</button>
+                </div>
+                <!-- The Phase Engines will render directly into this container -->
+                <div id="panel-properties" class="flex-1 overflow-auto custom-scrollbar"></div>
             </div>
         </div>
 
         <!-- Main Viewport -->
-        <div id="viewport" class="relative flex-1 bg-slate-950 min-w-0">
+        <div id="viewport" class="relative flex-1 bg-slate-950 min-w-0 transition-all duration-300">
             <!-- Map Layer -->
             <div id="view-map" class="absolute inset-0 overflow-hidden">
                 <svg id="edge-svg" class="absolute inset-0 pointer-events-none"></svg>
@@ -119,8 +150,13 @@
                 const Kernel = new MetaMindKernel();
                 const Registry = new PhaseRegistrySystem();
                 Registry.init(Kernel);
-                const Controller = new SandboxController(Kernel, Registry);
 
+                // Auto-select Root Node on Boot so the Inspector is never empty!
+                if (!Kernel.state.session.selectedId && Kernel.state.nodes.length > 0) {
+                    Kernel.selectNode(Kernel.state.nodes[0].id);
+                }
+
+                const Controller = new SandboxController(Kernel, Registry);
                 window.Kernel = Kernel;
                 window.SC = Controller;
 
@@ -139,9 +175,9 @@
                 const btnFocal = document.getElementById('btn-focal');
                 const updateFocalUI = () => {
                     if (Kernel.config.autoFocus) {
-                        btnFocal.className = "shrink-0 px-3 py-1.5 bg-sky-600 text-white text-xs font-bold rounded shadow-lg shadow-sky-900/20 border border-sky-500 transition-all";
+                        btnFocal.className = "shrink-0 px-3 py-1.5 bg-sky-600 text-white text-xs font-bold rounded shadow-lg shadow-sky-900/20 border border-sky-500 transition-all flex items-center gap-1";
                     } else {
-                        btnFocal.className = "shrink-0 px-3 py-1.5 bg-slate-800 text-slate-400 text-xs font-bold rounded border border-slate-700 transition-all hover:bg-slate-700";
+                        btnFocal.className = "shrink-0 px-3 py-1.5 bg-slate-800 text-slate-400 text-xs font-bold rounded border border-slate-700 transition-all hover:bg-slate-700 flex items-center gap-1";
                     }
                 };
                 updateFocalUI();
@@ -149,19 +185,6 @@
                     Kernel.config.autoFocus = !Kernel.config.autoFocus;
                     updateFocalUI();
                 };
-
-                setInterval(async () => {
-                    const statusEl = document.getElementById('host-status');
-                    if (!statusEl) return;
-                    const isConnected = await Kernel.bridge.checkConnection();
-                    if (isConnected) {
-                        statusEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Host Linked';
-                        statusEl.classList.add('text-emerald-500');
-                    } else {
-                        statusEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Host Offline';
-                        statusEl.classList.remove('text-emerald-500');
-                    }
-                }, 5000);
 
             } catch (e) {
                 console.error("Initialization Failed:", e);

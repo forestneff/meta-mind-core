@@ -1,6 +1,6 @@
 /**
- * META-MIND SANDBOX CONTROLLER v14.9
- * Features: Unified Array/Single JSON Import Engine with Conflict Resolution.
+ * META-MIND SANDBOX CONTROLLER v14.10
+ * Features: Apply Templates to existing Nodes & Profile CMS sync.
  */
 
 class SandboxController {
@@ -17,8 +17,7 @@ class SandboxController {
             worldLayer: document.getElementById('world-layer'),
             edgeSvg: document.getElementById('edge-svg'),
             overlay: document.getElementById('linking-overlay'),
-            panelProperties: document.getElementById('panel-properties'),
-            panelViews: document.getElementById('panel-views'),
+            panelProperties: document.getElementById('panel-properties'), 
             viewMap: document.getElementById('view-map'),
             viewContent: document.getElementById('view-content'),
             sidebar: document.getElementById('sidebar')
@@ -27,7 +26,6 @@ class SandboxController {
         this.dom.edgeSvg.style.overflow = 'visible';
 
         this.viewMode = 'map';
-        this.activeTab = 'properties';
         this.isDragging = false;
         this.lastMouse = { x: 0, y: 0 };
         this.clickStart = { x: 0, y: 0 }; 
@@ -40,8 +38,18 @@ class SandboxController {
         this.lastPinchCenter = null;
 
         this.ensureDomElements();
-        this.initDOM();
-        this.initEvents();
+        
+        if (window.innerWidth > 768) {
+            this.dom.sidebar.classList.add('open');
+        } else {
+            this.dom.sidebar.classList.remove('open');
+        }
+
+        this.initEvents(); 
+        
+        // Auto-load template manifest into memory on boot for the Inspector dropdowns
+        setTimeout(() => this.actionLoadRemoteTemplates(), 200);
+
         this.kernel.subscribe(this.render.bind(this));
         
         this.animate();
@@ -59,18 +67,6 @@ class SandboxController {
         }
     }
 
-    initDOM() {
-        const list = document.getElementById('view-list');
-        if (list) {
-            list.innerHTML = `
-                <div class="view-card active" onclick="SC.setView('map')"><span class="text-2xl">🗺️</span><div><div>Celestial Map</div><div>Spatial Graph</div></div></div>
-                <div class="view-card" onclick="SC.setView('data')"><span class="text-2xl">🗄️</span><div><div>Data Manager</div><div>Library & API Sync</div></div></div>
-                <div class="view-card" onclick="SC.setView('orbital')"><span class="text-2xl">🔮</span><div><div>Magic Circle</div><div>Orbital Focus</div></div></div>
-                <div class="view-card" onclick="SC.setView('web')"><span class="text-2xl">🌐</span><div><div>Web Architect</div><div>HTML Renderer</div></div></div>
-            `;
-        }
-    }
-
     initEvents() {
         window.SC = this; 
         const vp = this.dom.viewport;
@@ -84,22 +80,20 @@ class SandboxController {
     }
 
     toggleSidebar() {
-        if (this.dom.sidebar) this.dom.sidebar.classList.toggle('open');
+        if (this.dom.sidebar) {
+            this.dom.sidebar.classList.toggle('open');
+        }
     }
-
-    setTab(tab) { this.activeTab = tab; this.renderSidebar(); }
     
     setView(mode) {
         this.viewMode = mode;
-        const cards = document.querySelectorAll('.view-card');
-        cards.forEach(c => c.classList.remove('active'));
-        const idx = ['map', 'data', 'orbital', 'web'].indexOf(mode);
-        if (idx !== -1 && cards[idx]) cards[idx].classList.add('active');
-        
-        if (window.innerWidth <= 768 && this.dom.sidebar) {
-            this.dom.sidebar.classList.remove('open');
+        const btns = document.querySelectorAll('.phase-btn');
+        btns.forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById(`btn-phase-${mode}`);
+        if (btn) btn.classList.add('active');
+        if (window.innerWidth <= 768 && this.dom.sidebar && this.dom.sidebar.classList.contains('open')) {
+            this.toggleSidebar();
         }
-        
         this.render();
     }
 
@@ -142,15 +136,11 @@ class SandboxController {
 
     handlePointerDown(e) {
         if (this.viewMode !== 'map') return;
-        
         if (window.innerWidth <= 768 && this.dom.sidebar && this.dom.sidebar.classList.contains('open')) {
-            this.dom.sidebar.classList.remove('open');
+            this.toggleSidebar();
         }
-        
         if (e.target.closest('.node')) return;
-        
         this.activePointers.set(e.pointerId, e);
-
         if (this.activePointers.size === 1) {
             this.isDragging = true;
             this.userHasPanned = true;
@@ -163,11 +153,9 @@ class SandboxController {
         if (this.activePointers.has(e.pointerId)) {
             this.activePointers.set(e.pointerId, e);
         }
-
         if (this.activePointers.size === 2) {
             const pts = Array.from(this.activePointers.values());
             const p1 = pts[0], p2 = pts[1];
-            
             const dist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
             const cx = (p1.clientX + p2.clientX) / 2;
             const cy = (p1.clientY + p2.clientY) / 2;
@@ -175,21 +163,17 @@ class SandboxController {
             if (this.lastPinchDist) {
                 const zoomFactor = dist / this.lastPinchDist;
                 const vp = this.kernel.state.session.viewport;
-                
                 const newScale = Math.max(0.1, Math.min(5, vp.scale * zoomFactor));
                 const actualZoom = newScale / vp.scale;
-                
                 vp.x = cx - actualZoom * (cx - vp.x);
                 vp.y = cy - actualZoom * (cy - vp.y);
                 vp.scale = newScale;
-
                 if (this.lastPinchCenter) {
                     vp.x += (cx - this.lastPinchCenter.x);
                     vp.y += (cy - this.lastPinchCenter.y);
                 }
                 this.updateTransform();
             }
-
             this.lastPinchDist = dist;
             this.lastPinchCenter = { x: cx, y: cy };
             this.userHasPanned = true;
@@ -214,15 +198,8 @@ class SandboxController {
     }
 
     handlePointerUp(e) {
-        if (this.activePointers.has(e.pointerId)) {
-            this.activePointers.delete(e.pointerId);
-        }
-
-        if (this.activePointers.size < 2) {
-            this.lastPinchDist = null;
-            this.lastPinchCenter = null;
-        }
-
+        if (this.activePointers.has(e.pointerId)) this.activePointers.delete(e.pointerId);
+        if (this.activePointers.size < 2) { this.lastPinchDist = null; this.lastPinchCenter = null; }
         if (this.activePointers.size === 0) {
             if (this.isDragging) {
                 const dist = Math.hypot(e.clientX - this.clickStart.x, e.clientY - this.clickStart.y);
@@ -235,7 +212,6 @@ class SandboxController {
             }
             this.isDragging = false;
         }
-
         if (this.draggedNode) this.userHasPanned = false; 
         this.draggedNode = null;
     }
@@ -346,7 +322,13 @@ class SandboxController {
         }
     }
 
-    actionEdit(id) { const tgt = id || this.kernel.state.session.selectedId; this.kernel.selectNode(tgt); this.setTab('properties'); }
+    actionEdit(id) { 
+        const tgt = id || this.kernel.state.session.selectedId; 
+        this.kernel.selectNode(tgt); 
+        if (this.dom.sidebar && !this.dom.sidebar.classList.contains('open')) {
+            this.toggleSidebar();
+        }
+    }
     
     actionLink(id) { 
         const tgt = id || this.kernel.state.session.selectedId; 
@@ -400,18 +382,31 @@ class SandboxController {
         if (json) { this.kernel.saveConstellationToLibrary(json); alert("Saved to Library."); }
     }
 
-    // --- TEMPLATE & FEDERATION ACTIONS ---
-    
     actionLoadRemoteTemplates() {
         this.kernel.loadRemoteTemplates();
     }
+    
+    // NEW: Applies a template to the selected node natively
+    async actionApplyTemplateToNode(nodeId, tplId) {
+        try {
+            const tplData = await this.kernel.bridge.fetchTemplateData(tplId);
+            this.kernel.applyTemplateToNode(nodeId, tplData);
+            alert(`Template "${tplData.meta.title}" applied!`);
+            this.setView('map');
+        } catch (e) {
+            alert("Failed to apply template.");
+            console.error(e);
+        }
+    }
+    
+    // NEW: Profile CMS Data Syncer
+    actionUpdateProfileField(nodeId, field, value) {
+        this.kernel.updateProfileField(nodeId, field, value);
+    }
 
-    // Unified Conflict Resolution Engine
     async processMapImport(parsedData, target) {
         let maps = Array.isArray(parsedData) ? parsedData : [parsedData];
-        let added = 0;
-        let skipped = 0;
-        let overwritten = 0;
+        let added = 0, skipped = 0, overwritten = 0;
 
         for (let newMap of maps) {
             if (!newMap.map_id || !newMap.nodes) continue;
@@ -428,26 +423,12 @@ class SandboxController {
             if (existing) {
                 let existingStr = JSON.stringify(existing);
                 let newStr = JSON.stringify(newMap);
-                
-                if (existingStr === newStr) {
-                    skipped++;
-                    continue; // Silent skip for exact duplicates
-                }
+                if (existingStr === newStr) { skipped++; continue; }
 
-                let existingNodes = existing.nodes ? existing.nodes.length : 0;
-                let newNodes = newMap.nodes ? newMap.nodes.length : 0;
-                let existingConns = existing.connections ? existing.connections.length : 0;
-                let newConns = newMap.connections ? newMap.connections.length : 0;
-
-                let msg = `Conflict: A map titled "${newMap.meta?.title || newMap.map_id}" already exists in your ${target}s.\n\n` +
-                          `Existing: ${existingNodes} nodes, ${existingConns} connections.\n` +
-                          `New: ${newNodes} nodes, ${newConns} connections.\n\n` +
-                          `Do you want to overwrite the existing map?`;
-                
+                let msg = `Conflict: A map titled "${newMap.meta?.title || newMap.map_id}" already exists.\nOverwrite existing map?`;
                 if (confirm(msg)) {
-                    if (target === 'template') {
-                        MetaMindLibrary.saveCustomTemplate(newMap);
-                    } else {
+                    if (target === 'template') MetaMindLibrary.saveCustomTemplate(newMap);
+                    else {
                         let lib = this.kernel.getLibrary();
                         let idx = lib.findIndex(m => m.map_id === newMap.map_id);
                         if (idx > -1) lib[idx] = newMap;
@@ -455,14 +436,10 @@ class SandboxController {
                         localStorage.setItem("mm_constellation_lib", JSON.stringify(lib));
                     }
                     overwritten++;
-                } else {
-                    skipped++;
-                }
+                } else { skipped++; }
             } else {
-                // Completely new map
-                if (target === 'template') {
-                    MetaMindLibrary.saveCustomTemplate(newMap);
-                } else {
+                if (target === 'template') MetaMindLibrary.saveCustomTemplate(newMap);
+                else {
                     let lib = this.kernel.getLibrary();
                     lib.push(newMap);
                     localStorage.setItem("mm_constellation_lib", JSON.stringify(lib));
@@ -481,13 +458,8 @@ class SandboxController {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = async (e) => {
-            try {
-                const parsed = JSON.parse(e.target.result);
-                await this.processMapImport(parsed, 'template');
-            } catch (err) {
-                alert("Invalid JSON format.");
-                console.error(err);
-            }
+            try { const parsed = JSON.parse(e.target.result); await this.processMapImport(parsed, 'template'); } 
+            catch (err) { alert("Invalid JSON format."); }
         };
         reader.readAsText(file);
         event.target.value = ''; 
@@ -498,13 +470,8 @@ class SandboxController {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = async (e) => {
-            try {
-                const parsed = JSON.parse(e.target.result);
-                await this.processMapImport(parsed, 'constellation');
-            } catch (err) {
-                alert("Invalid JSON format.");
-                console.error(err);
-            }
+            try { const parsed = JSON.parse(e.target.result); await this.processMapImport(parsed, 'constellation'); } 
+            catch (err) { alert("Invalid JSON format."); }
         };
         reader.readAsText(file);
         event.target.value = ''; 
@@ -522,19 +489,13 @@ class SandboxController {
             a.download = `meta_mind_template_${safeTitle}.json`;
             a.click();
             URL.revokeObjectURL(url);
-        } catch (e) {
-            alert("Failed to download template.");
-            console.error(e);
-        }
+        } catch (e) { alert("Failed to download template."); }
     }
 
     actionDeleteRemoteTemplate(id) {
-        if(confirm("Permanently delete this custom template from your Cloud Library?")) {
+        if(confirm("Permanently delete this custom template?")) {
             if (typeof MetaMindLibrary !== 'undefined') {
-                const success = MetaMindLibrary.deleteCustomTemplate(id);
-                if (success) {
-                    this.actionLoadRemoteTemplates(); 
-                }
+                if (MetaMindLibrary.deleteCustomTemplate(id)) this.actionLoadRemoteTemplates(); 
             }
         }
     }
@@ -549,27 +510,13 @@ class SandboxController {
             const center_x = (rect.width / 2 - vp.x) / vp.scale;
             const center_y = (rect.height / 2 - vp.y) / vp.scale;
 
-            const portal = this.kernel.addNode({ 
-                type: 'portal', 
-                title: tplData.meta.title, 
-                content: tplData.map_id,
-                x: center_x,
-                y: center_y
-            });
-
+            const portal = this.kernel.addNode({ type: 'portal', title: tplData.meta.title, content: tplData.map_id, x: center_x, y: center_y });
             this.kernel.importSubmap(portal.id, tplData);
-            alert(`Template "${tplData.meta.title}" imported successfully!`);
-            
+            alert(`Template imported successfully!`);
             this.setView('map');
             this.kernel.selectNode(portal.id);
-            
-        } catch (e) {
-            alert("Failed to spawn template.");
-            console.error(e);
-        }
+        } catch (e) { alert("Failed to spawn template."); }
     }
-
-    // --- JSON & STORAGE I/O ---
 
     actionSaveCurrentToLibrary() {
         const copy = JSON.parse(JSON.stringify(this.kernel.state));
@@ -587,18 +534,12 @@ class SandboxController {
     }
     
     actionDeleteFromLibrary(id) {
-        if(confirm("Permanently delete this saved constellation?")) {
-            this.kernel.deleteFromLibrary(id);
-            this.render();
-        }
+        if(confirm("Permanently delete this saved constellation?")) { this.kernel.deleteFromLibrary(id); this.render(); }
     }
 
     actionDownloadLibrary() {
         const lib = this.kernel.getLibrary();
-        if (!lib || lib.length === 0) {
-            alert("Your local library is currently empty.");
-            return;
-        }
+        if (!lib || lib.length === 0) { alert("Your library is empty."); return; }
         const json = JSON.stringify(lib, null, 2);
         const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -629,11 +570,7 @@ class SandboxController {
         const notesInput = document.getElementById(`lib-notes-${id}`);
         const sharedInput = document.getElementById(`lib-shared-${id}`);
         if(titleInput) {
-            this.kernel.updateLibraryItem(id, { 
-                title: titleInput.value, 
-                notes: notesInput.value,
-                shared: sharedInput.checked
-            });
+            this.kernel.updateLibraryItem(id, { title: titleInput.value, notes: notesInput.value, shared: sharedInput.checked });
             alert("Details Saved.");
             this.render();
         }
@@ -642,8 +579,7 @@ class SandboxController {
     actionSyncJson() {
         try {
             const val = document.getElementById('json-exchange').value;
-            const state = JSON.parse(val);
-            this.kernel.loadMapState(state);
+            this.kernel.loadMapState(JSON.parse(val));
             alert("Mapstate Applied Successfully.");
         } catch (e) { alert("Invalid JSON format."); }
     }
@@ -670,22 +606,17 @@ class SandboxController {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (e) => {
-            try {
-                const state = JSON.parse(e.target.result);
-                this.kernel.loadMapState(state);
-                alert("Mapstate Imported Successfully.");
-                this.render();
-            } catch (err) {
-                alert("Invalid JSON file.");
-            }
+            try { this.kernel.loadMapState(JSON.parse(e.target.result)); alert("Mapstate Imported."); this.render(); } 
+            catch (err) { alert("Invalid JSON file."); }
         };
         reader.readAsText(file);
         event.target.value = ''; 
     }
 
-    // --- Render Loop ---
     render() {
-        this.renderSidebar();
+        const inspector = this.registry.get('inspector');
+        if (inspector && this.dom.panelProperties) inspector.render(this.dom.panelProperties, this.kernel.state);
+
         if (this.viewMode === 'map') {
             this.dom.viewMap.style.display = 'block';
             this.dom.viewContent.style.display = 'none';
@@ -695,26 +626,6 @@ class SandboxController {
             this.dom.viewContent.style.display = 'block';
             const eng = this.registry.get(this.viewMode);
             if (eng) eng.render(this.dom.viewContent, this.kernel.state);
-        }
-    }
-
-    renderSidebar() {
-        document.querySelectorAll('.sidebar-tab').forEach(el => el.classList.remove('active'));
-        const activeTabEl = document.getElementById(`tab-${this.activeTab}`);
-        if(activeTabEl) activeTabEl.classList.add('active');
-
-        const propPanel = this.dom.panelProperties;
-        const viewPanel = this.dom.panelViews;
-
-        propPanel.classList.add('hidden');
-        viewPanel.classList.add('hidden');
-
-        if (this.activeTab === 'properties') {
-            propPanel.classList.remove('hidden');
-            const inspector = this.registry.get('inspector');
-            if (inspector) inspector.render(propPanel, this.kernel.state);
-        } else if (this.activeTab === 'views') {
-            viewPanel.classList.remove('hidden');
         }
     }
 
@@ -738,7 +649,6 @@ class SandboxController {
             }
         });
 
-        // Edges Full Redraw
         this.dom.edgeSvg.innerHTML = '';
         state.connections.forEach(c => {
             if (visibleNodes.has(c.from) && visibleNodes.has(c.to)) {
@@ -754,7 +664,6 @@ class SandboxController {
             }
         });
 
-        // Nodes
         this.dom.worldLayer.innerHTML = '';
         state.nodes.forEach(node => {
             if (!visibleNodes.has(node.id)) return;
@@ -820,7 +729,6 @@ class SandboxController {
                 const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
                 
                 if (dist < 5) {
-                    this.setTab('properties');
                     if (window.innerWidth <= 768 && this.dom.sidebar && !this.dom.sidebar.classList.contains('open')) {
                         this.toggleSidebar();
                     }
