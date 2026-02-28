@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meta-Mind | Comprehensive Wiki v14.4</title>
+    <title>Meta-Mind | Comprehensive Wiki v14.9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
@@ -68,7 +68,7 @@
             background: rgba(255, 255, 255, 0.02);
         }
 
-        /* Custom Scrollbar for Main Content */
+        /* Custom Scrollbar */
         .custom-scrollbar::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -87,7 +87,7 @@
 
 <body class="flex h-screen overflow-hidden bg-slate-950 relative">
 
-    <!-- Mobile Header Bar (Visible only on < md screens) -->
+    <!-- Mobile Header Bar -->
     <div
         class="md:hidden flex items-center justify-between bg-slate-900/90 backdrop-blur-md border-b border-slate-800 p-4 absolute top-0 w-full z-20">
         <h1 class="text-lg font-black flex items-center gap-2">
@@ -118,8 +118,7 @@
                         class="w-6 h-6 rounded bg-sky-600 flex items-center justify-center text-xs text-white">M</span>
                     META-MIND
                 </h1>
-                <div class="text-[10px] uppercase tracking-widest text-sky-400 mt-2 font-bold">Comprehensive Wiki v14.4
-                </div>
+                <div class="text-[10px] uppercase tracking-widest text-emerald-400 mt-2 font-bold">Docs: v14.9</div>
             </div>
             <!-- Close button (Mobile only) -->
             <button id="close-sidebar-btn"
@@ -144,14 +143,14 @@
                 Docs</div>
             <a href="#architecture" class="nav-link pl-8">6. Core Architecture</a>
             <a href="#ontology" class="nav-link pl-8">7. Node & Connection Rules</a>
-            <a href="#json-schema" class="nav-link pl-8">8. Federated JSON Schema</a>
+            <a href="#json-schema" class="nav-link pl-8">8. JSON Schema & Arrays</a>
             <a href="#physics" class="nav-link pl-8">9. Force-Directed Physics</a>
-            <a href="#federation-api" class="nav-link pl-8">10. Companion APIs</a>
+            <a href="#federation-library" class="nav-link pl-8">10. Serverless Library Engine</a>
         </nav>
 
         <div class="p-4 border-t border-slate-800 bg-slate-900 sticky bottom-0">
             <a href="sandbox.html"
-                class="block w-full py-2 bg-sky-600 hover:bg-sky-500 text-center text-white rounded text-xs font-bold transition-colors">Launch
+                class="block w-full py-2 bg-sky-600 hover:bg-sky-500 text-center text-white rounded text-xs font-bold transition-colors shadow">Launch
                 Sandbox</a>
             <a href="overview.html"
                 class="block w-full py-2 text-slate-400 hover:text-white text-center rounded text-xs font-bold transition-colors mt-2">←
@@ -160,7 +159,6 @@
     </aside>
 
     <!-- Main Content -->
-    <!-- Added pt-24 on mobile to account for the fixed header, resets on md -->
     <main class="flex-1 overflow-y-auto p-6 pt-24 md:p-10 lg:p-16 scroll-smooth custom-scrollbar w-full"
         id="main-scroll">
         <div class="max-w-5xl mx-auto pb-32">
@@ -168,7 +166,7 @@
             <header class="mb-16 border-b border-slate-800 pb-8">
                 <h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tight">Meta-Mind Master Reference</h1>
                 <p class="text-lg md:text-xl text-slate-400 leading-relaxed">
-                    Welcome to the definitive documentation for Meta-Mind v14.4. This wiki serves both daily users
+                    Welcome to the definitive documentation for Meta-Mind v14.9. This wiki serves both daily users
                     navigating the spatial interface and developers building federated companion applications.
                 </p>
             </header>
@@ -235,7 +233,7 @@
                     While "Add Child" creates strict hierarchical structures (solid lines), you can draw conceptual
                     relationships between any two nodes using the Two-Step Linking workflow (dotted lines).
                 </p>
-                <div class="bg-slate-900 border-l-4 border-amber-500 p-6 rounded-r-xl">
+                <div class="bg-slate-900 border-l-4 border-amber-500 p-6 rounded-r-xl shadow-lg">
                     <ol class="list-decimal pl-5 text-sm text-slate-300 space-y-3">
                         <li>Select your source node and click the <strong>Link (🔗)</strong> button on its Radial Menu.
                         </li>
@@ -260,32 +258,41 @@
                 </p>
                 <ul class="space-y-4">
                     <li
-                        class="bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-start gap-3">
-                        <span class="text-2xl">🗺️</span>
+                        class="bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-start gap-4 shadow">
+                        <span class="text-3xl mt-1">🗺️</span>
                         <div>
-                            <strong class="text-sky-400 text-sm">Celestial Map</strong>
+                            <strong class="text-sky-400 text-base">Celestial Map</strong>
                             <p class="text-sm text-slate-400 mt-1">The default spatial graph. Free-form dragging,
                                 physics engine enabled.</p>
                         </div>
                     </li>
                     <li
-                        class="bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-start gap-3">
-                        <span class="text-2xl">🔮</span>
+                        class="bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-start gap-4 shadow">
+                        <span class="text-3xl mt-1">🔮</span>
                         <div>
-                            <strong class="text-purple-400 text-sm">Orbital Focus (Magic Circle)</strong>
+                            <strong class="text-purple-400 text-base">Orbital Focus (Magic Circle)</strong>
                             <p class="text-sm text-slate-400 mt-1">A strict hierarchical view. Displays only the
                                 selected "Sun" node, its immediate "Planets" (children), and its "Halo" (parent).
                                 Clicking planets navigates deep into the tree without visual clutter.</p>
                         </div>
                     </li>
                     <li
-                        class="bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-start gap-3">
-                        <span class="text-2xl">🌐</span>
-                        <div>
-                            <strong class="text-emerald-400 text-sm">Web Architect</strong>
-                            <p class="text-sm text-slate-400 mt-1">A compiler engine. If your map uses
+                        class="bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col sm:flex-row sm:items-start gap-4 shadow relative overflow-hidden">
+                        <div class="absolute right-0 top-0 text-[120px] opacity-5">🌐</div>
+                        <span class="text-3xl mt-1 relative z-10">🌐</span>
+                        <div class="relative z-10">
+                            <strong class="text-emerald-400 text-base">Web Architect & Spatial Browser</strong>
+                            <p class="text-sm text-slate-400 mt-1 mb-2">A live HTML compiler. If your map uses
                                 <code>web-*</code> nodes, this engine dynamically compiles them into live, rendered
                                 HTML/Tailwind inside an iframe.</p>
+                            <div class="bg-slate-950 p-3 rounded border border-slate-800 text-xs text-slate-300">
+                                <strong class="text-white block mb-1">Advanced Iframe Integration:</strong>
+                                If you input a valid URL (e.g. <code>google.com</code> or
+                                <code>https://wikipedia.org</code>) into the payload of a <code>web-root</code> node,
+                                the engine will automatically mount the live website into the background iframe. Any
+                                children attached to that node will physically render <em>beneath</em> the live website.
+                                If a site employs X-Frame blocking, an "Open in New Tab" escape hatch appears.
+                            </div>
                         </div>
                     </li>
                 </ul>
@@ -295,22 +302,32 @@
             <section id="data-manager" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">5. The Data Manager</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
-                    Accessible via the "Phases" tab, the Data Manager is your command center for importing, exporting,
-                    and federation. It is built using stateful accordions.
+                    Accessible via the "Phases" tab, the Data Manager is your bidirectional command center for
+                    importing, exporting, and managing the local library.
                 </p>
-                <ul class="list-disc pl-5 text-sm text-slate-300 space-y-3">
-                    <li><strong>Saved Constellations (Library):</strong> Save your current session locally. Edit titles
-                        and metadata, or load them back into the canvas. You can embed saved maps into other maps using
-                        <strong>Portal (🌀)</strong> nodes.</li>
-                    <li><strong>Cloud Templates:</strong> Fetch read-only starter configurations (like software
-                        architecture or web structures) directly from an external database and instantiate them as
-                        submaps.</li>
-                    <li><strong>API Federation:</strong> Set push/pull endpoints to sync your graph with external local
-                        servers (e.g., Python Desktop daemons).</li>
-                    <li><strong>Raw JSON Exchange:</strong> Directly view the live state matrix. Native file pickers
-                        allow you to download the state as a <code>.json</code> file or import one directly.</li>
-                </ul>
+                <div class="space-y-6">
+                    <div>
+                        <h4 class="font-bold text-blue-400 mb-2">🌐 Cloud Templates</h4>
+                        <p class="text-sm text-slate-300">Provides read-only master templates (like pre-built website
+                            architecture). You can import these directly into your active workspace as recursive
+                            portals. Click "Upload" to upload external JSON templates to your local library.</p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-purple-400 mb-2">📚 Saved Constellations</h4>
+                        <p class="text-sm text-slate-300">Your personal repository. You can Save your active session,
+                            Load previous sessions, or click "Export" to download your entire constellation library as a
+                            single JSON array for backup. You can also export/download individual maps.</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
+                        <strong class="text-emerald-400 text-sm block mb-2">⚡ Intelligent Conflict Resolution</strong>
+                        <p class="text-xs text-slate-400">When uploading a single JSON mapstate or an Array of mapstates
+                            into the library, the engine automatically checks for ID collisions. If an exact duplicate
+                            exists, it skips it. If a modified version exists, it prompts you with a comparison of
+                            node/connection counts before overwriting.</p>
+                    </div>
+                </div>
             </section>
+
 
             <!-- ==========================================
                  PART II: DEVELOPER DOCS
@@ -376,9 +393,9 @@
                         <tbody>
                             <tr class="table-row">
                                 <td class="p-3 font-bold text-white">web-root</td>
-                                <td class="p-3"><code>&lt;body&gt;</code></td>
+                                <td class="p-3"><code>&lt;body&gt;</code> / <code>&lt;iframe&gt;</code></td>
                                 <td class="p-3">nav, hero, section, footer</td>
-                                <td class="p-3">Entry point for the compiler.</td>
+                                <td class="p-3">Mounts embedded URLs or basic HTML roots.</td>
                             </tr>
                             <tr class="table-row">
                                 <td class="p-3 font-bold text-white">web-nav</td>
@@ -389,14 +406,20 @@
                             <tr class="table-row">
                                 <td class="p-3 font-bold text-white">web-section</td>
                                 <td class="p-3"><code>&lt;section&gt;</code></td>
-                                <td class="p-3">text, image, card, button</td>
+                                <td class="p-3">text, image, button, link</td>
                                 <td class="p-3">Standard flex container.</td>
+                            </tr>
+                            <tr class="table-row">
+                                <td class="p-3 font-bold text-white">web-text</td>
+                                <td class="p-3"><code>&lt;p&gt;</code> / <code>&lt;h3&gt;</code></td>
+                                <td class="p-3 text-slate-500 italic">None</td>
+                                <td class="p-3">Renders text block w/ line breaks.</td>
                             </tr>
                             <tr class="table-row">
                                 <td class="p-3 font-bold text-white">web-link</td>
                                 <td class="p-3"><code>&lt;a&gt;</code></td>
-                                <td class="p-3 text-slate-500 italic">None (Leaf)</td>
-                                <td class="p-3">Content acts as href target.</td>
+                                <td class="p-3 text-slate-500 italic">None</td>
+                                <td class="p-3">Content payload acts as href target.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -405,10 +428,10 @@
 
             <!-- 8. JSON Schema -->
             <section id="json-schema" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
-                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">8. Federated JSON Schema</h3>
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">8. JSON Schema & Arrays</h3>
                 <p class="text-slate-400 leading-relaxed mb-4 text-sm">
-                    The JSON standard for importing/exporting mapstates. It is designed to be easily parsed by secondary
-                    languages (Python, Go, Rust). Visual positions (`x, y`) are segregated into the `data` sub-object.
+                    The JSON standard for importing/exporting mapstates. The v14.9 system can parse a single object OR
+                    an array `[{...}, {...}]` of mapstates during upload.
                 </p>
                 <pre><code>{
   "map_id": "u7b9v2z1x",
@@ -470,22 +493,27 @@
                 </p>
             </section>
 
-            <!-- 10. Federation APIs -->
-            <section id="federation-api" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
-                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">10. Companion APIs</h3>
+            <!-- 10. Federation Library -->
+            <section id="federation-library"
+                class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">10. Serverless Library Engine</h3>
                 <p class="text-slate-400 leading-relaxed mb-4">
-                    Meta-Mind is built to run alongside external environments like a Python Desktop Daemon. The Web
-                    Client acts as a visual interface, while backend processes handle heavy file I/O or AI.
+                    In v14.7, we deprecated <code>fetch()</code> calls to external JSON files to bypass local
+                    <code>file://</code> CORS restrictions. The engine now uses a globally mounted
+                    <code>MetaMindLibrary</code> object loaded via <code>meta-mind-library.js</code>.
                 </p>
                 <div class="bg-slate-900 border border-slate-800 rounded-lg p-5">
-                    <ul class="list-disc pl-5 text-sm text-slate-300 space-y-3">
-                        <li><strong>Push URL:</strong> The endpoint the web client will POST the active MapState JSON to
-                            (e.g., <code>localhost:8000/api/push</code>).</li>
-                        <li><strong>Pull URL:</strong> The endpoint the web client polls to fetch external state updates
-                            (e.g., <code>localhost:8000/api/pull</code>).</li>
-                        <li><strong>Template Manifest:</strong> A remote endpoint returning an array of available
-                            template objects (id, title, desc).</li>
-                    </ul>
+                    <h4 class="font-bold text-white mb-2 text-sm">How AI Integration Works</h4>
+                    <p class="text-sm text-slate-300 leading-relaxed mb-4">
+                        To add new templates generated by an LLM, you have two options:
+                    </p>
+                    <ol class="list-decimal pl-5 text-sm text-slate-300 space-y-3">
+                        <li><strong>Manual Source:</strong> Paste the generated JSON directly into the
+                            <code>defaults: [...]</code> array inside <code>meta-mind-library.js</code>.</li>
+                        <li><strong>Runtime Upload:</strong> Save the AI output as a <code>.json</code> file, open the
+                            Data Manager Phase in the app, and click the <strong>Upload Template</strong> button to
+                            write it permanently to your LocalStorage.</li>
+                    </ol>
                 </div>
             </section>
 

@@ -1,6 +1,6 @@
 /**
- * META-MIND PHASE ENGINE SYSTEM v14.5
- * Features: Tooltip-driven Linking UI & Data Manager Refinements.
+ * META-MIND PHASE ENGINE SYSTEM v14.9
+ * Features: Unified Constellation Import/Export UI.
  */
 
 class PhaseRegistrySystem {
@@ -14,7 +14,7 @@ class PhaseRegistrySystem {
         this.register(new UniversalPhaseEngine(kernel));
         this.register(new WebPhaseEngine(kernel));
         this.register(new OrbitalPhaseEngine(kernel));
-        this.register(new DataPhaseEngine(kernel));
+        this.register(new DataPhaseEngine(kernel)); 
     }
     register(engine) { this.engines.push(engine); }
     get(id) { return this.engines.find(e => e.id === id); }
@@ -27,12 +27,12 @@ class PhaseEngineBase {
 }
 
 class DataPhaseEngine extends PhaseEngineBase {
-    constructor(kernel) {
-        super(kernel);
-        this.id = 'data';
+    constructor(kernel) { 
+        super(kernel); 
+        this.id = 'data'; 
         this.ui = { templates: true, api: false, json: false, library: true, openItems: {} };
     }
-
+    
     toggle(section) {
         this.ui[section] = !this.ui[section];
         const container = document.getElementById('view-content');
@@ -44,10 +44,10 @@ class DataPhaseEngine extends PhaseEngineBase {
         const container = document.getElementById('view-content');
         if (container) this.render(container, this.kernel.state);
     }
-
+    
     render(container, state) {
         const lib = this.kernel.getLibrary();
-
+        
         container.innerHTML = `
             <div class="min-h-full w-full overflow-y-auto custom-scrollbar p-6 md:p-10 bg-slate-950 flex flex-col items-center">
                 <div class="max-w-3xl w-full flex flex-col gap-6 pb-20">
@@ -71,20 +71,37 @@ class DataPhaseEngine extends PhaseEngineBase {
                             
                             ${this.ui.templates ? `
                             <div class="p-5 border-t border-slate-800 flex flex-col gap-4 bg-slate-900">
-                                <p class="text-[11px] text-slate-400">Fetch public, read-only map templates from the global repository. Importing a template automatically drops a portal into your map and merges the template's graph structure via that portal.</p>
+                                <p class="text-[11px] text-slate-400">Manage your global template repository. You can import templates directly into your active workspace as recursive portals, or upload custom JSON templates to expand your library.</p>
                                 
-                                <button onclick="SC.actionLoadRemoteTemplates()" class="w-full py-2 bg-slate-800 hover:bg-blue-600 hover:text-white transition-colors text-xs font-bold rounded shadow border border-slate-700">Refresh Template Manifest</button>
+                                <div class="flex gap-2">
+                                    <button onclick="SC.actionLoadRemoteTemplates()" class="flex-1 py-2 bg-slate-800 hover:bg-blue-600 hover:text-white transition-colors text-xs font-bold rounded shadow border border-slate-700">🔄 Refresh Library</button>
+                                    <label class="flex-1 py-2 bg-slate-800 hover:bg-emerald-600 hover:text-white transition-colors text-xs font-bold rounded shadow border border-slate-700 cursor-pointer text-center flex items-center justify-center">
+                                        ⬆️ Upload Template
+                                        <input type="file" accept=".json" class="hidden" onchange="SC.actionUploadTemplateFile(event)">
+                                    </label>
+                                </div>
 
-                                <div class="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar pr-2 space-y-3">
+                                <div class="flex-1 overflow-y-auto max-h-[350px] custom-scrollbar pr-2 space-y-3 mt-2">
                                     ${(!state.session.remoteTemplates || state.session.remoteTemplates.length === 0) ? '<div class="text-center text-slate-600 text-xs py-6 italic border border-dashed border-slate-800 rounded-lg">No templates loaded. Click refresh.</div>' : ''}
                                     ${(state.session.remoteTemplates || []).map(tpl => `
-                                        <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl hover:border-blue-500 transition-colors group relative overflow-hidden flex justify-between items-center">
-                                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                            <div class="flex flex-col gap-1 pr-4">
-                                                <div class="font-bold text-sm text-slate-200">${tpl.title}</div>
-                                                <div class="text-[10px] text-slate-500">${tpl.desc} <span class="ml-2 px-1 bg-slate-800 rounded">${tpl.nodes} nodes</span></div>
+                                        <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl hover:border-blue-500 transition-colors group relative overflow-hidden flex flex-col gap-3">
+                                            <div class="absolute left-0 top-0 bottom-0 w-1 ${tpl.isCustom ? 'bg-emerald-500' : 'bg-blue-500'} opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                            
+                                            <div class="flex justify-between items-start">
+                                                <div class="flex flex-col gap-1 pr-4">
+                                                    <div class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                                                        ${tpl.title}
+                                                        ${tpl.isCustom ? '<span class="px-1.5 py-0.5 bg-emerald-900/50 text-emerald-400 text-[8px] rounded border border-emerald-800 uppercase tracking-widest">Custom</span>' : '<span class="px-1.5 py-0.5 bg-blue-900/50 text-blue-400 text-[8px] rounded border border-blue-800 uppercase tracking-widest">Default</span>'}
+                                                    </div>
+                                                    <div class="text-[10px] text-slate-500">${tpl.desc} <span class="ml-2 px-1 bg-slate-800 rounded">${tpl.nodes} nodes</span></div>
+                                                </div>
                                             </div>
-                                            <button onclick="SC.actionSpawnTemplate('${tpl.id}')" class="bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white text-[10px] py-2 px-4 rounded font-bold transition-colors border border-slate-700 shrink-0 shadow">Import</button>
+
+                                            <div class="flex gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                                                <button onclick="SC.actionSpawnTemplate('${tpl.id}')" class="flex-1 bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white text-[10px] py-1.5 rounded font-bold transition-colors border border-slate-700 shadow">Import to Map</button>
+                                                <button onclick="SC.actionDownloadTemplate('${tpl.id}')" class="bg-slate-800 hover:bg-sky-600 text-slate-300 hover:text-white text-[10px] py-1.5 px-3 rounded font-bold transition-colors border border-slate-700 shadow" title="Download JSON">⬇️</button>
+                                                ${tpl.isCustom ? `<button onclick="SC.actionDeleteRemoteTemplate('${tpl.id}')" class="bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white text-[10px] py-1.5 px-3 rounded font-bold transition-colors border border-slate-700 shadow" title="Delete Custom Template">🗑️</button>` : ''}
+                                            </div>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -104,11 +121,23 @@ class DataPhaseEngine extends PhaseEngineBase {
                             
                             ${this.ui.library ? `
                             <div class="p-5 border-t border-slate-800 flex flex-col gap-4 bg-slate-900">
-                                <button onclick="SC.actionSaveCurrentToLibrary()" class="w-full py-3 border border-purple-500/50 hover:bg-purple-600/20 text-purple-400 hover:text-purple-300 font-bold text-xs uppercase tracking-widest rounded-lg transition-colors bg-slate-950">
-                                    + Save Current Session
-                                </button>
+                                
+                                <div class="flex flex-col sm:flex-row gap-2">
+                                    <button onclick="SC.actionSaveCurrentToLibrary()" class="flex-1 py-3 border border-purple-500/50 hover:bg-purple-600/20 text-purple-400 hover:text-purple-300 font-bold text-xs uppercase tracking-widest rounded-lg transition-colors bg-slate-950">
+                                        + Save Current Session
+                                    </button>
+                                    <div class="flex flex-1 gap-2">
+                                        <button onclick="SC.actionDownloadLibrary()" class="flex-1 py-3 bg-slate-800 hover:bg-sky-600 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition-colors border border-slate-700 shadow" title="Download all saved constellations as a single library file">
+                                            💾 Export
+                                        </button>
+                                        <label class="flex-1 py-3 bg-slate-800 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition-colors border border-slate-700 shadow cursor-pointer text-center flex items-center justify-center">
+                                            📂 Import
+                                            <input type="file" accept=".json" class="hidden" onchange="SC.actionUploadLibraryFile(event)">
+                                        </label>
+                                    </div>
+                                </div>
 
-                                <div class="flex-1 overflow-y-auto max-h-[500px] custom-scrollbar pr-2 space-y-3" id="library-list">
+                                <div class="flex-1 overflow-y-auto max-h-[500px] custom-scrollbar pr-2 space-y-3 mt-2" id="library-list">
                                     ${lib.length === 0 ? '<div class="text-center text-slate-600 text-xs py-10 italic border border-dashed border-slate-800 rounded-lg">Library is empty.</div>' : ''}
                                     ${lib.map(item => `
                                         <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden group relative">
@@ -145,9 +174,10 @@ class DataPhaseEngine extends PhaseEngineBase {
                                                     <textarea id="lib-notes-${item.map_id}" class="w-full h-20 bg-slate-950 border border-slate-700 rounded p-2 text-xs text-slate-300 outline-none focus:border-purple-500 custom-scrollbar resize-none" placeholder="Add descriptions or tags...">${this.escapeHTML(item.meta.notes || '')}</textarea>
                                                 </div>
                                                 <div class="flex gap-2 mt-2">
-                                                    <button onclick="SC.actionUpdateLibraryItem('${item.map_id}')" class="flex-1 bg-slate-800 hover:bg-emerald-600 text-white text-[10px] py-2 rounded font-bold transition-colors border border-slate-700">Save Edits</button>
-                                                    <button onclick="SC.actionLoadFromLibrary('${item.map_id}')" class="flex-1 bg-slate-800 hover:bg-sky-600 text-white text-[10px] py-2 rounded font-bold transition-colors border border-slate-700">Load Map</button>
-                                                    <button onclick="SC.actionDeleteFromLibrary('${item.map_id}')" class="bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white text-[10px] py-2 px-4 rounded font-bold transition-colors border border-slate-700">✕</button>
+                                                    <button onclick="SC.actionUpdateLibraryItem('${item.map_id}')" class="flex-1 bg-slate-800 hover:bg-emerald-600 text-white text-[10px] py-2 rounded font-bold transition-colors border border-slate-700">Save</button>
+                                                    <button onclick="SC.actionLoadFromLibrary('${item.map_id}')" class="flex-1 bg-slate-800 hover:bg-sky-600 text-white text-[10px] py-2 rounded font-bold transition-colors border border-slate-700">Load</button>
+                                                    <button onclick="SC.actionDownloadSingleConstellation('${item.map_id}')" class="flex-1 bg-slate-800 hover:bg-indigo-600 text-white text-[10px] py-2 rounded font-bold transition-colors border border-slate-700" title="Download this map">Download</button>
+                                                    <button onclick="SC.actionDeleteFromLibrary('${item.map_id}')" class="bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white text-[10px] py-2 px-3 rounded font-bold transition-colors border border-slate-700">✕</button>
                                                 </div>
                                             </div>
                                             ` : ''}
@@ -223,7 +253,6 @@ class DataPhaseEngine extends PhaseEngineBase {
     }
 }
 
-// --- INSPECTOR ENGINE ---
 class UniversalPhaseEngine extends PhaseEngineBase {
     constructor(kernel) { super(kernel); this.id = 'inspector'; }
     render(container, state) {
@@ -235,24 +264,22 @@ class UniversalPhaseEngine extends PhaseEngineBase {
             return;
         }
 
-        // DOM DIFFING: Preserves mobile keyboard focus
         if (container.dataset.renderedNodeId === node.id) {
             const titleEl = container.querySelector('#edit-title');
             if (titleEl && document.activeElement !== titleEl) titleEl.value = node.title;
-
+            
             const typeEl = container.querySelector('#edit-type');
             if (typeEl && document.activeElement !== typeEl) typeEl.value = node.type;
-
+            
             const ta = container.querySelector('textarea');
             if (ta && document.activeElement !== ta) ta.value = node.content || '';
-
-            // RED/GREEN LINKING UPDATE (Visuals Only)
+            
             const actionsContainer = container.querySelector('#node-actions-container');
             if (actionsContainer) {
                 const isLinking = this.kernel.linkingMode;
                 let linkBtnClass = "p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors border-2 border-transparent";
                 let linkTitle = "Link to Node";
-
+                
                 if (isLinking) {
                     if (node.id === this.kernel.linkingSourceId) {
                         linkBtnClass = "p-2 bg-slate-900 border-2 border-red-500 text-red-500 rounded font-bold shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all";
@@ -262,7 +289,7 @@ class UniversalPhaseEngine extends PhaseEngineBase {
                         linkTitle = "Confirm Link";
                     }
                 }
-
+                
                 actionsContainer.innerHTML = `
                     <button onclick="SC.actionLink('${node.id}')" class="${linkBtnClass}" title="${linkTitle}">🔗</button>
                     <button onclick="SC.actionAddChild('${node.id}')" class="p-2 bg-slate-800 hover:bg-emerald-600 rounded text-slate-300 hover:text-white transition-colors" title="Add Child">➕</button>
@@ -275,10 +302,10 @@ class UniversalPhaseEngine extends PhaseEngineBase {
 
         container.dataset.renderedNodeId = node.id;
         const isLinking = this.kernel.linkingMode;
-
+        
         let linkBtnClass = "p-2 bg-slate-800 hover:bg-sky-600 rounded text-slate-300 hover:text-white transition-colors border-2 border-transparent";
         let linkTitle = "Link to Node";
-
+        
         if (isLinking) {
             if (node.id === this.kernel.linkingSourceId) {
                 linkBtnClass = "p-2 bg-slate-900 border-2 border-red-500 text-red-500 rounded font-bold shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all";
@@ -370,7 +397,7 @@ class OrbitalPhaseEngine extends PhaseEngineBase {
         if (!sunId) { container.innerHTML = '<div class="text-slate-500 p-10 text-center">Select a node to enter orbit.</div>'; return; }
         const sun = state.nodes.find(n => n.id === sunId);
         const parentConn = state.connections.find(c => c.to === sunId && c.type === 'structural');
-
+        
         if (parentConn) {
             const parent = state.nodes.find(n => n.id === parentConn.from);
             if (parent) {
@@ -392,7 +419,7 @@ class OrbitalPhaseEngine extends PhaseEngineBase {
 
         const kids = state.connections.filter(c => c.from === sunId).map(c => state.nodes.find(n => n.id === c.to));
         kids.forEach((k, i) => {
-            if (!k) return;
+            if(!k) return;
             const angle = (i / kids.length) * Math.PI * 2 - Math.PI / 2;
             const r = 220;
             const planet = this.createBody(k, 'child');
@@ -421,31 +448,86 @@ class WebPhaseEngine extends PhaseEngineBase {
     constructor(kernel) { super(kernel); this.id = 'web'; }
     render(container, state) {
         container.innerHTML = ''; container.style.background = '#f8fafc';
-        const root = state.nodes.find(n => n.type === 'web-root') || state.nodes[0];
+        
+        let root = null;
+        const selNode = state.nodes.find(n => n.id === state.session.selectedId);
+        if (selNode && selNode.type === 'web-root') root = selNode;
+        if (!root) root = state.nodes.find(n => n.type === 'web-root') || state.nodes[0];
+        
         if (!root) { container.innerHTML = `<div class="flex items-center justify-center h-full text-slate-400">No Web Root Found</div>`; return; }
+        
         const html = this.generateHTML(root, state);
         const frame = document.createElement('iframe');
         frame.className = "w-full h-full bg-white shadow-inner"; frame.style.border = "none"; frame.srcdoc = html;
         container.appendChild(frame);
     }
+
     generateHTML(root, state) {
         const getKids = (id) => state.connections.filter(c => c.from === id).map(c => state.nodes.find(n => n.id === c.to)).filter(n => n);
+        
         const render = (node) => {
             const kids = getKids(node.id).map(render).join('');
             const title = this.escapeHTML(node.title);
-            let content = node.content;
+            let content = node.content ? node.content.trim() : '';
+            
             if (node.type === 'web-link') {
-                if (state.nodes.find(n => n.id === content)) content = `#${content}`;
-                else if (content && !content.startsWith('http') && !content.startsWith('#')) content = `https://${content}`;
-                return `<a id="${node.id}" href="${content}" class="text-blue-600 hover:underline block py-1">${title}</a>`;
+                if (state.nodes.find(n => n.id === content)) content = `#${content}`; 
+                else if (content && !content.match(/^(https?:\/\/|file:\/\/|\/|\.\/|\.\.\/|#)/i)) content = `https://${content}`; 
+                return `<a id="${node.id}" href="${content}" class="text-blue-600 hover:underline block py-1 font-semibold">${title}</a>`;
             }
+            
             switch (node.type) {
-                case 'web-root': return `<html><head><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-50 font-sans text-slate-900">${kids}</body></html>`;
-                case 'web-nav': return `<nav class="flex items-center gap-6 p-4 bg-white shadow-sm sticky top-0 z-50 border-b border-slate-100">${kids}</nav>`;
-                case 'web-hero': return `<header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-24 px-8 text-center"><h1 class="text-5xl font-black mb-6 tracking-tight">${title}</h1><div class="text-xl opacity-90 max-w-2xl mx-auto">${content || ''}</div>${kids}</header>`;
-                case 'web-section': return `<section id="${node.id}" class="py-16 px-8 max-w-5xl mx-auto">${kids}</section>`;
-                case 'web-button': return `<button class="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition-colors mt-4 inline-block">${title}</button>`;
-                default: return `<div id="${node.id}" class="mb-6"><h3 class="font-bold text-lg text-slate-800 mb-2">${title}</h3><div class="prose text-slate-600 leading-relaxed">${content || ''}</div>${kids}</div>`;
+                case 'web-root': 
+                    let iframeHtml = '';
+                    let isUrl = false;
+                    let url = content;
+
+                    if (content && !/\n/.test(content)) { 
+                        const hasSpaces = /\s/.test(content);
+                        const hasProtocol = /^(https?:\/\/|file:\/\/)/i.test(content);
+                        const startsWithWww = /^www\./i.test(content);
+                        const isLocalPath = /^(\.\/|\.\.\/|\/)/.test(content) || /\.html?$/i.test(content);
+                        const looksLikeDomain = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/?.*)?$/.test(content) && !hasSpaces;
+                        const isLocalHost = /^localhost(:\d+)?/i.test(content) || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?/.test(content);
+
+                        if (hasProtocol || isLocalPath) {
+                            isUrl = true;
+                        } else if (startsWithWww || looksLikeDomain) {
+                            isUrl = true;
+                            url = 'https://' + content;
+                        } else if (isLocalHost && !hasSpaces) {
+                            isUrl = true;
+                            url = 'http://' + content;
+                        }
+                    }
+
+                    if (isUrl) {
+                        const iframeClass = kids ? 'w-full h-[85vh] border-none block' : 'w-full h-screen border-none block';
+                        
+                        const externalLinkBtn = `
+                            <div class="absolute top-4 right-8 z-50">
+                                <a href="${url}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 px-4 py-2 bg-slate-900/80 hover:bg-sky-600 text-white text-xs font-bold rounded-full backdrop-blur border border-slate-700 shadow-xl transition-colors">
+                                    <span>Open in New Tab</span>
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                </a>
+                            </div>
+                        `;
+                        
+                        iframeHtml = `<div class="relative w-full">${externalLinkBtn}<iframe src="${url}" class="${iframeClass}" title="Embedded Webpage"></iframe></div>`;
+                    }
+
+                    let textContent = (!isUrl && content) ? `<div class="py-12 px-8 max-w-5xl mx-auto prose text-slate-700">${content.replace(/\n/g, '<br>')}</div>` : '';
+                    const kidsContainer = kids ? `<div class="${isUrl ? 'relative z-10 bg-slate-50 shadow-[0_-20px_50px_rgba(0,0,0,0.15)] pt-10' : ''}">${kids}</div>` : '';
+                    
+                    return `<html><head><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-50 font-sans text-slate-900 overflow-x-hidden m-0 p-0">${iframeHtml}${textContent}${kidsContainer}</body></html>`;
+                    
+                case 'web-nav': return `<nav class="flex items-center justify-between gap-6 p-6 bg-white shadow-sm sticky top-0 z-50 border-b border-slate-100"><div class="font-black text-xl tracking-tighter">MyBrand</div><div class="flex items-center gap-6">${kids}</div></nav>`;
+                case 'web-hero': return `<header class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white py-32 px-8 text-center"><h1 class="text-6xl font-black mb-6 tracking-tight">${title}</h1><div class="text-xl text-indigo-200 max-w-2xl mx-auto mb-10">${content || ''}</div><div>${kids}</div></header>`;
+                case 'web-section': return `<section id="${node.id}" class="py-20 px-8 max-w-5xl mx-auto"><h2 class="text-3xl font-black mb-12 text-center">${title}</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-12">${kids}</div></section>`;
+                case 'web-button': return `<button class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg shadow-indigo-500/30 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all inline-block">${title}</button>`;
+                case 'web-text': return `<div id="${node.id}" class="mb-4"><h3 class="font-bold text-xl text-slate-800 mb-3">${title}</h3><p class="text-slate-600 leading-relaxed">${content.replace(/\n/g, '<br>')}</p>${kids}</div>`;
+                case 'web-footer': return `<footer class="py-12 px-8 mt-12 border-t border-slate-200 text-center bg-slate-100">${kids || `<p class="text-slate-500 text-sm font-semibold">${content || title}</p>`}</footer>`;
+                default: return `<div id="${node.id}" class="mb-6"><h3 class="font-bold text-lg text-slate-800 mb-2">${title}</h3><div class="prose text-slate-600 leading-relaxed">${content ? content.replace(/\n/g, '<br>') : ''}</div>${kids}</div>`;
             }
         };
         return render(root);
