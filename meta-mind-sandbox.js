@@ -1,6 +1,6 @@
 /**
- * META-MIND SANDBOX CONTROLLER v14.10
- * Features: Apply Templates to existing Nodes & Profile CMS sync.
+ * META-MIND SANDBOX CONTROLLER v14.11
+ * Features: Spatial Search, Auto-Parent Expansion, and Highlighting.
  */
 
 class SandboxController {
@@ -33,6 +33,9 @@ class SandboxController {
         this.activeRadialNodeId = null;
         this.userHasPanned = false;
         
+        // NEW: Tracks what to highlight in the inspector
+        this.activeSearchHighlight = null; 
+        
         this.activePointers = new Map();
         this.lastPinchDist = null;
         this.lastPinchCenter = null;
@@ -47,7 +50,6 @@ class SandboxController {
 
         this.initEvents(); 
         
-        // Auto-load template manifest into memory on boot for the Inspector dropdowns
         setTimeout(() => this.actionLoadRemoteTemplates(), 200);
 
         this.kernel.subscribe(this.render.bind(this));
@@ -67,6 +69,13 @@ class SandboxController {
         }
     }
 
+    escapeHTML(str) { 
+        if(!str) return '';
+        const d = document.createElement('div'); 
+        d.textContent = str; 
+        return d.innerHTML; 
+    }
+
     initEvents() {
         window.SC = this; 
         const vp = this.dom.viewport;
@@ -77,6 +86,83 @@ class SandboxController {
         window.addEventListener('pointercancel', (e) => this.handlePointerUp(e));
         vp.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
         window.addEventListener('resize', () => this.render());
+
+        // --- MAP SEARCH BAR LOGIC ---
+        const searchInput = document.getElementById('map-search-input');
+        const searchResults = document.getElementById('map-search-results');
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                if (!query) {
+                    searchResults.classList.add('hidden');
+                    searchResults.classList.remove('flex');
+                    return;
+                }
+                
+                const results = this.kernel.state.nodes.filter(n => 
+                    (n.title && n.title.toLowerCase().includes(query)) || 
+                    (n.content && n.content.toLowerCase().includes(query)) ||
+                    (n.type && n.type.toLowerCase().includes(query))
+                );
+                
+                searchResults.innerHTML = '';
+                if (results.length === 0) {
+                    searchResults.innerHTML = '<div class="text-xs text-slate-500 text-center py-2">No matches found in active map.</div>';
+                } else {
+                    results.forEach(n => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2 hover:bg-slate-800 rounded cursor-pointer transition-colors border border-transparent hover:border-slate-700 flex flex-col gap-1';
+                        
+                        let matchWhere = 'title';
+                        if (n.content && n.content.toLowerCase().includes(query) && !(n.title && n.title.toLowerCase().includes(query))) {
+                            matchWhere = 'content';
+                        }
+                        
+                        div.innerHTML = `<div class="text-xs font-bold text-sky-400">${this.escapeHTML(n.title)} <span class="text-[9px] text-slate-500 uppercase ml-1">${n.type}</span></div>
+                                         <div class="text-[10px] text-slate-400 truncate">${this.escapeHTML(n.content || '')}</div>`;
+                        
+                        div.onclick = () => {
+                            searchInput.value = '';
+                            searchResults.classList.add('hidden');
+                            searchResults.classList.remove('flex');
+                            
+                            // 1. Force Uncollapse Parents if hidden
+                            let currentId = n.id;
+                            while (true) {
+                                const parentConn = this.kernel.state.connections.find(c => c.to === currentId && c.type === 'structural');
+                                if (!parentConn) break;
+                                const parentNode = this.kernel.state.nodes.find(p => p.id === parentConn.from);
+                                if (parentNode) {
+                                    parentNode.data.collapsed = false;
+                                    currentId = parentNode.id;
+                                } else break;
+                            }
+
+                            // 2. Set Focus and Highlight
+                            this.activeSearchHighlight = { nodeId: n.id, field: matchWhere, query: query };
+                            this.userHasPanned = false; // Forces camera to glide to node!
+                            
+                            this.actionEdit(n.id);
+                            
+                            // Slight delay ensures the UI picks up the highlight state in case it was fast-diffed
+                            setTimeout(() => this.render(), 50);
+                        };
+                        searchResults.appendChild(div);
+                    });
+                }
+                searchResults.classList.remove('hidden');
+                searchResults.classList.add('flex');
+            });
+
+            // Hide results when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.classList.add('hidden');
+                    searchResults.classList.remove('flex');
+                }
+            });
+        }
     }
 
     toggleSidebar() {
@@ -386,7 +472,6 @@ class SandboxController {
         this.kernel.loadRemoteTemplates();
     }
     
-    // NEW: Applies a template to the selected node natively
     async actionApplyTemplateToNode(nodeId, tplId) {
         try {
             const tplData = await this.kernel.bridge.fetchTemplateData(tplId);
@@ -399,7 +484,6 @@ class SandboxController {
         }
     }
     
-    // NEW: Profile CMS Data Syncer
     actionUpdateProfileField(nodeId, field, value) {
         this.kernel.updateProfileField(nodeId, field, value);
     }

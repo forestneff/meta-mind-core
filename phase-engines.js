@@ -1,6 +1,6 @@
 /**
- * META-MIND PHASE ENGINE SYSTEM v14.10.1
- * Features: Intelligent Web Architect URL Overlays & Metadata Scraping.
+ * META-MIND PHASE ENGINE SYSTEM v14.11
+ * Features: Dynamic Search Highlighting and Inspector UX Refinements.
  */
 
 class PhaseRegistrySystem {
@@ -276,12 +276,19 @@ class UniversalPhaseEngine extends PhaseEngineBase {
             return;
         }
 
+        // Check if there is an active search that demands a UI highlight pulse
+        const highlight = window.SC && window.SC.activeSearchHighlight;
+        const isMatch = highlight && highlight.nodeId === node.id;
+
+        // --- FAST DOM DIFFING (Preserves Focus while typing) ---
         if (container.dataset.renderedNodeId === node.id) {
             const titleEl = container.querySelector('#edit-title');
             if (titleEl && document.activeElement !== titleEl) titleEl.value = node.title;
             
             const typeEl = container.querySelector('#edit-type');
             if (typeEl && document.activeElement !== typeEl) typeEl.value = node.type;
+            
+            const ta = container.querySelector('textarea');
             
             if (node.type === 'profile') {
                 let pData = {};
@@ -291,10 +298,27 @@ class UniversalPhaseEngine extends PhaseEngineBase {
                     const field = inp.dataset.field;
                     const val = pData[field] || '';
                     if (document.activeElement !== inp && inp.value !== val) inp.value = val;
+                    
+                    // Inject Pulse via Fast-Diff
+                    if (isMatch && highlight.query && val.toLowerCase().includes(highlight.query)) {
+                        inp.classList.add('ring-2', 'ring-sky-500', 'shadow-[0_0_15px_rgba(56,189,248,0.5)]', 'animate-pulse');
+                        setTimeout(() => { inp.classList.remove('ring-2', 'ring-sky-500', 'shadow-[0_0_15px_rgba(56,189,248,0.5)]', 'animate-pulse'); window.SC.activeSearchHighlight = null; }, 3000);
+                    }
                 });
             } else {
-                const ta = container.querySelector('textarea');
                 if (ta && document.activeElement !== ta) ta.value = node.content || '';
+                
+                // Inject Pulse via Fast-Diff (Raw Text)
+                if (isMatch && highlight.field === 'content' && ta) {
+                    ta.classList.add('ring-2', 'ring-sky-500', 'shadow-[0_0_15px_rgba(56,189,248,0.5)]', 'animate-pulse');
+                    setTimeout(() => { ta.classList.remove('ring-2', 'ring-sky-500', 'shadow-[0_0_15px_rgba(56,189,248,0.5)]', 'animate-pulse'); window.SC.activeSearchHighlight = null; }, 3000);
+                }
+            }
+
+            // Inject Pulse via Fast-Diff (Title)
+            if (isMatch && highlight.field === 'title' && titleEl) {
+                titleEl.classList.add('ring-2', 'ring-sky-500', 'shadow-[0_0_15px_rgba(56,189,248,0.5)]', 'animate-pulse');
+                setTimeout(() => { titleEl.classList.remove('ring-2', 'ring-sky-500', 'shadow-[0_0_15px_rgba(56,189,248,0.5)]', 'animate-pulse'); window.SC.activeSearchHighlight = null; }, 3000);
             }
             
             const actionsContainer = container.querySelector('#node-actions-container');
@@ -338,7 +362,21 @@ class UniversalPhaseEngine extends PhaseEngineBase {
             }
         }
 
-        // --- PAYLOAD RENDERER (CMS or Raw Text) ---
+        // Define base classes
+        let titleClass = "w-full bg-slate-800 border border-slate-700 text-white p-2 rounded text-sm focus:border-sky-500 outline-none transition-all duration-300";
+        let contentClass = "w-full flex-1 bg-slate-900 border border-slate-700 text-white p-2 rounded text-sm font-mono focus:border-sky-500 outline-none resize-none shadow-inner mt-1 min-h-[100px] transition-all duration-300";
+        
+        // Full Render Highlight Injection
+        if (isMatch) {
+            if (highlight.field === 'title') {
+                titleClass += " ring-2 ring-sky-500 shadow-[0_0_15px_rgba(56,189,248,0.5)] animate-pulse";
+                setTimeout(() => { if(window.SC) { window.SC.activeSearchHighlight = null; window.SC.render(); } }, 3000);
+            } else if (highlight.field === 'content' && node.type !== 'profile') {
+                contentClass += " ring-2 ring-sky-500 shadow-[0_0_15px_rgba(56,189,248,0.5)] animate-pulse";
+                setTimeout(() => { if(window.SC) { window.SC.activeSearchHighlight = null; window.SC.render(); } }, 3000);
+            }
+        }
+
         let contentAreaHtml = '';
         if (node.type === 'profile') {
             let pData = {};
@@ -346,33 +384,40 @@ class UniversalPhaseEngine extends PhaseEngineBase {
             const fields = ['Name', 'Email', 'Phone', 'Address'];
             contentAreaHtml = `<div class="flex flex-col gap-3 mt-1">`;
             fields.forEach(f => {
+                let pInputClass = "profile-input bg-slate-900 border border-slate-700 text-white p-2 rounded text-sm focus:border-sky-500 outline-none shadow-inner transition-all duration-300";
+                const val = pData[f] || '';
+                
+                if (isMatch && highlight.query && val.toLowerCase().includes(highlight.query)) {
+                    pInputClass += " ring-2 ring-sky-500 shadow-[0_0_15px_rgba(56,189,248,0.5)] animate-pulse";
+                    setTimeout(() => { if(window.SC) { window.SC.activeSearchHighlight = null; window.SC.render(); } }, 3000);
+                }
+
                 contentAreaHtml += `
                     <div class="flex flex-col gap-1">
                         <label class="text-[10px] font-bold text-slate-500 tracking-wider">${f}</label>
-                        <input type="text" class="profile-input bg-slate-900 border border-slate-700 text-white p-2 rounded text-sm focus:border-sky-500 outline-none shadow-inner" data-field="${f}" value="${this.escapeHTML(pData[f] || '')}" oninput="SC.actionUpdateProfileField('${node.id}', '${f}', this.value)">
+                        <input type="text" class="${pInputClass}" data-field="${f}" value="${this.escapeHTML(val)}" oninput="SC.actionUpdateProfileField('${node.id}', '${f}', this.value)">
                     </div>
                 `;
             });
             contentAreaHtml += `</div>`;
         } else if (node.type === 'portal') {
             const lib = this.kernel.getLibrary();
-            contentAreaHtml = `<select id="portal-sel" class="w-full bg-slate-800 border border-slate-700 p-2 rounded text-xs text-white outline-none focus:border-sky-500 mt-1">
+            contentAreaHtml = `<select id="portal-sel" class="w-full bg-slate-800 border border-slate-700 p-2 rounded text-xs text-white outline-none focus:border-sky-500 mt-1 transition-all duration-300">
                 <option value="">-- Select Destination --</option>
                 ${lib.map(c => `<option value="${c.map_id}" ${node.content === c.map_id ? 'selected' : ''}>${c.meta.title}</option>`).join('')}
             </select>
             <button onclick="SC.actionEnterPortal('${node.id}')" class="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded shadow transition-colors">Enter Portal 🌀</button>`;
         } else {
-            contentAreaHtml = `<textarea id="raw-content" class="w-full flex-1 bg-slate-900 border border-slate-700 text-white p-2 rounded text-sm font-mono focus:border-sky-500 outline-none resize-none shadow-inner mt-1">${node.content || ''}</textarea>`;
+            contentAreaHtml = `<textarea id="raw-content" class="${contentClass}">${node.content || ''}</textarea>`;
         }
 
-        // --- TEMPLATE SELECTOR INJECTOR ---
         let templateHtml = '';
         const tpls = state.session.remoteTemplates || [];
         const applicableTemplates = tpls.filter(t => t.target_type === node.type || t.target_type === 'any');
         
         if (applicableTemplates.length > 0) {
             templateHtml = `
-                <div class="mt-4 pt-4 border-t border-slate-800">
+                <div class="mt-4 pt-4 border-t border-slate-800 shrink-0">
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Apply Structure</label>
                     <select class="w-full bg-slate-800 border border-slate-700 text-sky-400 p-2 rounded text-xs focus:border-sky-500 outline-none" onchange="if(this.value) { SC.actionApplyTemplateToNode('${node.id}', this.value); this.value=''; }">
                         <option value="">-- Choose Template --</option>
@@ -383,24 +428,24 @@ class UniversalPhaseEngine extends PhaseEngineBase {
         }
 
         container.innerHTML = `
-            <div class="p-4 flex flex-col h-full gap-4 relative">
-                <div>
+            <div class="p-4 flex flex-col min-h-full gap-4 relative">
+                <div class="shrink-0">
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Title</label>
-                    <input id="edit-title" value="${this.escapeHTML(node.title)}" class="w-full bg-slate-800 border border-slate-700 text-white p-2 rounded text-sm focus:border-sky-500 outline-none transition-colors">
+                    <input id="edit-title" value="${this.escapeHTML(node.title)}" class="${titleClass}">
                 </div>
-                <div>
+                <div class="shrink-0">
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Type</label>
-                    <select id="edit-type" class="w-full bg-slate-800 border border-slate-700 text-white p-2 rounded text-sm focus:border-sky-500 outline-none"></select>
+                    <select id="edit-type" class="w-full bg-slate-800 border border-slate-700 text-white p-2 rounded text-sm focus:border-sky-500 outline-none transition-all duration-300"></select>
                 </div>
                 
-                <div class="flex-1 flex flex-col min-h-0">
+                <div class="flex-1 flex flex-col min-h-0 shrink-0">
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Content / Payload</label>
                     ${contentAreaHtml}
                 </div>
                 
                 ${templateHtml}
 
-                <div class="pt-4 border-t border-slate-800 mt-auto">
+                <div class="pt-4 border-t border-slate-800 mt-auto shrink-0">
                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Node Actions</label>
                     <div id="node-actions-container" class="grid grid-cols-4 gap-2">
                         <button onclick="SC.actionLink('${node.id}')" class="${linkBtnClass}" title="${linkTitle}">🔗</button>
@@ -409,7 +454,7 @@ class UniversalPhaseEngine extends PhaseEngineBase {
                         <button onclick="SC.actionDelete('${node.id}')" class="p-2 bg-slate-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors flex justify-center items-center" title="Delete Downstream">🗑️</button>
                     </div>
                 </div>
-                <div class="text-[9px] text-slate-600 font-mono text-center pt-2">ID: ${node.id}</div>
+                <div class="text-[9px] text-slate-600 font-mono text-center pt-2 shrink-0">ID: ${node.id}</div>
             </div>
         `;
 
@@ -550,11 +595,10 @@ class WebPhaseEngine extends PhaseEngineBase {
                     if (isUrl) {
                         const iframeClass = kids ? 'w-full h-[85vh] border-none block' : 'w-full h-screen border-none block';
                         
-                        // Intelligent Escape Hatch & Open-Graph Overlay
                         const externalLinkBtn = `
-                            <div id="preview-overlay" class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm pointer-events-auto">
+                            <div id="preview-overlay" class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm pointer-events-auto transition-opacity duration-300">
                                 <div class="bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl max-w-md w-full flex flex-col items-center text-center relative overflow-hidden">
-                                    <button onclick="document.getElementById('preview-overlay').style.display='none'" class="absolute top-3 right-3 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-full p-1.5 transition-colors" title="Hide Preview to view iframe">
+                                    <button onclick="const el = document.getElementById('preview-overlay'); if(el) { el.style.opacity='0'; setTimeout(()=>el.style.display='none', 300); }" class="absolute top-3 right-3 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-full p-1.5 transition-colors" title="Hide Preview to view iframe">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                     </button>
                                     <div id="meta-img" class="hidden w-full h-32 bg-cover bg-center rounded-lg mb-4 border border-slate-800 shadow-inner"></div>
@@ -605,7 +649,12 @@ class WebPhaseEngine extends PhaseEngineBase {
                             </script>
                         `;
                         
-                        iframeHtml = `<div class="relative w-full h-full">${externalLinkBtn}<iframe src="${url}" class="${iframeClass}" title="Embedded Webpage"></iframe></div>`;
+                        iframeHtml = `
+                            <div class="relative w-full h-full">
+                                ${externalLinkBtn}
+                                <iframe src="${url}" class="${iframeClass}" title="Embedded Webpage" onload="const el = document.getElementById('preview-overlay'); if(el) { el.style.opacity = '0'; setTimeout(() => el.style.display = 'none', 300); }"></iframe>
+                            </div>
+                        `;
                     }
 
                     let textContent = (!isUrl && content) ? `<div class="py-12 px-8 max-w-5xl mx-auto prose text-slate-700">${content.replace(/\n/g, '<br>')}</div>` : '';
