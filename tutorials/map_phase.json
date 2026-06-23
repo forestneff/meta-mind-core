@@ -1,0 +1,27 @@
+[
+    {
+        "text": "The Map Phase is your primary structural view. Let's make sure we are on the Map Phase.",
+        "target": "#btn-phase-map",
+        "requireClick": false
+    },
+    {
+        "text": "Nodes represent data objects. Want to edit one? Let's open the Inspector.",
+        "target": "#btn-sidebar-toggle",
+        "requireClick": false
+    },
+    {
+        "text": "The Inspector allows you to modify properties, add structural children, or delete nodes.",
+        "target": "#sidebar-content",
+        "requireClick": false
+    },
+    {
+        "text": "You can add a brand new unconnected node using the 'Add Node' button in the toolbar.",
+        "target": "#btn-add",
+        "requireClick": false
+    },
+    {
+        "text": "Let's close the inspector for now.",
+        "target": "#btn-sidebar-toggle",
+        "requireClick": false
+    }
+]

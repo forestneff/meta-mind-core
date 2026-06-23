@@ -1,0 +1,32 @@
+[
+    {
+        "text": "The Web Phase allows you to construct User Interfaces natively inside the map. Let's switch to it.",
+        "target": "#btn-phase-web",
+        "requireClick": false
+    },
+    {
+        "text": "The central viewport transforms into a visual HTML renderer and drag-and-drop workspace.",
+        "target": "#view-content",
+        "requireClick": false
+    },
+    {
+        "text": "To edit the raw HTML, open the Inspector.",
+        "target": "#btn-sidebar-toggle",
+        "requireClick": false
+    },
+    {
+        "text": "You can add raw CSS directly to nodes, and it will be rendered live in the view.",
+        "target": "#sidebar-content",
+        "requireClick": false
+    },
+    {
+        "text": "Let's close the inspector.",
+        "target": "#btn-sidebar-toggle",
+        "requireClick": false
+    },
+    {
+        "text": "Finally, let's return to the Map Phase.",
+        "target": "#btn-phase-map",
+        "requireClick": false
+    }
+]

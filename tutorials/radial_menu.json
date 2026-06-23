@@ -1,0 +1,29 @@
+[
+    {
+        "text": "The Radial Menu is your primary tool for interacting with individual nodes. First, let's make sure we are on the Map Phase.",
+        "target": "#btn-phase-map",
+        "requireClick": false
+    },
+    {
+        "onEnter": "if(SC.kernel.state.nodes.length === 0) { SC.kernel.addNode({title: 'Tutorial Node'}); SC.render(); } setTimeout(() => { const node = SC.kernel.state.nodes[0]; SC.showRadialMenu(node); }, 100);",
+        "text": "Clicking a node brings up the Radial Menu. I've automatically opened it on a node for you.",
+        "target": "#radial-menu",
+        "requireClick": false,
+        "autoClick": false,
+        "expandHalo": 90
+    },
+    {
+        "text": "The buttons around the node let you Edit Properties, Create Children, Link to other nodes, or Delete. Hover over them to see what they do!",
+        "target": "#radial-menu",
+        "requireClick": false,
+        "autoClick": false,
+        "expandHalo": 90
+    },
+    {
+        "onEnter": "SC.hideRadialMenu(true);",
+        "text": "Clicking anywhere on the background will close the radial menu and deselect the node.",
+        "target": "#viewport",
+        "requireClick": false,
+        "autoClick": false
+    }
+]

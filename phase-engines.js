@@ -115,7 +115,7 @@ class DataPhaseEngine extends PhaseEngineBase {
 
                         <!-- 1. Library Accordion -->
                         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col">
-                            <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('library')">
+                            <div id="data-accordion-library" class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('library')">
                                 <h2 class="text-purple-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">📚 Saved Constellations</h2>
                                 <div class="flex items-center gap-3">
                                     <span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded text-[10px] border border-slate-700">${lib.length} Items</span>
@@ -127,7 +127,7 @@ class DataPhaseEngine extends PhaseEngineBase {
                             <div class="p-5 border-t border-slate-800 flex flex-col gap-4 bg-slate-900">
                                 
                                 <div class="flex flex-col sm:flex-row gap-2">
-                                    <button onclick="SC.actionSaveCurrentToLibrary()" class="flex-1 py-3 border border-purple-500/50 hover:bg-purple-600/20 text-purple-400 hover:text-purple-300 font-bold text-xs uppercase tracking-widest rounded-lg transition-colors bg-slate-950 flex justify-center items-center gap-2">
+                                    <button id="btn-save-session" onclick="SC.actionSaveCurrentToLibrary()" class="flex-1 py-3 border border-purple-500/50 hover:bg-purple-600/20 text-purple-400 hover:text-purple-300 font-bold text-xs uppercase tracking-widest rounded-lg transition-colors bg-slate-950 flex justify-center items-center gap-2">
                                         ➕ <span class="hidden sm:inline">Save Current Session</span>
                                     </button>
                                     <div class="flex flex-1 gap-2">
@@ -222,7 +222,7 @@ class DataPhaseEngine extends PhaseEngineBase {
 
                         <!-- 3. JSON Accordion -->
                         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col">
-                            <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('json')">
+                            <div id="data-accordion-json" class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('json')">
                                 <h2 class="text-emerald-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">🧬 Raw JSON Exchange</h2>
                                 <span class="text-slate-500 text-xs">${this.ui.json ? '▼' : '▶'}</span>
                             </div>
@@ -235,7 +235,7 @@ class DataPhaseEngine extends PhaseEngineBase {
                                 
                                 <textarea id="json-exchange" class="w-full h-64 bg-slate-950 border border-slate-700 rounded-lg p-4 font-mono text-[10px] text-emerald-400 focus:border-emerald-500 outline-none resize-none shadow-inner custom-scrollbar break-all overflow-y-auto">${JSON.stringify(state, null, 2)}</textarea>
                                 
-                                <div class="flex gap-2 mt-1">
+                                <div id="json-io-buttons" class="flex gap-2 mt-1">
                                     <button onclick="SC.actionExportJsonFile()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-lg shadow-lg shadow-indigo-900/20 transition-transform active:scale-95 flex items-center justify-center gap-2" title="Export File">
                                         💾 <span class="hidden sm:inline">Export File</span>
                                     </button>
@@ -519,9 +519,11 @@ class UniversalPhaseEngine extends PhaseEngineBase {
         sel.onchange = (e) => { this.kernel.updateNode(node.id, { type: e.target.value }); this.render(container, state); };
 
         if (node.type === 'portal') {
-            container.querySelector('#portal-sel').onchange = (e) => { this.kernel.updateNode(node.id, { content: e.target.value }); };
-        } else if (node.type !== 'profile') {
-            container.querySelector('#raw-content').oninput = (e) => { this.kernel.updateNode(node.id, { content: e.target.value }); };
+            const portalSel = container.querySelector('#portal-sel');
+            if (portalSel) portalSel.onchange = (e) => { this.kernel.updateNode(node.id, { content: e.target.value }); };
+        } else if (node.type !== 'profile' && !node.type.startsWith('web-')) {
+            const rawContent = container.querySelector('#raw-content');
+            if (rawContent) rawContent.oninput = (e) => { this.kernel.updateNode(node.id, { content: e.target.value }); };
         }
     }
 }

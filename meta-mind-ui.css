@@ -154,7 +154,7 @@ body {
 /* --- GLOBAL RADIAL MENU --- */
 #radial-menu {
     position: fixed;
-    z-index: 99999;
+    z-index: 45;
     width: 2px;
     height: 2px;
     overflow: visible;
@@ -232,7 +232,7 @@ body {
     width: 56px;
     /* Base is closed (Rail only) */
     transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 40;
+    z-index: 48;
     overflow: hidden;
     /* Hides inspector panel smoothly when shrunk */
 }
@@ -255,7 +255,7 @@ body {
         top: 0;
         bottom: 0;
         left: 0;
-        z-index: 100000;
+        z-index: 48;
         box-shadow: 5px 0 20px rgba(0, 0, 0, 0.5);
     }
 

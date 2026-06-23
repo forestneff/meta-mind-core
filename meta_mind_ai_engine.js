@@ -13,6 +13,9 @@ class MetaMindAI {
         this.pendingMapData = null; // Holds the generated JSON until assigned
         this.env = {};
         this.envLoaded = false;
+        
+        // Tutorial Mode State
+        this.tutorialMode = false;
 
         this.promptsLoaded = false;
         this.basePrompt = "You are an expert System Architect for the Meta-Mind Platform. Output valid MapState JSON.";
@@ -29,23 +32,28 @@ class MetaMindAI {
 
         container.innerHTML = `
             <!-- Chat Toggle Button -->
-            <button id="ai-toggle-btn" class="absolute bottom-6 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(79,70,229,0.5)] flex items-center justify-center text-2xl transition-transform hover:scale-110 z-50 text-white border-2 border-indigo-400">
+            <button id="ai-toggle-btn" class="absolute bottom-6 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(79,70,229,0.5)] flex items-center justify-center text-2xl transition-transform hover:scale-110 z-[60] text-white border-2 border-indigo-400">
                 ✨
             </button>
 
             <!-- Chat Interface -->
-            <div id="ai-chat-panel" class="absolute bottom-24 right-6 w-[380px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[60vh] bg-slate-900/95 backdrop-blur-xl border border-indigo-500/30 rounded-2xl shadow-2xl flex flex-col hidden z-50 overflow-hidden transform transition-all translate-y-4 opacity-0">
+            <div id="ai-chat-panel" class="absolute bottom-24 right-6 w-[380px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[60vh] bg-slate-900/95 backdrop-blur-xl border border-indigo-500/30 rounded-2xl shadow-2xl flex flex-col hidden z-[50] overflow-hidden transform transition-all translate-y-4 opacity-0">
                 
                 <!-- Header -->
-                <div class="p-3 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center shrink-0">
+                <div class="p-3 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center shrink-0 gap-2">
                     <div class="flex items-center gap-2">
                         <span class="text-indigo-400 text-lg">✨</span>
-                        <span class="font-black text-sm text-slate-200 tracking-wide uppercase">Meta-Mind AI</span>
+                        <span class="font-black text-sm text-slate-200 tracking-wide uppercase">MM-AI</span>
                     </div>
-                    <select id="ai-model-select" class="bg-slate-800 border border-slate-700 text-xs text-slate-300 rounded px-2 py-1 outline-none focus:border-indigo-500">
-                        <option value="native-mock">Native (Mock)</option>
-                        <option value="gemini-api">Gemini 2.5 (API Key)</option>
-                    </select>
+                    <div class="flex items-center gap-2">
+                        <button id="ai-tutorial-toggle" class="text-xs px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded shadow-[0_0_10px_rgba(79,70,229,0.3)] transition-colors flex items-center gap-1 font-bold" title="Toggle Interactive Tutorials">
+                            <span class="text-[12px]">🎓</span> <span id="ai-tutorial-status">Learn</span>
+                        </button>
+                        <select id="ai-model-select" class="bg-slate-800 border border-slate-700 text-xs text-slate-300 rounded px-2 py-1 outline-none focus:border-indigo-500">
+                            <option value="native-mock">Native (Mock)</option>
+                            <option value="gemini-api">Gemini 2.5 (API Key)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Messages Area -->
@@ -64,6 +72,12 @@ class MetaMindAI {
                         </button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Single Line Tooltip Mode -->
+            <div id="ai-tooltip-bar" class="absolute bottom-6 right-24 mr-2 bg-slate-900/95 backdrop-blur-xl border border-indigo-500/50 rounded-2xl shadow-[0_0_20px_rgba(79,70,229,0.3)] hidden flex flex-col sm:flex-row sm:items-center px-4 py-3 z-[110] transform transition-all translate-x-4 opacity-0 pointer-events-auto max-w-[calc(100vw-6rem)] gap-3">
+                <div id="ai-tooltip-content" class="text-sm text-slate-200 flex-1 whitespace-normal break-words w-full"></div>
+                <div id="ai-tooltip-actions" class="flex items-center shrink-0 self-end sm:self-auto"></div>
             </div>
         `;
 
@@ -85,9 +99,67 @@ class MetaMindAI {
         });
 
         document.getElementById('ai-model-select').onchange = (e) => this.selectedModel = e.target.value;
+        
+        const tutorialToggleBtn = document.getElementById('ai-tutorial-toggle');
+        tutorialToggleBtn.onclick = () => {
+            if (window.Tutorials) {
+                if (window.Tutorials.isActive) {
+                    window.Tutorials.endTutorial();
+                } else {
+                    window.Tutorials.openSelectionModal();
+                }
+            }
+        };
+    }
+
+    // --- Tutorial / Tooltip Methods ---
+
+    setTutorialMode(active) {
+        this.tutorialMode = active;
+        const btn = document.getElementById('ai-toggle-btn');
+        const status = document.getElementById('ai-tutorial-status');
+        const toggleBtn = document.getElementById('ai-tutorial-toggle');
+        
+        if (active) {
+            btn.classList.add('animate-pulse');
+            btn.style.boxShadow = '0 0 25px 10px rgba(79,70,229,0.7)';
+            status.innerText = 'On';
+            toggleBtn.classList.add('bg-indigo-900', 'border-indigo-500', 'text-indigo-200');
+            toggleBtn.classList.remove('bg-slate-800', 'border-slate-700', 'text-slate-300');
+            // Ensure main panel is closed
+            if (this.isOpen) this.toggleChat();
+        } else {
+            btn.classList.remove('animate-pulse');
+            btn.style.boxShadow = '';
+            status.innerText = 'Learn';
+            toggleBtn.classList.remove('bg-indigo-900', 'border-indigo-500', 'text-indigo-200');
+            toggleBtn.classList.add('bg-slate-800', 'border-slate-700', 'text-slate-300');
+            this.hideTooltip();
+        }
+    }
+
+    showTooltip(text, actionsHtml = '') {
+        const bar = document.getElementById('ai-tooltip-bar');
+        const content = document.getElementById('ai-tooltip-content');
+        const actions = document.getElementById('ai-tooltip-actions');
+        
+        content.innerHTML = text;
+        actions.innerHTML = actionsHtml;
+        
+        bar.classList.remove('hidden');
+        setTimeout(() => {
+            bar.classList.remove('translate-x-4', 'opacity-0');
+        }, 10);
+    }
+
+    hideTooltip() {
+        const bar = document.getElementById('ai-tooltip-bar');
+        bar.classList.add('translate-x-4', 'opacity-0');
+        setTimeout(() => bar.classList.add('hidden'), 300);
     }
 
     toggleChat() {
+
         const panel = document.getElementById('ai-chat-panel');
         this.isOpen = !this.isOpen;
         if (this.isOpen) {

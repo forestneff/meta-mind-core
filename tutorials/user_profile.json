@@ -1,0 +1,22 @@
+[
+    {
+        "text": "User Profiles have dedicated data mappings. First, ensure you are on the Map Phase.",
+        "target": "#btn-phase-map",
+        "requireClick": false
+    },
+    {
+        "text": "Select the User Profile node (if you have one generated), then open the Inspector.",
+        "target": "#btn-sidebar-toggle",
+        "requireClick": false
+    },
+    {
+        "text": "The inspector panel dynamically adapts its layout depending on the node type. User nodes get avatar and credential editors.",
+        "target": "#sidebar-content",
+        "requireClick": false
+    },
+    {
+        "text": "Let's close the inspector to finish up.",
+        "target": "#btn-sidebar-toggle",
+        "requireClick": false
+    }
+]
