@@ -1,5 +1,5 @@
 /**
- * META-MIND ONTOLOGY v14.0
+ * META-MIND ONTOLOGY v14.11
  * Source of Truth for Node Types, Constraints, and Halo Logic.
  */
 
@@ -17,6 +17,7 @@ const MetaMindSchema = {
         'web-hero': { label: "Hero", icon: "🎉", priority: 22, description: "Header" },
         'web-section': { label: "Section", icon: "🪟", priority: 23, description: "<section>" },
         'web-footer': { label: "Footer", icon: "🦶", priority: 24, description: "<footer>" },
+        'web-card': { label: "Card", icon: "🗂️", priority: 25, description: "<article>" },
         'web-link': { label: "Link", icon: "🔗", priority: 30, description: "<a>" },
         'web-button': { label: "Button", icon: "💡", priority: 31, description: "<button>" },
         'web-text': { label: "Text", icon: "¶", priority: 32, description: "<p>" },
@@ -34,6 +35,7 @@ const MetaMindSchema = {
         'web-nav': { allowed: ['web-link', 'web-button'], default: 'web-link', strict: true },
         'web-hero': { allowed: ['web-text', 'web-button', 'web-image'], default: 'web-text', strict: false },
         'web-section': { allowed: ['web-text', 'web-image', 'web-card', 'web-button', 'web-link'], default: 'web-text', strict: false },
+        'web-card': { allowed: ['web-text', 'web-image', 'web-button', 'web-link'], default: 'web-text', strict: false },
         'web-footer': { allowed: ['web-link', 'web-text'], default: 'web-link', strict: true },
         'web-link': { allowed: [], default: 'note', strict: true },
         'web-button': { allowed: ['logic-gate'], default: 'logic-gate', strict: false },

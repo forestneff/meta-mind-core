@@ -670,9 +670,22 @@ class SandboxController {
 
     actionCopyJson() {
         const val = document.getElementById('json-exchange');
-        val.select(); document.execCommand('copy');
-        alert("Copied to clipboard.");
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(val.value).then(() => alert("Copied to clipboard.")).catch(() => {
+                val.select(); document.execCommand('copy'); alert("Copied to clipboard.");
+            });
+        } else {
+            val.select(); document.execCommand('copy'); alert("Copied to clipboard.");
+        }
     }
+    
+    actionSaveEndpoints() {
+        this.kernel.bridge.pushUrl = document.getElementById('api-push-url').value;
+        this.kernel.bridge.pullUrl = document.getElementById('api-pull-url').value;
+        alert(`Endpoints mapped temporarily.`);
+    }
+    actionPushApi() { alert(`POST to ${this.kernel.bridge.pushUrl}`); }
+    actionPullApi() { alert(`GET from ${this.kernel.bridge.pullUrl}`); }
     
     actionExportJsonFile() {
         const json = this.kernel.exportMapState();

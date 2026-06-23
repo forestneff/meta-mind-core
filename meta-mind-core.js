@@ -1,5 +1,5 @@
 /**
- * META-MIND CORE KERNEL v14.10
+ * META-MIND CORE KERNEL v14.11
  * Features: Template-to-Node Application, Profile Singleton, CMS Data Syncing.
  */
 
