@@ -288,7 +288,7 @@ class UniversalPhaseEngine extends PhaseEngineBase {
             const typeEl = container.querySelector('#edit-type');
             if (typeEl && document.activeElement !== typeEl) typeEl.value = node.type;
             
-            const ta = container.querySelector('textarea');
+            const ta = container.querySelector('textarea#raw-content');
             
             if (node.type === 'profile') {
                 let pData = {};
@@ -300,6 +300,20 @@ class UniversalPhaseEngine extends PhaseEngineBase {
                     if (document.activeElement !== inp && inp.value !== val) inp.value = val;
                     
                     // Inject Pulse via Fast-Diff
+                    if (isMatch && highlight.query && val.toLowerCase().includes(highlight.query)) {
+                        inp.classList.add('ring-2', 'ring-sky-500', 'shadow-[0_0_15px_rgba(56,189,248,0.5)]', 'animate-pulse');
+                        setTimeout(() => { inp.classList.remove('ring-2', 'ring-sky-500', 'shadow-[0_0_15px_rgba(56,189,248,0.5)]', 'animate-pulse'); window.SC.activeSearchHighlight = null; }, 3000);
+                    }
+                });
+            } else if (node.type.startsWith('web-') && node.type !== 'web-root') {
+                let pData = {};
+                try { pData = JSON.parse(node.content || '{}'); } catch(e) { pData = { text: node.content || '' }; }
+                const inputs = container.querySelectorAll('.web-input');
+                inputs.forEach(inp => {
+                    const field = inp.dataset.field;
+                    const val = pData[field] || '';
+                    if (document.activeElement !== inp && inp.value !== val) inp.value = val;
+                    
                     if (isMatch && highlight.query && val.toLowerCase().includes(highlight.query)) {
                         inp.classList.add('ring-2', 'ring-sky-500', 'shadow-[0_0_15px_rgba(56,189,248,0.5)]', 'animate-pulse');
                         setTimeout(() => { inp.classList.remove('ring-2', 'ring-sky-500', 'shadow-[0_0_15px_rgba(56,189,248,0.5)]', 'animate-pulse'); window.SC.activeSearchHighlight = null; }, 3000);
@@ -407,6 +421,39 @@ class UniversalPhaseEngine extends PhaseEngineBase {
                 ${lib.map(c => `<option value="${c.map_id}" ${node.content === c.map_id ? 'selected' : ''}>${c.meta.title}</option>`).join('')}
             </select>
             <button onclick="SC.actionEnterPortal('${node.id}')" class="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded shadow transition-colors">Enter Portal 🌀</button>`;
+        } else if (node.type.startsWith('web-') && node.type !== 'web-root') {
+            let pData = {};
+            try { pData = JSON.parse(node.content || '{}'); } catch(e) { pData = { text: node.content || '' }; }
+            const fields = ['text', 'classes', 'src', 'href'];
+            contentAreaHtml = `<div class="flex flex-col gap-3 mt-1">`;
+            fields.forEach(f => {
+                let pInputClass = "web-input bg-slate-900 border border-slate-700 text-white p-2 rounded text-sm focus:border-sky-500 outline-none shadow-inner transition-all duration-300";
+                const val = pData[f] || '';
+                
+                if (isMatch && highlight.query && val.toLowerCase().includes(highlight.query)) {
+                    pInputClass += " ring-2 ring-sky-500 shadow-[0_0_15px_rgba(56,189,248,0.5)] animate-pulse";
+                    setTimeout(() => { if(window.SC) { window.SC.activeSearchHighlight = null; window.SC.render(); } }, 3000);
+                }
+
+                const updater = `if(!window.updateWebField) window.updateWebField = (id, f, val) => { let n = window.Kernel.state.nodes.find(x => x.id === id); if(!n) return; let d={}; try{d=JSON.parse(n.content||'{}');}catch(e){d={text:n.content||''};} d[f]=val; n.content=JSON.stringify(d); window.Kernel.notify(); }; window.updateWebField('${node.id}', '${f}', this.value)`;
+
+                if (f === 'text') {
+                    contentAreaHtml += `
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-bold text-slate-500 tracking-wider">${f.toUpperCase()}</label>
+                            <textarea class="${pInputClass} min-h-[60px]" data-field="${f}" oninput="${updater}">${this.escapeHTML(val)}</textarea>
+                        </div>
+                    `;
+                } else {
+                    contentAreaHtml += `
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-bold text-slate-500 tracking-wider">${f.toUpperCase()}</label>
+                            <input type="text" class="${pInputClass}" data-field="${f}" value="${this.escapeHTML(val)}" oninput="${updater}">
+                        </div>
+                    `;
+                }
+            });
+            contentAreaHtml += `</div>`;
         } else {
             contentAreaHtml = `<textarea id="raw-content" class="${contentClass}">${node.content || ''}</textarea>`;
         }
@@ -557,38 +604,60 @@ class WebPhaseEngine extends PhaseEngineBase {
         const getKids = (id) => state.connections.filter(c => c.from === id).map(c => state.nodes.find(n => n.id === c.to)).filter(n => n);
         
         const render = (node) => {
-            const kids = getKids(node.id).map(render).join('');
+            const kids = getKids(node.id).map(n => {
+                let childHtml = render(n);
+                if (node.type === 'web-carousel') return `<div class="snap-center shrink-0">${childHtml}</div>`;
+                return childHtml;
+            }).join('');
             const title = this.escapeHTML(node.title);
-            let content = node.content ? node.content.trim() : '';
+            let contentRaw = node.content ? node.content.trim() : '';
+            
+            let data = { text: contentRaw, classes: '', src: '', href: '' };
+            if (node.type.startsWith('web-') && node.type !== 'web-root') {
+                try {
+                    const pData = JSON.parse(contentRaw);
+                    if (typeof pData === 'object' && pData !== null) {
+                        data = { ...data, ...pData };
+                    }
+                } catch(e) {}
+            }
+            let content = data.text;
+            let classes = data.classes;
+            let src = data.src;
+            let href = data.href;
             
             if (node.type === 'web-link') {
-                if (state.nodes.find(n => n.id === content)) content = `#${content}`; 
-                else if (content && !content.match(/^(https?:\/\/|file:\/\/|\/|\.\/|\.\.\/|#)/i)) content = `https://${content}`; 
-                return `<a id="${node.id}" href="${content}" class="text-blue-600 hover:underline block py-1 font-semibold">${title}</a>`;
+                let linkHref = href;
+                if (!linkHref) {
+                    if (state.nodes.find(n => n.id === content)) linkHref = `#${content}`; 
+                    else if (content && !content.match(/^(https?:\/\/|file:\/\/|\/|\.\/|\.\.\/|#)/i)) linkHref = `https://${content}`; 
+                    else linkHref = content;
+                }
+                return `<a id="${node.id}" href="${linkHref}" class="${classes || 'text-blue-600 hover:underline block py-1 font-semibold'}">${title}</a>`;
             }
             
             switch (node.type) {
                 case 'web-root': 
                     let iframeHtml = '';
                     let isUrl = false;
-                    let url = content;
+                    let url = contentRaw;
 
-                    if (content && !/\n/.test(content)) { 
-                        const hasSpaces = /\s/.test(content);
-                        const hasProtocol = /^(https?:\/\/|file:\/\/)/i.test(content);
-                        const startsWithWww = /^www\./i.test(content);
-                        const isLocalPath = /^(\.\/|\.\.\/|\/)/.test(content) || /\.html?$/i.test(content);
-                        const looksLikeDomain = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/?.*)?$/.test(content) && !hasSpaces;
-                        const isLocalHost = /^localhost(:\d+)?/i.test(content) || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?/.test(content);
+                    if (contentRaw && !/\n/.test(contentRaw)) { 
+                        const hasSpaces = /\s/.test(contentRaw);
+                        const hasProtocol = /^(https?:\/\/|file:\/\/)/i.test(contentRaw);
+                        const startsWithWww = /^www\./i.test(contentRaw);
+                        const isLocalPath = /^(\.\/|\.\.\/|\/)/.test(contentRaw) || /\.html?$/i.test(contentRaw);
+                        const looksLikeDomain = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/?.*)?$/.test(contentRaw) && !hasSpaces;
+                        const isLocalHost = /^localhost(:\d+)?/i.test(contentRaw) || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?/.test(contentRaw);
 
                         if (hasProtocol || isLocalPath) {
                             isUrl = true;
                         } else if (startsWithWww || looksLikeDomain) {
                             isUrl = true;
-                            url = 'https://' + content;
+                            url = 'https://' + contentRaw;
                         } else if (isLocalHost && !hasSpaces) {
                             isUrl = true;
-                            url = 'http://' + content;
+                            url = 'http://' + contentRaw;
                         }
                     }
 
@@ -657,19 +726,51 @@ class WebPhaseEngine extends PhaseEngineBase {
                         `;
                     }
 
-                    let textContent = (!isUrl && content) ? `<div class="py-12 px-8 max-w-5xl mx-auto prose text-slate-700">${content.replace(/\n/g, '<br>')}</div>` : '';
+                    let textContent = (!isUrl && contentRaw) ? `<div class="py-12 px-8 max-w-5xl mx-auto prose text-slate-700">${contentRaw.replace(/\n/g, '<br>')}</div>` : '';
                     const kidsContainer = kids ? `<div class="${isUrl ? 'relative z-10 bg-slate-50 shadow-[0_-20px_50px_rgba(0,0,0,0.15)] pt-10' : ''}">${kids}</div>` : '';
                     
-                    return `<html><head><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-50 font-sans text-slate-900 overflow-x-hidden m-0 p-0">${iframeHtml}${textContent}${kidsContainer}</body></html>`;
+                    let editScript = '';
+                    if (this.kernel.webEditMode) {
+                        editScript = `
+                        <style>
+                            [data-mm-id] { cursor: pointer; transition: outline 0.1s; }
+                            [data-mm-id]:hover { outline: 3px solid #0ea5e9 !important; outline-offset: -3px; border-radius: 4px; box-shadow: inset 0 0 20px rgba(14,165,233,0.2), 0 0 20px rgba(14,165,233,0.5) !important; position: relative; z-index: 50; }
+                        </style>
+                        <script>
+                            document.addEventListener('click', function(e) {
+                                const target = e.target.closest('[data-mm-id]');
+                                if (target) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    window.parent.postMessage({ type: 'mm-select-node', id: target.getAttribute('data-mm-id') }, '*');
+                                }
+                            }, true);
+                        </script>`;
+                    }
                     
-                case 'web-nav': return `<nav class="flex items-center justify-between gap-6 p-6 bg-white shadow-sm sticky top-0 z-50 border-b border-slate-100"><div class="font-black text-xl tracking-tighter">MyBrand</div><div class="flex items-center gap-6">${kids}</div></nav>`;
-                case 'web-hero': return `<header class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white py-32 px-8 text-center"><h1 class="text-6xl font-black mb-6 tracking-tight">${title}</h1><div class="text-xl text-indigo-200 max-w-2xl mx-auto mb-10">${content || ''}</div><div>${kids}</div></header>`;
-                case 'web-section': return `<section id="${node.id}" class="py-20 px-8 max-w-5xl mx-auto"><h2 class="text-3xl font-black mb-12 text-center">${title}</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-12">${kids}</div></section>`;
-                case 'web-card': return `<div id="${node.id}" class="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all flex flex-col gap-3">${title ? `<h3 class="font-bold text-lg text-slate-900 mb-1 leading-snug">${title}</h3>` : ''}${content ? `<p class="text-slate-600 text-sm leading-relaxed">${content.replace(/\n/g, '<br>')}</p>` : ''}${kids ? `<div class="mt-2 flex flex-col gap-2">${kids}</div>` : ''}</div>`;
-                case 'web-button': return `<button class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg shadow-indigo-500/30 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all inline-block">${title}</button>`;
-                case 'web-text': return `<div id="${node.id}" class="mb-4"><h3 class="font-bold text-xl text-slate-800 mb-3">${title}</h3><p class="text-slate-600 leading-relaxed">${content.replace(/\n/g, '<br>')}</p>${kids}</div>`;
-                case 'web-footer': return `<footer class="py-12 px-8 mt-12 border-t border-slate-200 text-center bg-slate-100">${kids || `<p class="text-slate-500 text-sm font-semibold">${content || title}</p>`}</footer>`;
-                default: return `<div id="${node.id}" class="mb-6"><h3 class="font-bold text-lg text-slate-800 mb-2">${title}</h3><div class="prose text-slate-600 leading-relaxed">${content ? content.replace(/\n/g, '<br>') : ''}</div>${kids}</div>`;
+                    return `<html><head><script src="https://cdn.tailwindcss.com"></script>${editScript}</head><body class="bg-slate-50 font-sans text-slate-900 overflow-x-hidden m-0 p-0">${iframeHtml}${textContent}${kidsContainer}</body></html>`;
+                    
+                case 'web-nav': return `<nav data-mm-id="${node.id}" class="${classes || 'flex flex-wrap items-center justify-between gap-4 md:gap-6 p-4 md:p-6 bg-white shadow-sm sticky top-0 z-50 border-b border-slate-100 w-full'}"><div class="font-black text-xl tracking-tighter">MyBrand</div><div class="flex flex-wrap items-center gap-4 md:gap-6">${kids}</div></nav>`;
+                case 'web-hero': 
+                    let bgStyle = src ? `style="background-image: url('${src}'); background-size: cover; background-position: center;"` : '';
+                    return `<header data-mm-id="${node.id}" class="${classes || 'bg-gradient-to-br from-slate-900 to-indigo-950 text-white py-24 md:py-32 px-4 md:px-8 text-center w-full'} relative" ${bgStyle}>
+                        ${src ? '<div class="absolute inset-0 bg-slate-900/70 z-0"></div>' : ''}
+                        <div class="relative z-10"><h1 class="text-5xl md:text-7xl font-black mb-6 tracking-tight">${title}</h1><div class="text-lg md:text-xl text-indigo-200 max-w-3xl mx-auto mb-10">${content || ''}</div><div class="flex flex-wrap justify-center gap-4">${kids}</div></div>
+                    </header>`;
+                case 'web-section': return `<section id="${node.id}" data-mm-id="${node.id}" class="${classes || 'py-16 md:py-20 px-4 md:px-8 max-w-6xl mx-auto w-full'}"><h2 class="text-3xl md:text-4xl font-black mb-10 text-center">${title}</h2><div class="flex flex-col gap-8 w-full">${kids}</div></section>`;
+                case 'web-card': return `<div id="${node.id}" data-mm-id="${node.id}" class="${classes || 'bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all flex flex-col gap-3 h-full'}">${title ? `<h3 class="font-bold text-lg text-slate-900 mb-1 leading-snug">${title}</h3>` : ''}${content ? `<p class="text-slate-600 text-sm leading-relaxed">${content.replace(/\n/g, '<br>')}</p>` : ''}${kids ? `<div class="mt-2 flex flex-col gap-2">${kids}</div>` : ''}</div>`;
+                case 'web-button': return `<button data-mm-id="${node.id}" class="${classes || 'px-6 md:px-8 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg shadow-indigo-500/30 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all inline-block'}">${title}</button>`;
+                case 'web-text': return `<div id="${node.id}" data-mm-id="${node.id}" class="${classes || 'mb-4 w-full'}"><h3 class="font-bold text-xl text-slate-800 mb-3">${title}</h3><p class="text-slate-600 leading-relaxed">${content.replace(/\n/g, '<br>')}</p>${kids}</div>`;
+                case 'web-footer': return `<footer data-mm-id="${node.id}" class="${classes || 'py-12 px-4 md:px-8 mt-12 border-t border-slate-200 text-center bg-slate-100 w-full'}">${kids || `<p class="text-slate-500 text-sm font-semibold">${content || title}</p>`}</footer>`;
+                case 'web-image': return `<img id="${node.id}" data-mm-id="${node.id}" src="${src || content}" class="${classes || 'max-w-full h-auto rounded-lg shadow-sm mx-auto'}" alt="${title}" />`;
+                case 'web-video': return `<video id="${node.id}" data-mm-id="${node.id}" src="${src || content}" class="${classes || 'w-full rounded-lg shadow-sm'}" controls></video>`;
+                case 'web-form': return `<form id="${node.id}" data-mm-id="${node.id}" class="${classes || 'flex flex-col gap-4 w-full max-w-md mx-auto'}"><h3 class="font-bold text-lg mb-2 text-center">${title}</h3>${kids}</form>`;
+                case 'web-input': return `<input id="${node.id}" data-mm-id="${node.id}" type="text" placeholder="${title}" class="${classes || 'border border-slate-300 rounded px-4 py-2 w-full focus:outline-none focus:border-indigo-500'}" />`;
+                case 'web-grid': return `<div id="${node.id}" data-mm-id="${node.id}" class="${classes || 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full'}">${kids}</div>`;
+                case 'web-list': return `<ul id="${node.id}" data-mm-id="${node.id}" class="${classes || 'list-disc pl-5 space-y-2 text-slate-700 w-full'}">${kids}</ul>`;
+                case 'web-modal': return `<div data-mm-id="${node.id}"><dialog id="${node.id}" class="${classes || 'p-6 md:p-8 rounded-2xl shadow-2xl backdrop:bg-slate-900/50 backdrop:backdrop-blur-sm w-[90%] max-w-lg'}"><h3 class="font-bold text-2xl mb-4">${title}</h3>${kids}<form method="dialog" class="mt-6 flex justify-end"><button class="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded text-slate-800 font-bold transition-colors">Close</button></form></dialog><div class="w-full flex justify-center mt-4"><button onclick="document.getElementById('${node.id}').showModal()" class="px-6 py-3 bg-white border border-slate-200 shadow-sm rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">Open ${title}</button></div></div>`;
+                case 'web-carousel': return `<div id="${node.id}" data-mm-id="${node.id}" class="${classes || 'flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 w-full custom-scrollbar'}">${kids}</div>`;
+                default: return `<div id="${node.id}" data-mm-id="${node.id}" class="${classes || 'mb-6'}"><h3 class="font-bold text-lg text-slate-800 mb-2">${title}</h3><div class="prose text-slate-600 leading-relaxed">${content ? content.replace(/\n/g, '<br>') : ''}</div>${kids}</div>`;
             }
         };
         return render(root);

@@ -87,6 +87,28 @@ class SandboxController {
         vp.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
         window.addEventListener('resize', () => this.render());
 
+        // --- WEB EDIT MODE MESSAGE LISTENER ---
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'mm-select-node' && e.data.id) {
+                if (this.kernel.webEditMode) {
+                    this.actionEdit(e.data.id);
+                }
+            }
+        });
+
+        // --- WEB EDIT BUTTON LOGIC ---
+        const webEditBtn = document.getElementById('btn-web-edit');
+        if (webEditBtn) {
+            webEditBtn.addEventListener('click', () => {
+                this.kernel.webEditMode = !this.kernel.webEditMode;
+                webEditBtn.classList.toggle('bg-sky-600', this.kernel.webEditMode);
+                webEditBtn.classList.toggle('bg-slate-800', !this.kernel.webEditMode);
+                webEditBtn.classList.toggle('text-white', this.kernel.webEditMode);
+                webEditBtn.classList.toggle('text-slate-400', !this.kernel.webEditMode);
+                this.render();
+            });
+        }
+
         // --- MAP SEARCH BAR LOGIC ---
         const searchInput = document.getElementById('map-search-input');
         const searchResults = document.getElementById('map-search-results');
@@ -180,6 +202,21 @@ class SandboxController {
         if (window.innerWidth <= 768 && this.dom.sidebar && this.dom.sidebar.classList.contains('open')) {
             this.toggleSidebar();
         }
+
+        const webEditBtn = document.getElementById('btn-web-edit');
+        if (webEditBtn) {
+            if (mode === 'web') {
+                webEditBtn.classList.remove('hidden');
+                webEditBtn.classList.add('flex');
+            } else {
+                webEditBtn.classList.add('hidden');
+                webEditBtn.classList.remove('flex');
+                this.kernel.webEditMode = false;
+                webEditBtn.classList.remove('bg-sky-600', 'text-white');
+                webEditBtn.classList.add('bg-slate-800', 'text-slate-400');
+            }
+        }
+
         this.render();
     }
 
@@ -225,6 +262,10 @@ class SandboxController {
         if (window.innerWidth <= 768 && this.dom.sidebar && this.dom.sidebar.classList.contains('open')) {
             this.toggleSidebar();
         }
+        
+        // Ignore clicks on floating UI that shouldn't deselect the map
+        if (e.target.closest('#ai-chat-container')) return;
+
         if (e.target.closest('.node')) return;
         this.activePointers.set(e.pointerId, e);
         if (this.activePointers.size === 1) {
@@ -290,8 +331,18 @@ class SandboxController {
             if (this.isDragging) {
                 const dist = Math.hypot(e.clientX - this.clickStart.x, e.clientY - this.clickStart.y);
                 if (dist < 5) {
-                    this.kernel.linkingMode = false;
-                    this.dom.overlay.classList.add('hidden');
+                    
+                    // Cancel Modes on background click
+                    if (this.kernel.linkingMode) {
+                        this.kernel.linkingMode = false;
+                        this.dom.overlay.classList.add('hidden');
+                    }
+                    if (this.aiImportMode) {
+                        this.aiImportMode = false;
+                        this.aiPendingData = null;
+                        if(this.dom.aiOverlay) this.dom.aiOverlay.classList.add('hidden');
+                    }
+
                     this.kernel.selectNode(null);
                     this.hideRadialMenu(true);
                 }
@@ -330,7 +381,7 @@ class SandboxController {
         menu.style.display = 'block';
 
         const isLinking = this.kernel.linkingMode;
-        const stateHash = `${node.id}-${isLinking}-${this.kernel.linkingSourceId === node.id}`;
+        const stateHash = `${node.id}-${isLinking}-${this.kernel.linkingSourceId === node.id}-${this.aiImportMode}`;
 
         if (menu.dataset.activeNode === stateHash && menu.innerHTML !== '') {
             menu.classList.add('active'); 
@@ -352,16 +403,27 @@ class SandboxController {
             linkTitle = (node.id === this.kernel.linkingSourceId) ? 'Cancel Link' : 'Confirm Link';
         }
 
-        let actions = [
-            { icon: '📝', action: 'Edit', title: 'Edit' },
-            { icon: '🔗', action: 'Link', title: linkTitle },
-            { icon: '➕', action: 'AddChild', title: 'Add Child' },
-            { icon: '🗑️', action: 'Delete', title: 'Delete Downstream' },
-            { icon: (isCollapsed ? '🌞' : '🌚'), action: 'ToggleCollapse', title: (isCollapsed ? 'Expand' : 'Collapse') }
-        ];
+        let actions = [];
 
-        if (node.type === 'portal') actions.push({ icon: '🌀', action: 'EnterPortal', title: 'Enter' });
-        else actions.push({ icon: '🌌', action: 'SaveConstellation', title: 'Save Submap' });
+        // NEW: Intercept menu if AI Import Mode is active and target is a Smart Portal
+        if (this.aiImportMode) {
+            if (node.type === 'smart-portal') {
+                actions = [ { icon: '📥', action: 'ResolveAiImport', title: 'Inject AI Data Here' } ];
+            } else {
+                actions = [ { icon: '❌', action: 'CancelAiImport', title: 'Cancel AI Import' } ];
+            }
+        } else {
+            // Normal Operations
+            actions = [
+                { icon: '📝', action: 'Edit', title: 'Edit' },
+                { icon: '🔗', action: 'Link', title: linkTitle },
+                { icon: '➕', action: 'AddChild', title: 'Add Child' },
+                { icon: '🗑️', action: 'Delete', title: 'Delete Downstream' },
+                { icon: (isCollapsed ? '🌞' : '🌚'), action: 'ToggleCollapse', title: (isCollapsed ? 'Expand' : 'Collapse') }
+            ];
+            if (node.type === 'portal') actions.push({ icon: '🌀', action: 'EnterPortal', title: 'Enter' });
+            else actions.push({ icon: '🌌', action: 'SaveConstellation', title: 'Save Submap' });
+        }
 
         let html = '';
         actions.forEach((action, i) => {
@@ -377,6 +439,8 @@ class SandboxController {
                 } else {
                     btnStyle += ` color: #10b981; border-color: #10b981; box-shadow: 0 0 15px rgba(16,185,129,0.6);`;
                 }
+            } else if (action.action === 'ResolveAiImport') {
+                btnStyle += ` color: #818cf8; border-color: #818cf8; box-shadow: 0 0 15px rgba(79,70,229,0.6); animation: pulse 2s infinite;`;
             }
 
             html += `<div class="radial-btn" style="${btnStyle}" onpointerdown="event.stopPropagation()" onclick="SC.action${action.action}('${node.id}'); event.stopPropagation();" title="${action.title}">${action.icon}</div>`;
@@ -406,6 +470,41 @@ class SandboxController {
                 }
             }, 300);
         }
+    }
+
+    // --- AI WORKFLOW API ---
+    enterAiImportMode(mapData) {
+        this.aiImportMode = true;
+        this.aiPendingData = mapData;
+        if (this.dom.aiOverlay) this.dom.aiOverlay.classList.remove('hidden');
+        this.render(); // Trigger render to show halos
+    }
+
+    actionCancelAiImport() {
+        this.aiImportMode = false;
+        this.aiPendingData = null;
+        if (this.dom.aiOverlay) this.dom.aiOverlay.classList.add('hidden');
+        this.hideRadialMenu(true);
+        this.render(); // Remove halos
+    }
+
+    actionResolveAiImport(nodeId) {
+        if (!this.aiPendingData) return;
+        
+        // Save the map to the library natively so the portal can reference it!
+        this.kernel.saveConstellationToLibrary(this.aiPendingData);
+        
+        // Update the smart portal's payload to link to this new map
+        this.kernel.updateNode(nodeId, { content: this.aiPendingData.map_id });
+        
+        // Actually import the physical nodes
+        this.kernel.importSubmap(nodeId, this.aiPendingData);
+        
+        alert(`AI Generated Map "${this.aiPendingData.meta.title}" injected successfully!`);
+        
+        // Cleanup
+        this.actionCancelAiImport();
+        this.kernel.selectNode(nodeId);
     }
 
     actionEdit(id) { 
@@ -455,7 +554,7 @@ class SandboxController {
     actionEnterPortal(id) {
         const tgt = id || this.kernel.state.session.selectedId;
         const node = this.kernel.state.nodes.find(n => n.id === tgt);
-        if (node && node.type === 'portal') {
+        if (node && (node.type === 'portal' || node.type === 'smart-portal')) {
             const lib = this.kernel.getLibrary();
             const map = lib.find(m => m.map_id === node.content);
             if (map && confirm("Import map?")) this.kernel.importSubmap(tgt, map);
@@ -772,7 +871,13 @@ class SandboxController {
             el.dataset.nodeId = node.id;
             
             if (node.data.isCore) el.style.borderColor = '#ea580c';
-            if (node.type === 'portal') el.style.borderColor = '#a855f7';
+            if (node.type === 'portal' || node.type === 'smart-portal') {
+                el.style.borderColor = '#a855f7';
+                if (this.aiImportMode && node.type === 'smart-portal') {
+                    el.style.boxShadow = "0 0 25px rgba(129,140,248, 0.8)";
+                    el.classList.add('animate-pulse');
+                }
+            }
             if (node.data.collapsed) el.classList.add('collapsed');
             
             const bp = this.kernel.getBlueprint(node.type);
