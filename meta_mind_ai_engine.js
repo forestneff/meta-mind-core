@@ -14,27 +14,11 @@ class MetaMindAI {
         this.env = {};
         this.envLoaded = false;
 
-        // The exact instructions the AI needs to generate valid maps
-        this.systemPrompt = `
-You are an expert System Architect for the Meta-Mind Platform. 
-Your task is to generate valid, structurally sound "MapState" JSON objects based on user requests.
-Output ONLY valid JSON matching this schema, with no markdown formatting or conversational text:
-{
-  "map_id": "unique_string",
-  "meta": { "title": "Map Title", "created": "2026-03-01T00:00:00Z" },
-  "nodes": [ { "id": "n1", "type": "hub", "title": "Root", "content": "", "data": { "x": 0, "y": 0, "isCore": true, "collapsed": false } } ],
-  "connections": [ { "id": "c1", "from": "n1", "to": "n2", "type": "structural" } ],
-  "submaps": []
-}
-Allowed types: root, hub, note, portal, smart-portal, logic-gate, web-root, web-nav, web-hero, web-section, web-card, web-link, web-button, web-text, web-image, web-video, web-form, web-input, web-grid, web-list, web-modal, web-carousel.
-Ensure spatial x/y positioning prevents exact overlaps (space by 150px).
-
-SPECIAL RULES FOR WEB MAPS (Websites/Dashboards):
-If the user requests a website or web UI:
-1. You MUST use 'web-root' as the main root node.
-2. Follow strict hierarchical structure (e.g., web-root -> web-nav, web-hero, web-section -> web-card, web-text, web-image).
-3. MAXIMIZE DESIGN QUALITY: For all 'web-*' type nodes, the 'content' field will be injected into the DOM as innerHTML. You MUST embed rich, modern HTML and TailwindCSS class names in the 'content' field. Use vibrant colors, dark modes (e.g. bg-slate-900), glassmorphism (backdrop-blur), gradients (bg-gradient-to-r), hover states, and smooth micro-animations to create a stunning, premium aesthetic. Do not use generic placeholders; use realistic copy and real Unsplash image URLs for 'web-image'.
-        `.trim();
+        this.promptsLoaded = false;
+        this.basePrompt = "You are an expert System Architect for the Meta-Mind Platform. Output valid MapState JSON.";
+        this.webPrompt = "";
+        this.analyzePrompt = "";
+        this.editPrompt = "";
 
         this.initDOM();
     }
@@ -85,6 +69,12 @@ If the user requests a website or web UI:
 
         document.getElementById('ai-toggle-btn').onclick = () => this.toggleChat();
         document.getElementById('ai-send-btn').onclick = () => this.handleSend();
+        
+        const panel = document.getElementById('ai-chat-panel');
+        // Prevent scroll/zoom events from propagating to the underlying map
+        panel.addEventListener('wheel', e => e.stopPropagation(), { passive: false });
+        panel.addEventListener('touchmove', e => e.stopPropagation(), { passive: false });
+        panel.addEventListener('touchstart', e => e.stopPropagation(), { passive: false });
         
         const input = document.getElementById('ai-input');
         input.addEventListener('keydown', (e) => {
@@ -144,47 +134,94 @@ If the user requests a website or web UI:
             if (!this.envLoaded && this.selectedModel === 'gemini-api') {
                 await this.loadEnv();
             }
+            if (!this.promptsLoaded) {
+                await this.loadPrompts();
+            }
 
             let jsonString = '';
             
             const contextStr = this.buildContextString();
             const contextualPrompt = text + (contextStr ? "\n\n" + contextStr : "");
 
-            if (this.selectedModel === 'native-mock') {
-                jsonString = await this.mockAIGeneration(contextualPrompt);
-            } else {
-                jsonString = await this.geminiAPIGeneration(contextualPrompt);
+            let currentSystemPrompt = this.basePrompt;
+            const textLower = text.toLowerCase();
+            
+            let mode = 'generate';
+            if (textLower.includes('update') || textLower.includes('edit') || textLower.includes('add') || textLower.includes('delete') || textLower.includes('change')) {
+                mode = 'edit';
+                currentSystemPrompt = this.editPrompt;
+            } else if (textLower.includes('summarize') || textLower.includes('analyze') || textLower.includes('what') || textLower.includes('explain')) {
+                mode = 'analyze';
+                currentSystemPrompt = this.analyzePrompt;
             }
 
-            const mapData = JSON.parse(jsonString);
-            
-            // Assign valid unique IDs to the generated map immediately to prevent collisions
-            mapData.map_id = "ai_" + this.kernel.generateId();
-            
-            this.pendingMapData = mapData;
+            if (mode === 'generate' && (textLower.includes('web') || textLower.includes('site') || textLower.includes('dashboard') || textLower.includes('ui'))) {
+                currentSystemPrompt += '\n\n' + this.webPrompt;
+            }
 
-            const actionHtml = `
-                <div class="mt-3 flex flex-col gap-2 border-t border-indigo-500/30 pt-3">
-                    <button onclick="window.AI.initiateTargetedImport()" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
-                        🎯 Assign to Existing Smart-Portal
-                    </button>
-                    <button onclick="window.AI.injectIntoNewSmartPortal()" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
-                        🌟 Assign to New Smart-Portal
-                    </button>
-                    <button onclick="window.AI.actionExpandSelected()" class="w-full py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
-                        🌱 Expand Selected Node
-                    </button>
-                    <button onclick="window.AI.actionUpdateSelected()" class="w-full py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
-                        ✏️ Update Selected Node
-                    </button>
-                    <button onclick="window.AI.loadAsNewSession()" class="w-full py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
-                        🌌 Load as New Session
-                    </button>
-                </div>
-            `;
+            if (this.selectedModel === 'native-mock') {
+                jsonString = await this.mockAIGeneration(contextualPrompt, mode);
+            } else {
+                jsonString = await this.geminiAPIGeneration(contextualPrompt, currentSystemPrompt);
+            }
+
+            const aiData = JSON.parse(jsonString);
             
-            document.getElementById('ai-loading').remove();
-            this.addMessage('system', `Map generated: **${mapData.meta.title}** (${mapData.nodes.length} nodes). How would you like to deploy it?`, actionHtml);
+            if (aiData.map_id && aiData.nodes) {
+                // Legacy Map Generation Mode
+                aiData.map_id = "ai_" + this.kernel.generateId();
+                this.pendingMapData = aiData;
+
+                const actionHtml = `
+                    <div class="mt-3 flex flex-col gap-2 border-t border-indigo-500/30 pt-3">
+                        <button onclick="window.AI.initiateTargetedImport()" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
+                            🎯 Assign to Existing Smart-Portal
+                        </button>
+                        <button onclick="window.AI.injectIntoNewSmartPortal()" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
+                            🌟 Assign to New Smart-Portal
+                        </button>
+                        <button onclick="window.AI.actionExpandSelected()" class="w-full py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
+                            🌱 Expand Selected Node
+                        </button>
+                        <button onclick="window.AI.actionUpdateSelected()" class="w-full py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
+                            ✏️ Update Selected Node
+                        </button>
+                        <button onclick="window.AI.loadAsNewSession()" class="w-full py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
+                            🌌 Load as New Session
+                        </button>
+                    </div>
+                `;
+                
+                document.getElementById('ai-loading').remove();
+                this.addMessage('system', `Map generated: **${aiData.meta?.title || 'Map'}** (${aiData.nodes.length} nodes). How would you like to deploy it?`, actionHtml);
+            } else if (aiData.message) {
+                // New Analyze or Edit Mode
+                document.getElementById('ai-loading').remove();
+                
+                // Print Message
+                this.addMessage('system', aiData.message);
+
+                // Apply Edits if they exist
+                if (aiData.edits && Array.isArray(aiData.edits)) {
+                    for (const edit of aiData.edits) {
+                        try {
+                            if (edit.action === 'update' && edit.nodeId) {
+                                this.kernel.updateNode(edit.nodeId, edit.data);
+                            } else if (edit.action === 'add' && edit.parentId) {
+                                const newNode = this.kernel.addNode(edit.data, edit.parentId);
+                                this.kernel.addConnection(edit.parentId, newNode.id);
+                            } else if (edit.action === 'delete' && edit.nodeId) {
+                                this.kernel.deleteNode(edit.nodeId);
+                            }
+                        } catch (err) {
+                            console.error("Failed to apply edit:", edit, err);
+                        }
+                    }
+                    this.sandbox.render();
+                }
+            } else {
+                 throw new Error("Unrecognized JSON schema returned by AI.");
+            }
 
         } catch (e) {
             document.getElementById('ai-loading').remove();
@@ -307,73 +344,121 @@ If the user requests a website or web UI:
     
     buildContextString() {
         const selectedId = this.kernel.state.session.selectedId;
-        if (!selectedId) return "";
+        if (!selectedId) {
+            return "--- FULL MAP OVERVIEW ---\n" + 
+                   JSON.stringify(this.kernel.state.nodes.map(n => ({id: n.id, title: n.title, type: n.type}))) + 
+                   "\n---------------------------\n";
+        }
 
         const state = this.kernel.state;
-        const node = state.nodes.find(n => n.id === selectedId);
-        if (!node) return "";
-
-        const parentConn = state.connections.find(c => c.to === selectedId && c.type === 'structural');
-        let parentNode = null;
-        let siblings = [];
-        
-        if (parentConn) {
-            parentNode = state.nodes.find(n => n.id === parentConn.from);
-            if (parentNode) {
-                const siblingIds = state.connections.filter(c => c.from === parentNode.id && c.type === 'structural' && c.to !== selectedId).map(c => c.to);
-                siblings = state.nodes.filter(n => siblingIds.includes(n.id));
-            }
-        }
-
         let ctx = "--- CURRENT MAP CONTEXT ---\n";
-        ctx += "Selected Node (Local Context):\n";
-        ctx += `- Title: ${node.title}\n`;
-        ctx += `- Type: ${node.type}\n`;
-        if (node.content) ctx += `- Content: ${node.content}\n`;
         
-        if (parentNode) {
-            ctx += "\nParent Node (Upstream Context):\n";
-            ctx += `- Title: ${parentNode.title}\n`;
-            ctx += `- Type: ${parentNode.type}\n`;
-        }
+        // Helper to get connected nodes recursively
+        const getConnected = (nodeId, direction, maxDepth, currentDepth = 0, visited = new Set()) => {
+            if (currentDepth > maxDepth || visited.has(nodeId)) return [];
+            visited.add(nodeId);
+            const node = state.nodes.find(n => n.id === nodeId);
+            if (!node) return [];
+            
+            let result = [{ depth: currentDepth, node }];
+            
+            const conns = state.connections.filter(c => direction === 'up' ? c.to === nodeId : c.from === nodeId);
+            for (const conn of conns) {
+                const nextId = direction === 'up' ? conn.from : conn.to;
+                result = result.concat(getConnected(nextId, direction, maxDepth, currentDepth + 1, visited));
+            }
+            return result;
+        };
 
-        if (siblings.length > 0) {
-            ctx += "\nSibling Nodes (Lateral Context):\n";
-            siblings.forEach(s => {
-                ctx += `- Title: ${s.title} (Type: ${s.type})\n`;
-            });
-        }
+        const upstream = getConnected(selectedId, 'up', 3);
+        const downstream = getConnected(selectedId, 'down', 3);
+
+        const formatNode = (n) => `[ID: ${n.id}] ${n.title} (Type: ${n.type})` + (n.content ? `\n  Content: ${n.content.substring(0, 100)}...` : '');
+
+        ctx += "Selected Node:\n";
+        const selectedNode = state.nodes.find(n => n.id === selectedId);
+        if (selectedNode) ctx += formatNode(selectedNode) + "\n\n";
+
+        ctx += "Upstream Context (up to 3 levels):\n";
+        upstream.filter(x => x.depth > 0).forEach(x => {
+            ctx += `${'-'.repeat(x.depth)} ` + formatNode(x.node) + "\n";
+        });
+
+        ctx += "\nDownstream Context (up to 3 levels):\n";
+        downstream.filter(x => x.depth > 0).forEach(x => {
+            ctx += `${'-'.repeat(x.depth)} ` + formatNode(x.node) + "\n";
+        });
         
         ctx += "---------------------------\n";
-        ctx += "When generating nodes, you can consider this context to align your response with the existing structure. If editing, apply updates to the generated root node.\n";
+        ctx += "If editing, use these node IDs to target your changes.\n";
         return ctx;
     }
 
     // --- AI Generation Handlers ---
 
-    async mockAIGeneration(prompt) {
+    async mockAIGeneration(prompt, mode) {
         return new Promise(resolve => {
             setTimeout(() => {
-                // Return a structured mockup based on the fact we requested a mock
-                const response = {
-                    "map_id": "ai_mock",
-                    "meta": { "title": "AI Generated Structure", "created": new Date().toISOString(), "notes": "Generated from prompt: " + prompt, "shared": false },
-                    "nodes": [
-                        { "id": "m1", "type": "hub", "title": "Core Concept", "content": prompt, "data": { "x": 0, "y": 0, "isCore": true, "collapsed": false }, "submaps": [] },
-                        { "id": "m2", "type": "note", "title": "Detail 1", "content": "Synthesized detail.", "data": { "x": -150, "y": -150, "isCore": false, "collapsed": false }, "submaps": [] },
-                        { "id": "m3", "type": "note", "title": "Detail 2", "content": "Synthesized detail.", "data": { "x": 150, "y": -150, "isCore": false, "collapsed": false }, "submaps": [] },
-                        { "id": "m4", "type": "smart-portal", "title": "Deep Dive", "content": "", "data": { "x": 0, "y": 150, "isCore": false, "collapsed": false }, "submaps": [] }
-                    ],
-                    "connections": [
-                        { "id": "mc1", "from": "m1", "to": "m2", "type": "structural" },
-                        { "id": "mc2", "from": "m1", "to": "m3", "type": "structural" },
-                        { "id": "mc3", "from": "m1", "to": "m4", "type": "structural" }
-                    ],
-                    "submaps": []
-                };
-                resolve(JSON.stringify(response));
+                if (mode === 'edit' || mode === 'analyze') {
+                    resolve(JSON.stringify({
+                        message: "Mocked response. I have analyzed/edited the map as requested.",
+                        edits: mode === 'edit' ? [] : undefined
+                    }));
+                } else {
+                    const response = {
+                        "map_id": "ai_mock",
+                        "meta": { "title": "AI Generated Structure", "created": new Date().toISOString(), "notes": "Generated from prompt: " + prompt, "shared": false },
+                        "nodes": [
+                            { "id": "m1", "type": "hub", "title": "Core Concept", "content": prompt, "data": { "x": 0, "y": 0, "isCore": true, "collapsed": false }, "submaps": [] },
+                            { "id": "m2", "type": "note", "title": "Detail 1", "content": "Synthesized detail.", "data": { "x": -150, "y": -150, "isCore": false, "collapsed": false }, "submaps": [] },
+                            { "id": "m3", "type": "note", "title": "Detail 2", "content": "Synthesized detail.", "data": { "x": 150, "y": -150, "isCore": false, "collapsed": false }, "submaps": [] },
+                            { "id": "m4", "type": "smart-portal", "title": "Deep Dive", "content": "", "data": { "x": 0, "y": 150, "isCore": false, "collapsed": false }, "submaps": [] }
+                        ],
+                        "connections": [
+                            { "id": "mc1", "from": "m1", "to": "m2", "type": "structural" },
+                            { "id": "mc2", "from": "m1", "to": "m3", "type": "structural" },
+                            { "id": "mc3", "from": "m1", "to": "m4", "type": "structural" }
+                        ],
+                        "submaps": []
+                    };
+                    resolve(JSON.stringify(response));
+                }
             }, 1500); // Simulate API latency
         });
+    }
+
+    async loadPrompts() {
+        if (this.promptsLoaded) return;
+        try {
+            const baseRes = await fetch('./skills/generate-mapstate/SKILL.md');
+            if (baseRes.ok) {
+                const baseText = await baseRes.text();
+                this.basePrompt = baseText.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
+            }
+
+            const webRes = await fetch('./skills/generate-web-mapstate/SKILL.md');
+            if (webRes.ok) {
+                const webText = await webRes.text();
+                this.webPrompt = webText.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
+            }
+
+            const analyzeRes = await fetch('./skills/analyze-mapstate/SKILL.md');
+            if (analyzeRes.ok) {
+                const analyzeText = await analyzeRes.text();
+                this.analyzePrompt = analyzeText.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
+            }
+
+            const editRes = await fetch('./skills/edit-mapstate/SKILL.md');
+            if (editRes.ok) {
+                const editText = await editRes.text();
+                this.editPrompt = editText.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
+            }
+
+            this.promptsLoaded = true;
+        } catch (e) {
+            console.warn("Failed to load skills:", e.message);
+            this.promptsLoaded = true; // prevent retry on failure
+        }
     }
 
     async loadEnv() {
@@ -409,7 +494,7 @@ If the user requests a website or web UI:
         }
     }
 
-    async geminiAPIGeneration(prompt) {
+    async geminiAPIGeneration(prompt, systemPrompt) {
         const apiKey = this.env['GEMINI_API_KEY'];
         if (!apiKey) {
             throw new Error("GEMINI_API_KEY not found in .env. Please ensure the .env file exists and is served correctly.");
@@ -422,7 +507,7 @@ If the user requests a website or web UI:
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 systemInstruction: {
-                    parts: [{ text: this.systemPrompt }]
+                    parts: [{ text: systemPrompt }]
                 },
                 contents: [{
                     role: "user",
