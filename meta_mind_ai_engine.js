@@ -140,6 +140,7 @@ class MetaMindAI {
 
     handleResize() {
         const panel = document.getElementById('ai-chat-panel');
+        const toggleBtn = document.getElementById('ai-toggle-btn');
         if (!panel || !this.isOpen) return;
 
         if (window.innerWidth <= 768 && window.visualViewport) {
@@ -156,15 +157,25 @@ class MetaMindAI {
                 // Keep panel within the visual viewport
                 panel.style.bottom = `${offsetFromBottom + 16}px`;
                 panel.style.maxHeight = `${vv.height - 32}px`;
+                
+                // Hide the toggle button so it doesn't occlude the send button
+                if (toggleBtn) toggleBtn.style.opacity = '0';
+                if (toggleBtn) toggleBtn.style.pointerEvents = 'none';
             } else {
                 // Keyboard closed: reset to defaults so it doesn't overlap the toggle button
                 panel.style.bottom = '';
                 panel.style.maxHeight = '';
+                
+                if (toggleBtn) toggleBtn.style.opacity = '';
+                if (toggleBtn) toggleBtn.style.pointerEvents = '';
             }
         } else {
             // Reset to defaults on desktop
             panel.style.bottom = '';
             panel.style.maxHeight = '';
+            
+            if (toggleBtn) toggleBtn.style.opacity = '';
+            if (toggleBtn) toggleBtn.style.pointerEvents = '';
         }
     }
 
