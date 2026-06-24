@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meta-Mind | Comprehensive Wiki v14.11</title>
+    <title>Multi-Map | Comprehensive Wiki v14.11</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
@@ -92,7 +92,7 @@
         class="md:hidden flex items-center justify-between bg-slate-900/90 backdrop-blur-md border-b border-slate-800 p-4 absolute top-0 w-full z-20">
         <h1 class="text-lg font-black flex items-center gap-2">
             <span class="w-6 h-6 rounded bg-sky-600 flex items-center justify-center text-xs text-white">M</span>
-            META-MIND
+            Multi-Map
         </h1>
         <button id="mobile-menu-btn"
             class="text-slate-400 hover:text-white p-2 transition-colors rounded-lg hover:bg-slate-800">
@@ -116,7 +116,7 @@
                 <h1 class="text-xl font-black tracking-tight flex items-center gap-2">
                     <span
                         class="w-6 h-6 rounded bg-sky-600 flex items-center justify-center text-xs text-white">M</span>
-                    META-MIND
+                    Multi-Map
                 </h1>
                 <div class="text-[10px] uppercase tracking-widest text-emerald-400 mt-2 font-bold">Docs: v14.11</div>
             </div>
@@ -164,9 +164,9 @@
         <div class="max-w-5xl mx-auto pb-32">
 
             <header class="mb-16 border-b border-slate-800 pb-8">
-                <h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tight">Meta-Mind Master Reference</h1>
+                <h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tight">Multi-Map Master Reference</h1>
                 <p class="text-lg md:text-xl text-slate-400 leading-relaxed">
-                    Welcome to the definitive documentation for Meta-Mind v14.11. This wiki serves both daily users
+                    Welcome to the definitive documentation for Multi-Map v14.11. This wiki serves both daily users
                     navigating the spatial interface and developers building federated companion applications.
                 </p>
             </header>
@@ -183,7 +183,7 @@
             <section id="getting-started" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">1. Getting Started</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
-                    Meta-Mind is a spatial mapping ecosystem. Instead of folders and files, you organize information
+                    Multi-Map is a spatial mapping ecosystem. Instead of folders and files, you organize information
                     into "Constellations" of interconnected nodes. Every map begins with a <strong>Universe
                         Root</strong>. From there, you can spawn Hubs, Notes, Portals, and structured Web elements.
                 </p>
@@ -253,7 +253,7 @@
             <section id="phase-engines" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">4. Phase Engines (Views)</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
-                    Meta-Mind separates your raw data from how it is displayed. "Phases" are different lenses through
+                    Multi-Map separates your raw data from how it is displayed. "Phases" are different lenses through
                     which you can view the exact same Mapstate JSON.
                 </p>
                 <ul class="space-y-4">
@@ -345,14 +345,14 @@
                 </p>
                 <div class="space-y-4">
                     <div class="bg-slate-900 border border-slate-800 p-5 rounded-lg">
-                        <strong class="text-white text-sm">The Kernel (<code>meta-mind-core.js</code>)</strong>
+                        <strong class="text-white text-sm">The Kernel (<code>multi-map-core.js</code>)</strong>
                         <p class="text-sm text-slate-400 mt-2">Holds the <code>MapState</code> object. Performs all
                             array mutations, handles UUID generation, runs the <code>resolveOverlaps()</code> physics
                             loop, and manages the Breadth-First Search (BFS) algorithm for cascading downstream node
                             deletions. Emits <code>this.notify()</code> on state change.</p>
                     </div>
                     <div class="bg-slate-900 border border-slate-800 p-5 rounded-lg">
-                        <strong class="text-white text-sm">The Sandbox (<code>meta-mind-sandbox.js</code>)</strong>
+                        <strong class="text-white text-sm">The Sandbox (<code>multi-map-sandbox.js</code>)</strong>
                         <p class="text-sm text-slate-400 mt-2">The View Controller. Subscribes to the Kernel. Utilizes
                             pure mathematical DOM-Diffing (checking <code>dataset.stateHash</code>) to apply targeted
                             innerHTML updates without destroying active mobile keyboards or CSS animation frames.</p>
@@ -364,7 +364,7 @@
             <section id="ontology" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">7. Node & Connection Ontology</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
-                    Defined in <code>meta-mind-rules.js</code>, this schema dictates what types of nodes can exist and
+                    Defined in <code>Multi-Map-rules.js</code>, this schema dictates what types of nodes can exist and
                     how they are allowed to connect. <em>Rule Exception: Any node is allowed to have a child of type
                         'note'.</em>
                 </p>
@@ -500,7 +500,7 @@
                 <p class="text-slate-400 leading-relaxed mb-4">
                     In v14.7, we deprecated <code>fetch()</code> calls to external JSON files to bypass local
                     <code>file://</code> CORS restrictions. The engine now uses a globally mounted
-                    <code>MetaMindLibrary</code> object loaded via <code>meta-mind-library.js</code>.
+                    <code>MultiMapLibrary</code> object loaded via <code>multi-map-library.js</code>.
                 </p>
                 <div class="bg-slate-900 border border-slate-800 rounded-lg p-5">
                     <h4 class="font-bold text-white mb-2 text-sm">How AI Integration Works</h4>
@@ -509,7 +509,7 @@
                     </p>
                     <ol class="list-decimal pl-5 text-sm text-slate-300 space-y-3">
                         <li><strong>Manual Source:</strong> Paste the generated JSON directly into the
-                            <code>defaults: [...]</code> array inside <code>meta-mind-library.js</code>.</li>
+                            <code>defaults: [...]</code> array inside <code>multi-map-library.js</code>.</li>
                         <li><strong>Runtime Upload:</strong> Save the AI output as a <code>.json</code> file, open the
                             Data Manager Phase in the app, and click the <strong>Upload Template</strong> button to
                             write it permanently to your LocalStorage.</li>

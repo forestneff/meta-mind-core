@@ -4,18 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meta-Mind Workspace</title>
+    <title>Multi-Map Workspace</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="meta-mind-ui.css">
+    <link rel="stylesheet" href="multi-map-ui.css">
 
     <!-- CRITICAL LOAD ORDER -->
-    <script src="meta-mind-library.js"></script>
-    <script src="meta-mind-rules.js"></script>
-    <script src="meta-mind-core.js"></script>
+    <script src="multi-map-library.js"></script>
+    <script src="Multi-Map-rules.js"></script>
+    <script src="multi-map-core.js"></script>
     <script src="phase-engines.js"></script>
-    <script src="meta-mind-sandbox.js"></script>
-    <script src="meta-mind-tutorials.js"></script>
-    <script src="meta_mind_ai_engine.js"></script>
+    <script src="multi-map-sandbox.js"></script>
+    <script src="multi-map-tutorials.js"></script>
+    <script src="multi_map_ai_engine.js"></script>
 </head>
 
 <body class="overflow-hidden bg-slate-950 select-none">
@@ -40,7 +40,7 @@
             <div class="flex flex-col">
                 <!-- Desktop Title -->
                 <span id="map-title"
-                    class="text-sm font-bold text-slate-200 leading-none hidden sm:block mt-0.5">Meta-Mind</span>
+                    class="text-sm font-bold text-slate-200 leading-none hidden sm:block mt-0.5">Multi-Map</span>
                 <!-- Mobile Stacked Title -->
                 <div
                     class="flex flex-col sm:hidden text-[9px] font-black text-slate-200 leading-tight uppercase tracking-widest mt-0.5">
@@ -203,7 +203,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             try {
-                const Kernel = new MetaMindKernel();
+                const Kernel = new MultiMapKernel();
                 const Registry = new PhaseRegistrySystem();
                 Registry.init(Kernel);
 
@@ -216,7 +216,7 @@
                 window.SC = Controller;
 
                 // INITIATE AI ENGINE
-                window.AI = new MetaMindAI(Kernel, Controller);
+                window.AI = new MultiMapAI(Kernel, Controller);
 
                 // INITIATE TUTORIALS
                 window.Tutorials = new TutorialOrchestrator(window.AI);

@@ -1,5 +1,5 @@
 /**
- * META-MIND PHASE ENGINE SYSTEM v14.11
+ * Multi-Map PHASE ENGINE SYSTEM v14.11
  * Features: Dynamic Search Highlighting and Inspector UX Refinements.
  */
 
@@ -506,10 +506,10 @@ class UniversalPhaseEngine extends PhaseEngineBase {
         `;
 
         const sel = container.querySelector('#edit-type');
-        if (typeof MetaMindSchema !== 'undefined') {
-            Object.keys(MetaMindSchema.definitions).forEach(t => {
+        if (typeof MultiMapSchema !== 'undefined') {
+            Object.keys(MultiMapSchema.definitions).forEach(t => {
                 const opt = document.createElement('option');
-                opt.value = t; opt.text = MetaMindSchema.definitions[t].label;
+                opt.value = t; opt.text = MultiMapSchema.definitions[t].label;
                 if (node.type === t) opt.selected = true;
                 sel.appendChild(opt);
             });
@@ -579,7 +579,7 @@ class OrbitalPhaseEngine extends PhaseEngineBase {
         if (role === 'sun') el.className += " bg-slate-800 border-sky-500 text-sky-100 w-[120px] h-[120px]";
         else if (role === 'parent') el.className += " bg-slate-900 border-indigo-500/50 text-indigo-300 w-[60px] h-[60px] hover:border-indigo-400";
         else el.className += " bg-slate-900 border-sky-500/30 text-sky-200 w-[50px] h-[50px] hover:border-sky-400 hover:scale-110";
-        el.innerHTML = `<div class="text-xl">${(typeof MetaMindSchema !== 'undefined') ? MetaMindSchema.getDefinition(node.type).icon : '⚪'}</div><div class="text-[8px] uppercase mt-1 max-w-full truncate px-1">${node.title}</div>`;
+        el.innerHTML = `<div class="text-xl">${(typeof MultiMapSchema !== 'undefined') ? MultiMapSchema.getDefinition(node.type).icon : '⚪'}</div><div class="text-[8px] uppercase mt-1 max-w-full truncate px-1">${node.title}</div>`;
         return el;
     }
 }
