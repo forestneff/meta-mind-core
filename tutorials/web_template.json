@@ -1,6 +1,7 @@
 [
     {
-        "text": "The Web Phase allows you to construct User Interfaces natively inside the map. Let's switch to it.",
+        "onEnter": "const hasWebRoot = SC.kernel.state.nodes.some(n => n.type === 'web-root'); if(!hasWebRoot) { const n = SC.kernel.addNode({ title: 'New Web App', type: 'web-root' }); SC.kernel.selectNode(n.id); SC.kernel.bridge.fetchTemplateData('tpl_web_standard').then(data => { SC.kernel.applyTemplateToNode(n.id, data); SC.render(); }); } else { const p = SC.kernel.state.nodes.find(n => n.type === 'web-root'); SC.kernel.selectNode(p.id); SC.render(); }",
+        "text": "The Web Phase allows you to construct User Interfaces natively. I've imported a web template for us. Let's switch to the Web Phase to view it.",
         "target": "#btn-phase-web",
         "requireClick": false
     },

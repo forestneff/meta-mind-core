@@ -87,6 +87,27 @@ class SandboxController {
         vp.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
         window.addEventListener('resize', () => this.render());
 
+        // --- GLOBAL ESCAPE HANDLER (CASCADING CLOSE) ---
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // 1. Close Tutorial Menu Modal
+                if (window.Tutorials && window.Tutorials.modalElement && !window.Tutorials.modalElement.classList.contains('hidden')) {
+                    window.Tutorials.closeTutorialModal();
+                    return;
+                }
+                // 2. Close AI Chat
+                if (window.AI && window.AI.isVisible) {
+                    window.AI.hideChat();
+                    return;
+                }
+                // 3. Close Inspector Sidebar
+                if (this.dom.sidebar && this.dom.sidebar.classList.contains('open')) {
+                    this.closeSidebar();
+                    return;
+                }
+            }
+        });
+
         // --- WEB EDIT MODE MESSAGE LISTENER ---
         window.addEventListener('message', (e) => {
             if (e.data && e.data.type === 'mm-select-node' && e.data.id) {

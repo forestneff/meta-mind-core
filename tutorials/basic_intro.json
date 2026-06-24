@@ -4,23 +4,16 @@
         "target": null
     },
     {
-        "conditionText": [
-            {
-                "condition": "window.innerWidth > 768",
-                "text": "Skipping mobile tools button...",
-                "skip": true
-            }
-        ],
-        "text": "On mobile, your main tools are tucked away here. Tap this button to expand the toolbar.",
+        "text": "Your main tools are tucked away here. Tap this button to expand the toolbar.",
         "target": "#btn-mobile-tools"
     },
     {
-        "onEnter": "const tb = document.getElementById('top-toolbar'); if(window.innerWidth <= 768 && tb && tb.classList.contains('hidden')) { tb.classList.remove('hidden'); tb.classList.add('flex'); }",
+        "onEnter": "const tb = document.getElementById('top-toolbar'); if(tb && tb.classList.contains('hidden')) { tb.classList.remove('hidden'); tb.classList.add('flex'); }",
         "text": "Here is your main toolbar. You can add new nodes or auto-arrange your map here.",
         "target": "#top-toolbar"
     },
     {
-        "onEnter": "const tb = document.getElementById('top-toolbar'); if(window.innerWidth <= 768 && tb && !tb.classList.contains('hidden')) { tb.classList.add('hidden'); tb.classList.remove('flex'); }",
+        "onEnter": "const tb = document.getElementById('top-toolbar'); if(tb && !tb.classList.contains('hidden')) { tb.classList.add('hidden'); tb.classList.remove('flex'); }",
         "text": "This rail controls your current view Phase. Here you can switch between Map, Data, or Web modes.",
         "target": "#btn-phase-map",
         "animateToTarget": "#phase-selection-area"

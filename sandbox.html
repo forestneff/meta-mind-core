@@ -84,7 +84,7 @@
             <button
                 id="btn-mobile-tools"
                 onclick="const tb = document.getElementById('top-toolbar'); tb.classList.toggle('hidden'); tb.classList.toggle('flex');"
-                class="md:hidden p-2 text-slate-400 hover:text-white transition-colors rounded hover:bg-slate-800">
+                class="p-2 text-slate-400 hover:text-white transition-colors rounded hover:bg-slate-800">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
@@ -92,35 +92,34 @@
                 </svg>
             </button>
 
-            <!-- Tools (Dropdown on Mobile, Inline on Desktop) -->
+            <!-- Tools (Dropdown on all screens) -->
             <div id="top-toolbar"
-                class="hidden absolute top-12 right-0 w-48 bg-slate-900 border border-slate-700 rounded-xl p-3 flex-col gap-3 shadow-2xl md:static md:flex md:flex-row md:w-auto md:bg-transparent md:border-none md:p-0 md:shadow-none z-50">
-                <div class="h-6 w-px bg-slate-700 mx-1 shrink-0 hidden md:block"></div>
+                class="hidden absolute top-12 right-0 w-48 bg-slate-900 border border-slate-700 rounded-xl p-3 flex-col gap-3 shadow-2xl z-50">
 
                 <button id="btn-add"
-                    class="w-full md:w-auto px-3 py-2 md:py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded transition-colors shadow-lg flex items-center justify-center md:justify-start gap-2"
+                    class="w-full px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded transition-colors shadow-lg flex items-center justify-center gap-2"
                     title="Add Root Node">
                     ➕ <span>Root</span>
                 </button>
 
                 <button id="btn-arrange"
-                    class="w-full md:w-auto px-3 py-2 md:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors flex items-center justify-center md:justify-start gap-2"
+                    class="w-full px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors flex items-center justify-center gap-2"
                     title="Force-Directed Organic Layout">
                     ✨ <span>Arrange</span>
                 </button>
 
                 <button id="btn-undo"
-                    class="w-full md:w-auto px-3 py-2 md:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors flex items-center justify-center md:justify-start gap-2"
-                    title="Undo Last Action">
+                    class="w-full px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded border border-slate-700 transition-colors flex items-center justify-center gap-2"
+                    title="Undo Last Layout Change">
                     ↩️ <span>Undo</span>
                 </button>
 
-                <div class="h-6 w-px bg-slate-700 mx-1 shrink-0 hidden md:block"></div>
+                <div class="h-6 w-px bg-slate-700 mx-1 shrink-0 hidden"></div>
 
                 <button id="btn-focal"
-                    class="w-full md:w-auto px-3 py-2 md:py-1.5 bg-slate-800 text-slate-400 text-xs font-bold rounded border border-slate-700 transition-all flex items-center justify-center md:justify-start gap-2"
-                    title="Toggle Camera Tracking">
-                    👁️ <span>Focus</span>
+                    class="w-full px-3 py-2 bg-slate-800 text-slate-400 text-xs font-bold rounded border border-slate-700 transition-all flex items-center justify-center gap-2"
+                    title="Toggle Auto-Focus Panning">
+                    🎯 <span id="focal-status">Focal</span>
                 </button>
 
                 <button id="btn-web-edit"
@@ -222,8 +221,8 @@
                 // INITIATE TUTORIALS
                 window.Tutorials = new TutorialOrchestrator(window.AI);
 
-                document.getElementById('btn-undo').onclick = () => { Kernel.undo(); document.getElementById('top-toolbar').classList.add('hidden', 'md:flex'); };
-                document.getElementById('btn-arrange').onclick = () => { Kernel.autoLayout(); document.getElementById('top-toolbar').classList.add('hidden', 'md:flex'); };
+                document.getElementById('btn-undo').onclick = () => { Kernel.undo(); document.getElementById('top-toolbar').classList.add('hidden'); document.getElementById('top-toolbar').classList.remove('flex'); };
+                document.getElementById('btn-arrange').onclick = () => { Kernel.autoLayout(); document.getElementById('top-toolbar').classList.add('hidden'); document.getElementById('top-toolbar').classList.remove('flex'); };
 
                 document.getElementById('btn-add').onclick = () => {
                     const vp = Kernel.state.session.viewport;
@@ -232,22 +231,22 @@
                         x: (rect.width / 2 - vp.x) / vp.scale,
                         y: (rect.height / 2 - vp.y) / vp.scale
                     });
-                    document.getElementById('top-toolbar').classList.add('hidden', 'md:flex');
+                    document.getElementById('top-toolbar').classList.add('hidden'); document.getElementById('top-toolbar').classList.remove('flex');
                 };
 
                 const btnFocal = document.getElementById('btn-focal');
                 const updateFocalUI = () => {
                     if (Kernel.config.autoFocus) {
-                        btnFocal.className = "w-full md:w-auto px-3 py-2 md:py-1.5 bg-sky-600 text-white text-xs font-bold rounded shadow-lg shadow-sky-900/20 border border-sky-500 transition-all flex items-center justify-center md:justify-start gap-2";
+                        btnFocal.className = "w-full px-3 py-2 bg-sky-600 text-white text-xs font-bold rounded shadow-lg shadow-sky-900/20 border border-sky-500 transition-all flex items-center justify-center gap-2";
                     } else {
-                        btnFocal.className = "w-full md:w-auto px-3 py-2 md:py-1.5 bg-slate-800 text-slate-400 text-xs font-bold rounded border border-slate-700 transition-all hover:bg-slate-700 flex items-center justify-center md:justify-start gap-2";
+                        btnFocal.className = "w-full px-3 py-2 bg-slate-800 text-slate-400 text-xs font-bold rounded border border-slate-700 transition-all hover:bg-slate-700 flex items-center justify-center gap-2";
                     }
                 };
                 updateFocalUI();
                 btnFocal.onclick = () => {
                     Kernel.config.autoFocus = !Kernel.config.autoFocus;
                     updateFocalUI();
-                    document.getElementById('top-toolbar').classList.add('hidden', 'md:flex');
+                    document.getElementById('top-toolbar').classList.add('hidden'); document.getElementById('top-toolbar').classList.remove('flex');
                 };
 
             } catch (e) {

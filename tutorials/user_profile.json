@@ -5,7 +5,8 @@
         "requireClick": false
     },
     {
-        "text": "Select the User Profile node (if you have one generated), then open the Inspector.",
+        "onEnter": "const hasProfile = SC.kernel.state.nodes.some(n => n.type === 'profile'); if(!hasProfile) { const n = SC.kernel.addNode({ title: 'New Profile', type: 'profile' }); SC.kernel.selectNode(n.id); SC.kernel.bridge.fetchTemplateData('tpl_user_profile').then(data => { SC.kernel.applyTemplateToNode(n.id, data); SC.render(); }); } else { const p = SC.kernel.state.nodes.find(n => n.type === 'profile'); SC.kernel.selectNode(p.id); SC.render(); }",
+        "text": "User Profiles are a specialized node type. I've imported a template and selected it for us. Let's inspect it.",
         "target": "#btn-sidebar-toggle",
         "requireClick": false
     },

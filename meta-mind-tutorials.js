@@ -33,7 +33,7 @@ class TutorialOrchestrator {
         if (!span) return;
         
         const prog = this.getTutorialProgress();
-        const totalTutorials = 7; 
+        const totalTutorials = 8; 
         const completedCount = Object.keys(prog).length;
         if (completedCount >= totalTutorials) {
             span.classList.add('hidden');
@@ -84,6 +84,7 @@ class TutorialOrchestrator {
         this.registry = [
             { id: 'basic_intro', title: 'Interface Basics', desc: 'A quick tour of the main tools and map navigation.' },
             { id: 'radial_menu', title: 'The Radial Menu', desc: 'Learn how to interact with nodes, link them, and edit properties.' },
+            { id: 'toolbar_advanced', title: 'Advanced Toolbar', desc: 'Deep dive into layout tools, undo functionality, and focus panning.' },
             { id: 'map_creation', title: 'Saving & Loading Maps', desc: 'Learn how to save your constellation and find it again in the Library.' },
             { id: 'map_phase', title: 'Map Architecture', desc: 'Learn how to construct semantic graphs and link nodes.' },
             { id: 'data_phase', title: 'Data Manager', desc: 'Understand how to import cloud templates and manage raw JSON.' },
@@ -274,8 +275,13 @@ class TutorialOrchestrator {
 
         let pad = 8;
         const stepDef = this.currentTutorial && this.currentStepIndex >= 0 ? this.currentTutorial[this.currentStepIndex] : null;
-        if (stepDef && stepDef.expandHalo) {
-            pad += stepDef.expandHalo;
+        if (stepDef) {
+            if (stepDef.expandHalo) pad += stepDef.expandHalo;
+            if (stepDef.shape === 'circle') {
+                this.haloElement.classList.replace('rounded-xl', 'rounded-full');
+            } else {
+                this.haloElement.classList.replace('rounded-full', 'rounded-xl');
+            }
         }
 
         this.haloElement.style.left = `${rect.left - pad}px`;
@@ -284,8 +290,10 @@ class TutorialOrchestrator {
         this.haloElement.style.height = `${rect.height + (pad*2)}px`;
         this.haloElement.style.opacity = '1';
         
-        if (!skipScroll && el.scrollIntoView) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        if (!skipScroll && el.scrollIntoView && el.id !== 'viewport') {
+            if (!stepDef || !stepDef.skipScroll) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            }
         }
     }
 
