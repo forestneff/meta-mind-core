@@ -92,7 +92,7 @@ class SandboxController {
             if (e.key === 'Escape') {
                 // 1. Close Tutorial Menu Modal
                 if (window.Tutorials && window.Tutorials.modalElement && !window.Tutorials.modalElement.classList.contains('hidden')) {
-                    window.Tutorials.closeTutorialModal();
+                    window.Tutorials.closeSelectionModal();
                     return;
                 }
                 // 2. Close AI Chat

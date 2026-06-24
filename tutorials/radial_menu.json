@@ -5,16 +5,15 @@
         "requireClick": false
     },
     {
-        "onEnter": "if(SC.kernel.state.nodes.length === 0) { SC.kernel.addNode({title: 'Tutorial Node'}); SC.render(); } setTimeout(() => { const node = SC.kernel.state.nodes[0]; SC.showRadialMenu(node); }, 100);",
-        "text": "Clicking a node brings up the Radial Menu. I've automatically opened it on a node for you.",
-        "target": "#radial-menu",
-        "shape": "circle",
+        "text": "First, let's select a node. Click the root node in the center of your screen to open its Radial Menu.",
+        "onEnter": "SC.hideRadialMenu(true); if(SC.kernel.state.nodes.length === 0) { SC.kernel.addNode({title: 'Tutorial Node'}); } const node = SC.kernel.state.nodes[0]; SC.kernel.state.camera.x = -node.x; SC.kernel.state.camera.y = -node.y; SC.render(); if(window._tutInt) clearInterval(window._tutInt); window._tutInt = setInterval(() => { if(SC.dom && SC.dom.radialMenu && SC.dom.radialMenu.classList.contains('active')) { clearInterval(window._tutInt); window.Tutorials.nextStep(false); } }, 200);",
+        "target": "#viewport",
         "requireClick": false,
-        "autoClick": false,
-        "expandHalo": 120
+        "autoClick": false
     },
     {
-        "text": "The buttons around the node let you Edit Properties, Create Children, Link to other nodes, or Delete. Hover over them to see what they do!",
+        "onEnter": "if(window._tutInt) clearInterval(window._tutInt); if(SC.dom && SC.dom.radialMenu && !SC.dom.radialMenu.classList.contains('active') && SC.kernel.state.nodes.length > 0) { SC.showRadialMenu(SC.kernel.state.nodes[0]); }",
+        "text": "Clicking a node brings up the Radial Menu. The buttons around the node let you Edit Properties, Create Children, Link to other nodes, or Delete. Hover over them to see what they do!",
         "target": "#radial-menu",
         "shape": "circle",
         "requireClick": false,

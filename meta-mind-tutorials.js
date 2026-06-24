@@ -207,7 +207,7 @@ class TutorialOrchestrator {
     prevStep() {
         if (!this.isActive || !this.currentTutorial || this.currentStepIndex <= 0) return;
         this.currentStepIndex--;
-        this.renderStep();
+        this.renderStep(false);
     }
 
     nextStep(isManualNextBtn = true) {
@@ -215,24 +215,6 @@ class TutorialOrchestrator {
         
         let stepDef = this.currentTutorial[this.currentStepIndex];
         let step = stepDef ? JSON.parse(JSON.stringify(stepDef)) : null;
-
-        if (step && step.conditionText && Array.isArray(step.conditionText)) {
-            for (let ct of step.conditionText) {
-                try {
-                    if (eval(ct.condition)) {
-                        if (ct.autoClick !== undefined) step.autoClick = ct.autoClick;
-                        if (ct.skip !== undefined) step.skip = ct.skip;
-                        break;
-                    }
-                } catch(e) {}
-            }
-        }
-
-        if (step && step.skip) {
-            this.currentStepIndex++;
-            setTimeout(() => this.nextStep(false), 10);
-            return;
-        }
 
         // If user clicked "Next" in tooltip, we simulate click on the target to force UI navigation
         if (isManualNextBtn && step && step.target && step.autoClick !== false) {
@@ -255,11 +237,17 @@ class TutorialOrchestrator {
             
             // Show a quick success message
             if (this.ai) {
-                this.ai.showTooltip(`<span class="text-emerald-400 font-bold">🎉 Tutorial Completed!</span> Excellent work.`, `<button onclick="window.Tutorials.ai.hideTooltip()" class="px-2 py-1 bg-slate-700 text-xs rounded text-white ml-4">Dismiss</button>`);
+                const actionsHtml = `
+                    <div class="flex gap-2 ml-4">
+                        <button onclick="window.Tutorials.ai.hideTooltip()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-xs rounded text-slate-200 transition-colors">Dismiss</button>
+                        <button onclick="window.Tutorials.ai.hideTooltip(); window.Tutorials.openSelectionModal()" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold transition-colors">More</button>
+                    </div>
+                `;
+                this.ai.showTooltip(`<span class="text-emerald-400 font-bold">🎉 Tutorial Completed!</span> Excellent work.`, actionsHtml);
                 setTimeout(() => this.ai.hideTooltip(), 4000);
             }
         } else {
-            this.renderStep();
+            this.renderStep(true);
         }
     }
 
@@ -289,11 +277,25 @@ class TutorialOrchestrator {
         this.haloElement.style.width = `${rect.width + (pad*2)}px`;
         this.haloElement.style.height = `${rect.height + (pad*2)}px`;
         this.haloElement.style.opacity = '1';
-        
-        if (!skipScroll && el.scrollIntoView && el.id !== 'viewport') {
-            if (!stepDef || !stepDef.skipScroll) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-            }
+
+        if (!skipScroll && el.id !== 'viewport' && (!stepDef || !stepDef.skipScroll)) {
+            setTimeout(() => {
+                let scrollParent = el.parentElement;
+                while (scrollParent && scrollParent !== document.body && scrollParent !== document.documentElement) {
+                    const style = window.getComputedStyle(scrollParent);
+                    if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+                        const latestRect = el.getBoundingClientRect();
+                        const parentRect = scrollParent.getBoundingClientRect();
+                        if (latestRect.top < parentRect.top || latestRect.bottom > parentRect.bottom) {
+                            scrollParent.scrollTo({
+                                top: scrollParent.scrollTop + (latestRect.top - parentRect.top) - (parentRect.height / 2) + (latestRect.height / 2),
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+                    scrollParent = scrollParent.parentElement;
+                }
+            }, 150);
         }
     }
 
@@ -320,13 +322,12 @@ class TutorialOrchestrator {
         }
     }
 
-    renderStep() {
-        if (!this.isActive || !this.currentTutorial) return;
+    renderStep(isForward = true) {
+        if (!this.isActive || !this.currentTutorial || this.currentStepIndex < 0 || this.currentStepIndex >= this.currentTutorial.length) return;
         this.animateToTargetElement = null;
         
         // Deep copy the step so we don't mutate the original JSON array state permanently
         let stepDef = this.currentTutorial[this.currentStepIndex];
-        if (!stepDef) return;
         let step = JSON.parse(JSON.stringify(stepDef));
 
         // Evaluate onEnter action
@@ -345,12 +346,23 @@ class TutorialOrchestrator {
                     if (eval(ct.condition)) {
                         if (ct.text) step.text = ct.text;
                         if (ct.autoClick !== undefined) step.autoClick = ct.autoClick;
+                        if (ct.skip !== undefined) step.skip = ct.skip;
                         break;
                     }
                 } catch(e) {
                     console.error("Tutorial condition eval error:", e);
                 }
             }
+        }
+
+        if (step.skip) {
+            if (isForward) {
+                this.currentStepIndex++;
+            } else {
+                this.currentStepIndex--;
+            }
+            setTimeout(() => this.renderStep(isForward), 10);
+            return;
         }
 
         if (this.animateTimeout) {
@@ -399,13 +411,26 @@ class TutorialOrchestrator {
             const backBtnHtml = this.currentStepIndex > 0 ? `<button onclick="window.Tutorials.prevStep()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs font-bold shadow transition-colors shrink-0 mr-1" title="Previous Step">❮</button>` : '';
             const nextBtnHtml = step.requireClick ? '' : `<button onclick="window.Tutorials.nextStep(true)" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-bold shadow transition-colors shrink-0">${isLast ? 'Finish ➔' : 'Next ➔'}</button>`;
             
+            let skipOrMoreHtml = '';
+            if (isLast) {
+                skipOrMoreHtml = `
+                    <button onclick="window.Tutorials.endTutorial(); window.Tutorials.openSelectionModal()" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold transition-colors shrink-0">
+                        More
+                    </button>
+                `;
+            } else {
+                skipOrMoreHtml = `
+                    <button onclick="window.Tutorials.endTutorial()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-xs font-bold transition-colors shrink-0">
+                        Skip
+                    </button>
+                `;
+            }
+
             const actionsHtml = `
                 <div class="flex gap-2 ml-4 shrink-0">
                     ${backBtnHtml}
                     ${nextBtnHtml}
-                    <button onclick="window.Tutorials.endTutorial()" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-xs font-bold transition-colors shrink-0">
-                        Skip
-                    </button>
+                    ${skipOrMoreHtml}
                 </div>
             `;
             

@@ -143,6 +143,11 @@ class MetaMindAI {
         const content = document.getElementById('ai-tooltip-content');
         const actions = document.getElementById('ai-tooltip-actions');
         
+        if (this.tooltipHideTimeout) {
+            clearTimeout(this.tooltipHideTimeout);
+            this.tooltipHideTimeout = null;
+        }
+
         content.innerHTML = text;
         actions.innerHTML = actionsHtml;
         
@@ -155,7 +160,8 @@ class MetaMindAI {
     hideTooltip() {
         const bar = document.getElementById('ai-tooltip-bar');
         bar.classList.add('translate-x-4', 'opacity-0');
-        setTimeout(() => bar.classList.add('hidden'), 300);
+        if (this.tooltipHideTimeout) clearTimeout(this.tooltipHideTimeout);
+        this.tooltipHideTimeout = setTimeout(() => bar.classList.add('hidden'), 300);
     }
 
     toggleChat() {
