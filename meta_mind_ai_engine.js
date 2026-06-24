@@ -144,14 +144,25 @@ class MetaMindAI {
 
         if (window.innerWidth <= 768 && window.visualViewport) {
             const vv = window.visualViewport;
-            // Calculate how much space the keyboard is taking up
-            const keyboardHeight = window.innerHeight - vv.height;
-            // Shift the panel up above the keyboard, plus some padding
-            panel.style.bottom = `${Math.max(24, keyboardHeight + 16)}px`;
-            // Restrict the max height so it fits entirely in the visible area above the keyboard
-            panel.style.maxHeight = `${vv.height - 32}px`;
+            // Detect if keyboard is open by checking if input is focused or height is significantly reduced
+            const isInputFocused = document.activeElement === document.getElementById('ai-input');
+            const heightDiff = window.innerHeight - vv.height;
+            
+            if (isInputFocused || heightDiff > 50) {
+                // Keyboard is open. Calculate distance from visual viewport bottom to layout viewport bottom
+                const vvBottom = vv.offsetTop + vv.height;
+                const offsetFromBottom = window.innerHeight - vvBottom;
+                
+                // Keep panel within the visual viewport
+                panel.style.bottom = `${offsetFromBottom + 16}px`;
+                panel.style.maxHeight = `${vv.height - 32}px`;
+            } else {
+                // Keyboard closed: reset to defaults so it doesn't overlap the toggle button
+                panel.style.bottom = '';
+                panel.style.maxHeight = '';
+            }
         } else {
-            // Reset to defaults on desktop or when keyboard closes
+            // Reset to defaults on desktop
             panel.style.bottom = '';
             panel.style.maxHeight = '';
         }
