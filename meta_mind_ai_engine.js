@@ -58,7 +58,7 @@ class MetaMindAI {
 
                 <!-- Messages Area -->
                 <div id="ai-messages" class="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4">
-                    <div class="text-xs text-slate-400 bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 self-start max-w-[85%]">
+                    <div id="ai-intro-message" class="text-xs text-slate-400 bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 self-start max-w-[85%]">
                         Hello! I am your structural AI. Describe a concept, project, or website, and I will generate a spatial mapstate for it.
                     </div>
                 </div>
@@ -102,6 +102,25 @@ class MetaMindAI {
         
         const tutorialToggleBtn = document.getElementById('ai-tutorial-toggle');
         tutorialToggleBtn.onclick = () => {
+            // clear onboarding pulse if active
+            tutorialToggleBtn.classList.remove('animate-pulse');
+            tutorialToggleBtn.style.boxShadow = '';
+            document.getElementById('ai-toggle-btn').classList.remove('animate-pulse');
+            document.getElementById('ai-toggle-btn').style.boxShadow = '';
+
+            // revert onboarding message to standard
+            const msgEl = document.getElementById('ai-intro-message');
+            if (msgEl && msgEl.innerHTML.includes('Welcome to Meta-Mind!')) {
+                msgEl.innerHTML = "Hello! I am your structural AI. Describe a concept, project, or website, and I will generate a spatial mapstate for it.";
+            }
+
+            // Persist the state so it doesn't reappear on refresh
+            let progress = JSON.parse(localStorage.getItem('mm_tutorial_progress') || '{}');
+            if (!progress['seen_onboarding']) {
+                progress['seen_onboarding'] = true;
+                localStorage.setItem('mm_tutorial_progress', JSON.stringify(progress));
+            }
+            
             if (window.Tutorials) {
                 if (window.Tutorials.isActive) {
                     window.Tutorials.endTutorial();
@@ -110,6 +129,58 @@ class MetaMindAI {
                 }
             }
         };
+
+        this.checkOnboardingState();
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => this.handleResize());
+            window.visualViewport.addEventListener('scroll', () => this.handleResize());
+        }
+    }
+
+    handleResize() {
+        const panel = document.getElementById('ai-chat-panel');
+        if (!panel || !this.isOpen) return;
+
+        if (window.innerWidth <= 768 && window.visualViewport) {
+            const vv = window.visualViewport;
+            // Calculate how much space the keyboard is taking up
+            const keyboardHeight = window.innerHeight - vv.height;
+            // Shift the panel up above the keyboard, plus some padding
+            panel.style.bottom = `${Math.max(24, keyboardHeight + 16)}px`;
+            // Restrict the max height so it fits entirely in the visible area above the keyboard
+            panel.style.maxHeight = `${vv.height - 32}px`;
+        } else {
+            // Reset to defaults on desktop or when keyboard closes
+            panel.style.bottom = '';
+            panel.style.maxHeight = '';
+        }
+    }
+
+    checkOnboardingState() {
+        const progress = JSON.parse(localStorage.getItem('mm_tutorial_progress') || '{}');
+        // Check if basic_intro is completed or if they've already seen the onboarding
+        if (!progress['basic_intro'] && !progress['seen_onboarding']) {
+            // Pulse the AI toggle widget so they click it
+            const btn = document.getElementById('ai-toggle-btn');
+            if (btn && !btn.classList.contains('animate-pulse')) {
+                btn.classList.add('animate-pulse');
+                btn.style.boxShadow = '0 0 25px 10px rgba(79,70,229,0.7)';
+            }
+
+            // Change intro message
+            const msgEl = document.getElementById('ai-intro-message');
+            if (msgEl) {
+                msgEl.innerHTML = "Welcome to Meta-Mind! To get started, I highly recommend exploring the interactive <span class='text-indigo-400 font-bold'>Learn</span> tutorials to learn the ropes.";
+            }
+
+            // Highlight the Learn button inside
+            const learnBtn = document.getElementById('ai-tutorial-toggle');
+            if (learnBtn) {
+                learnBtn.classList.add('animate-pulse');
+                learnBtn.style.boxShadow = '0 0 15px 5px rgba(79,70,229,0.7)';
+            }
+        }
     }
 
     // --- Tutorial / Tooltip Methods ---
@@ -172,6 +243,7 @@ class MetaMindAI {
             panel.classList.remove('hidden');
             // Small delay for CSS transition
             setTimeout(() => {
+                this.handleResize();
                 panel.classList.remove('translate-y-4', 'opacity-0');
                 document.getElementById('ai-input').focus();
             }, 10);
