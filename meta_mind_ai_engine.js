@@ -347,7 +347,20 @@ class MetaMindAI {
                 jsonString = await this.geminiAPIGeneration(contextualPrompt, currentSystemPrompt);
             }
 
-            const aiData = JSON.parse(jsonString);
+            // Clean markdown JSON wrapping if present
+            jsonString = jsonString.trim();
+            if (jsonString.startsWith('```')) {
+                jsonString = jsonString.replace(/^```(?:json)?\s*/i, '');
+                jsonString = jsonString.replace(/\s*```$/i, '');
+            }
+
+            let aiData;
+            try {
+                aiData = JSON.parse(jsonString);
+            } catch (err) {
+                console.error("Raw AI Output:", jsonString);
+                throw new Error("Invalid JSON structure returned by AI.");
+            }
             
             if (aiData.map_id && aiData.nodes) {
                 // Legacy Map Generation Mode
