@@ -141,41 +141,51 @@ class MetaMindAI {
     handleResize() {
         const panel = document.getElementById('ai-chat-panel');
         const toggleBtn = document.getElementById('ai-toggle-btn');
-        if (!panel || !this.isOpen) return;
 
         if (window.innerWidth <= 768 && window.visualViewport) {
             const vv = window.visualViewport;
-            // Detect if keyboard is open by checking if input is focused or height is significantly reduced
-            const isInputFocused = document.activeElement === document.getElementById('ai-input');
+            const isInputFocused = document.activeElement === document.getElementById('ai-input') || (document.activeElement && document.activeElement.tagName === 'INPUT');
             const heightDiff = window.innerHeight - vv.height;
             
             if (isInputFocused || heightDiff > 50) {
-                // Keyboard is open. Calculate distance from visual viewport bottom to layout viewport bottom
                 const vvBottom = vv.offsetTop + vv.height;
                 const offsetFromBottom = window.innerHeight - vvBottom;
                 
-                // Keep panel within the visual viewport
-                panel.style.bottom = `${offsetFromBottom + 16}px`;
-                panel.style.maxHeight = `${vv.height - 32}px`;
+                // Keep toggle button visible above keyboard at all times
+                if (toggleBtn) {
+                    toggleBtn.style.opacity = '';
+                    toggleBtn.style.pointerEvents = '';
+                    toggleBtn.style.bottom = `${offsetFromBottom + 24}px`;
+                }
                 
-                // Hide the toggle button so it doesn't occlude the send button
-                if (toggleBtn) toggleBtn.style.opacity = '0';
-                if (toggleBtn) toggleBtn.style.pointerEvents = 'none';
+                if (panel && this.isOpen) {
+                    // Position panel above the toggle button to prevent overlap
+                    panel.style.bottom = `${offsetFromBottom + 96}px`;
+                    panel.style.maxHeight = `${vv.height - 112}px`;
+                }
             } else {
-                // Keyboard closed: reset to defaults so it doesn't overlap the toggle button
-                panel.style.bottom = '';
-                panel.style.maxHeight = '';
-                
-                if (toggleBtn) toggleBtn.style.opacity = '';
-                if (toggleBtn) toggleBtn.style.pointerEvents = '';
+                // Keyboard closed
+                if (toggleBtn) {
+                    toggleBtn.style.opacity = '';
+                    toggleBtn.style.pointerEvents = '';
+                    toggleBtn.style.bottom = '';
+                }
+                if (panel && this.isOpen) {
+                    panel.style.bottom = '';
+                    panel.style.maxHeight = '';
+                }
             }
         } else {
-            // Reset to defaults on desktop
-            panel.style.bottom = '';
-            panel.style.maxHeight = '';
-            
-            if (toggleBtn) toggleBtn.style.opacity = '';
-            if (toggleBtn) toggleBtn.style.pointerEvents = '';
+            // Desktop or standard state
+            if (toggleBtn) {
+                toggleBtn.style.opacity = '';
+                toggleBtn.style.pointerEvents = '';
+                toggleBtn.style.bottom = '';
+            }
+            if (panel && this.isOpen) {
+                panel.style.bottom = '';
+                panel.style.maxHeight = '';
+            }
         }
     }
 
