@@ -33,7 +33,7 @@ class TutorialOrchestrator {
         if (!span) return;
         
         const prog = this.getTutorialProgress();
-        const totalTutorials = 8; 
+        const totalTutorials = 7; 
         const completedCount = Object.keys(prog).length;
         if (completedCount >= totalTutorials) {
             span.classList.add('hidden');
@@ -83,13 +83,12 @@ class TutorialOrchestrator {
         // Otherwise, show carousel
         this.registry = [
             { id: 'basic_intro', title: 'Interface Basics', desc: 'A quick tour of the main tools and map navigation.' },
-            { id: 'radial_menu', title: 'The Radial Menu', desc: 'Learn how to interact with nodes, link them, and edit properties.' },
-            { id: 'toolbar_advanced', title: 'Advanced Toolbar', desc: 'Deep dive into layout tools, undo functionality, and focus panning.' },
+            { id: 'radial_menu', title: 'Inspector & Tools', desc: 'Learn to use the Inspector, action tools, and node radial menus.' },
             { id: 'map_creation', title: 'Saving & Loading Maps', desc: 'Learn how to save your constellation and find it again in the Library.' },
             { id: 'map_phase', title: 'Map Architecture', desc: 'Learn how to construct semantic graphs and link nodes.' },
             { id: 'data_phase', title: 'Data Manager', desc: 'Understand how to import cloud templates and manage raw JSON.' },
             { id: 'web_template', title: 'Web App Builder', desc: 'See how to visually design user interfaces directly inside the map.' },
-            { id: 'user_profile', title: 'User Profiles', desc: 'Learn how dynamic nodes manage unique data formats like credentials.' }
+            { id: 'person', title: 'Person Profiles', desc: 'Learn how dynamic nodes manage unique data formats like credentials.' }
         ];
 
         let cardsHtml = '';

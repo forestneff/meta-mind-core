@@ -95,16 +95,16 @@ const MultiMapLibrary = {
             submaps: []
         },
         {
-            map_id: "tpl_user_profile",
+            map_id: "tpl_person_profile",
             meta: {
-                title: "Standard User Profile",
-                target_type: "profile",
+                title: "Standard Person Profile",
+                target_type: "person-root",
                 created: "2026-02-27T12:00:00Z",
-                notes: "Generates the standard data fields for a user identity node.",
+                notes: "Generates the standard data fields for a person identity node.",
                 shared: true
             },
             nodes: [
-                { id: "p_root", type: "profile", title: "User Profile", content: '{"Name":"","Email":"","Phone":"","Address":""}', data: { x: 0, y: 0, isCore: true, collapsed: false }, submaps: [] },
+                { id: "p_root", type: "person-root", title: "Person", content: '{"Name":"","Email":"","Phone":"","Address":""}', data: { x: 0, y: 0, isCore: true, collapsed: false }, submaps: [] },
                 { id: "p_name", type: "note", title: "Name", content: "", data: { x: 0, y: -120, isCore: false, collapsed: false }, submaps: [] },
                 { id: "p_email", type: "note", title: "Email", content: "", data: { x: 120, y: 0, isCore: false, collapsed: false }, submaps: [] },
                 { id: "p_phone", type: "note", title: "Phone", content: "", data: { x: 0, y: 120, isCore: false, collapsed: false }, submaps: [] },

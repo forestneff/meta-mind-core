@@ -11,7 +11,7 @@ Output ONLY valid JSON matching this schema. Do NOT include markdown formatting 
 {
   "map_id": "unique_string",
   "meta": { "title": "Map Title", "created": "2026-03-01T00:00:00Z" },
-  "nodes": [ { "id": "n1", "type": "hub", "title": "Root", "content": "", "data": { "x": 0, "y": 0, "isCore": true, "collapsed": false } } ],
+  "nodes": [ { "id": "n1", "type": "root", "title": "Root", "content": "", "data": { "x": 0, "y": 0, "isCore": true, "collapsed": false } } ],
   "connections": [ { "id": "c1", "from": "n1", "to": "n2", "type": "structural" } ],
   "submaps": []
 }
@@ -21,3 +21,9 @@ Allowed types: root, hub, note, portal, smart-portal, logic-gate, web-root, web-
 Ensure spatial x/y positioning prevents exact overlaps (space by 150px).
 
 If the user is requesting a website, dashboard, or web UI, you must adhere strictly to the rules in the `generate-web-mapstate` skill which will be dynamically provided to you.
+
+CRITICAL ROOT CONSTRAINT RULES:
+- Exactly one root-type node (e.g. 'root', 'web-root', 'data-root', 'file-root', 'prompt-root', or 'agent-root') is permitted per map.
+- You MUST NEVER output more than one root node inside the nodes list.
+- You MUST NEVER attach a root node as a child of another node.
+- To represent secondary or submap architectures, use portal nodes (type 'portal' or 'smart-portal') rather than adding extra root nodes.

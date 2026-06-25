@@ -135,9 +135,10 @@
             </div>
             <a href="#getting-started" class="nav-link pl-8">1. Getting Started</a>
             <a href="#navigation" class="nav-link pl-8">2. Navigation & Controls</a>
-            <a href="#linking" class="nav-link pl-8">3. Two-Step Linking</a>
-            <a href="#phase-engines" class="nav-link pl-8">4. Phase Engines (Views)</a>
-            <a href="#data-manager" class="nav-link pl-8">5. The Data Manager</a>
+            <a href="#universal-node" class="nav-link pl-8">3. The Universal Node System</a>
+            <a href="#phase-engines" class="nav-link pl-8">4. Phase Engines</a>
+            <a href="#data-manager" class="nav-link pl-8">5. Profile & Data Manager</a>
+            <a href="#portals" class="nav-link pl-8">6. Submaps and Portals</a>
 
             <div class="px-6 text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2 mt-6">II. Developer
                 Docs</div>
@@ -217,7 +218,7 @@
 
                 <h4 class="font-bold text-lg mb-2 mt-8">The Radial Menu & Moons</h4>
                 <p class="text-slate-400 text-sm leading-relaxed mb-4">
-                    Selecting a node opens its Radial Menu—a circular array of quick actions (Edit, Link, Add Child,
+                    Selecting a node opens its Radial Menu—a circular array of quick actions (Edit, Link, Add,
                     Delete, Collapse).
                     <br><br>
                     <strong>Non-Destructive Collapse:</strong> When you collapse a node (🌚), its children are hidden
@@ -230,7 +231,7 @@
             <section id="linking" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
                 <h3 class="text-2xl font-black mb-4 flex items-center gap-3">3. Two-Step Targeted Linking</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
-                    While "Add Child" creates strict hierarchical structures (solid lines), you can draw conceptual
+                    While "Add" creates strict hierarchical structures (solid lines), you can draw conceptual
                     relationships between any two nodes using the Two-Step Linking workflow (dotted lines).
                 </p>
                 <div class="bg-slate-900 border-l-4 border-amber-500 p-6 rounded-r-xl shadow-lg">
@@ -298,33 +299,36 @@
                 </ul>
             </section>
 
-            <!-- 5. Data Manager -->
+            <!-- 5. Profile & Data Manager -->
             <section id="data-manager" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
-                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">5. The Data Manager</h3>
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">5. Profile & Data Manager</h3>
                 <p class="text-slate-400 leading-relaxed mb-6">
-                    Accessible via the "Phases" tab, the Data Manager is your bidirectional command center for
-                    importing, exporting, and managing the local library.
+                    Accessible via the "Profile" icon in the top right corner, the right-side drawer serves as your unified command center for Account settings and the Data Manager. It allows you to log in, manage cloud templates, and export the local library.
                 </p>
                 <div class="space-y-6">
                     <div>
                         <h4 class="font-bold text-blue-400 mb-2">🌐 Cloud Templates</h4>
-                        <p class="text-sm text-slate-300">Provides read-only master templates (like pre-built website
-                            architecture). You can import these directly into your active workspace as recursive
-                            portals. Click "Upload" to upload external JSON templates to your local library.</p>
+                        <p class="text-sm text-slate-300">Provides read-only master templates. You can import these directly into your active workspace. Click "Upload" to upload external JSON templates to your local library.</p>
                     </div>
                     <div>
                         <h4 class="font-bold text-purple-400 mb-2">📚 Saved Constellations</h4>
-                        <p class="text-sm text-slate-300">Your personal repository. You can Save your active session,
-                            Load previous sessions, or click "Export" to download your entire constellation library as a
-                            single JSON array for backup. You can also export/download individual maps.</p>
+                        <p class="text-sm text-slate-300">Your personal repository. You can Save your active session, Load previous sessions, or click "Export" to download your entire constellation library as a single JSON array.</p>
                     </div>
-                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
-                        <strong class="text-emerald-400 text-sm block mb-2">⚡ Intelligent Conflict Resolution</strong>
-                        <p class="text-xs text-slate-400">When uploading a single JSON mapstate or an Array of mapstates
-                            into the library, the engine automatically checks for ID collisions. If an exact duplicate
-                            exists, it skips it. If a modified version exists, it prompts you with a comparison of
-                            node/connection counts before overwriting.</p>
-                    </div>
+                </div>
+            </section>
+
+            <!-- 6. Portals & Mapstates -->
+            <section id="portals" class="mb-20 pt-8 border-t border-slate-800/50 scroll-mt-24 md:scroll-mt-10">
+                <h3 class="text-2xl font-black mb-4 flex items-center gap-3">6. Submaps and Portals</h3>
+                <p class="text-slate-400 leading-relaxed mb-6">
+                    Maps in Multi-Map have intrinsic <strong>Subtype Mapstates</strong> (e.g., "Generic", "Web Architecture"). This enforces strict Ontology rules globally across the map.
+                </p>
+                <p class="text-slate-400 leading-relaxed mb-6">
+                    To link maps together, create a <code>Portal</code> node. Using the Portal Inspector, you can either select an existing map as the destination, or create a <strong>New Submap</strong> by selecting a Map Type. Creating a "Web Architecture" map will instantly enforce Web-only rules and generate a <code>web-root</code> node in the new space.
+                </p>
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-lg">
+                    <strong class="text-emerald-400 text-sm block mb-2">🌀 Enter Portal</strong>
+                    <p class="text-xs text-slate-400">Entering a portal replaces your current workspace with the destination submap. Depending on the submap's Type, Multi-Map will automatically switch your Phase Engine (e.g., jumping into a Web Map auto-activates the Web Architect phase). Click the 🔙 button in the top menu to traverse back up the portal history stack.</p>
                 </div>
             </section>
 

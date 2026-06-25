@@ -28,10 +28,16 @@ class MultiMapAI {
         if (!container) return;
 
         container.innerHTML = `
-            <!-- Chat Toggle Button -->
-            <button id="ai-toggle-btn" class="absolute bottom-6 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(79,70,229,0.5)] flex items-center justify-center text-2xl transition-transform hover:scale-110 z-[60] text-white border-2 border-indigo-400">
-                ✨
-            </button>
+            <!-- AI Widget Wrapper -->
+
+            <!-- AI Widget Radial Menu Wrapper -->
+            <div id="ai-radial-wrapper" class="absolute bottom-6 right-6 z-[60] flex items-center justify-center">
+                
+                <!-- Main Toggle Button -->
+                <button id="ai-toggle-btn" class="relative w-14 h-14 bg-indigo-600 hover:bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(79,70,229,0.5)] flex items-center justify-center text-2xl transition-transform hover:scale-110 z-[61] text-white border-2 border-indigo-400">
+                    ✨
+                </button>
+            </div>
 
             <!-- Chat Interface -->
             <div id="ai-chat-panel" class="absolute bottom-24 right-6 w-[380px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[60vh] bg-slate-900/95 backdrop-blur-xl border border-indigo-500/30 rounded-2xl shadow-2xl flex flex-col hidden z-[50] overflow-hidden transform transition-all translate-y-4 opacity-0">
@@ -129,6 +135,7 @@ class MultiMapAI {
 
         this.checkOnboardingState();
 
+        window.addEventListener('resize', () => this.handleResize());
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', () => this.handleResize());
             window.visualViewport.addEventListener('scroll', () => this.handleResize());
@@ -238,7 +245,7 @@ class MultiMapAI {
         }
     }
 
-    showTooltip(text, actionsHtml = '') {
+    showTooltip(text, actionsHtml = '', customClass = '') {
         const bar = document.getElementById('ai-tooltip-bar');
         const content = document.getElementById('ai-tooltip-content');
         const actions = document.getElementById('ai-tooltip-actions');
@@ -246,6 +253,13 @@ class MultiMapAI {
         if (this.tooltipHideTimeout) {
             clearTimeout(this.tooltipHideTimeout);
             this.tooltipHideTimeout = null;
+        }
+
+        // Apply any custom offset classes (clean up old ones first)
+        bar.className = bar.className.replace(/mb-\d+|bottom-\d+/g, '').trim() + ' bottom-6';
+        if (customClass) {
+            bar.classList.remove('bottom-6');
+            bar.classList.add(...customClass.split(' '));
         }
 
         content.innerHTML = text;
@@ -265,12 +279,10 @@ class MultiMapAI {
     }
 
     toggleChat() {
-
         const panel = document.getElementById('ai-chat-panel');
         this.isOpen = !this.isOpen;
         if (this.isOpen) {
             panel.classList.remove('hidden');
-            // Small delay for CSS transition
             setTimeout(() => {
                 this.handleResize();
                 panel.classList.remove('translate-y-4', 'opacity-0');
@@ -278,7 +290,9 @@ class MultiMapAI {
             }, 10);
         } else {
             panel.classList.add('translate-y-4', 'opacity-0');
-            setTimeout(() => panel.classList.add('hidden'), 300);
+            setTimeout(() => {
+                panel.classList.add('hidden');
+            }, 300);
         }
     }
 
@@ -289,6 +303,38 @@ class MultiMapAI {
         div.innerHTML = text.replace(/\n/g, '<br>') + actionHtml;
         msgs.appendChild(div);
         msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    handleSmartNodeConnection(sourceNode, targetNode) {
+        if (!sourceNode || !targetNode || targetNode.type !== 'smart-portal') return;
+        
+        // Open the AI chat panel if closed
+        const chatPanel = document.getElementById('ai-chat-container');
+        if (chatPanel && chatPanel.classList.contains('translate-y-full')) {
+            window.AI.toggleChat();
+        }
+
+        const input = document.getElementById('ai-input');
+        if (input) {
+            let func = targetNode.content || 'expand';
+            let customInst = '';
+            if (func.startsWith('custom:')) {
+                customInst = func.substring(7);
+                func = 'custom';
+            }
+            
+            let instruction = '';
+            switch(func) {
+                case 'expand': instruction = 'process and expand upon the data'; break;
+                case 'summarize': instruction = 'provide a concise summary of the data'; break;
+                case 'pass_prompt': instruction = 'use the data as a direct prompt/instruction to generate new structures'; break;
+                case 'custom': instruction = customInst; break;
+                default: instruction = 'process the data';
+            }
+
+            input.value = `Update node "${targetNode.id}" by executing the following instruction on the source data from "${sourceNode.title}":\nInstruction: ${instruction}\nSource Data: ${sourceNode.content}`;
+            this.handleSend();
+        }
     }
 
     async handleSend() {
@@ -483,8 +529,16 @@ class MultiMapAI {
         if (genRoot) {
             // Schema Guardrails
             let newType = genRoot.type;
-            if (typeof MultiMapSchema !== 'undefined' && !MultiMapSchema.nodeTypes[newType]) {
+            if (typeof MultiMapSchema !== 'undefined' && !MultiMapSchema.definitions[newType]) {
                 console.warn(`Type ${newType} not allowed by schema. Keeping ${targetNode.type}`);
+                newType = targetNode.type;
+            }
+
+            // Prevent changing root type to a regular type, or regular type to a root type
+            const isTargetRoot = targetNode.type === 'root' || targetNode.type.endsWith('-root') || (targetNode.data && targetNode.data.isCore);
+            const isGenRoot = newType === 'root' || newType.endsWith('-root');
+            if (isTargetRoot !== isGenRoot) {
+                console.warn(`Type change from ${targetNode.type} to ${newType} blocked to preserve root ontology.`);
                 newType = targetNode.type;
             }
 
@@ -591,7 +645,7 @@ class MultiMapAI {
                         "map_id": "ai_mock",
                         "meta": { "title": "AI Generated Structure", "created": new Date().toISOString(), "notes": "Generated from prompt: " + prompt, "shared": false },
                         "nodes": [
-                            { "id": "m1", "type": "hub", "title": "Core Concept", "content": prompt, "data": { "x": 0, "y": 0, "isCore": true, "collapsed": false }, "submaps": [] },
+                            { "id": "m1", "type": "root", "title": "Core Concept", "content": prompt, "data": { "x": 0, "y": 0, "isCore": true, "collapsed": false }, "submaps": [] },
                             { "id": "m2", "type": "note", "title": "Detail 1", "content": "Synthesized detail.", "data": { "x": -150, "y": -150, "isCore": false, "collapsed": false }, "submaps": [] },
                             { "id": "m3", "type": "note", "title": "Detail 2", "content": "Synthesized detail.", "data": { "x": 150, "y": -150, "isCore": false, "collapsed": false }, "submaps": [] },
                             { "id": "m4", "type": "smart-portal", "title": "Deep Dive", "content": "", "data": { "x": 0, "y": 150, "isCore": false, "collapsed": false }, "submaps": [] }
@@ -646,12 +700,14 @@ class MultiMapAI {
 
 
     async getAuthToken() {
-        // Stub for Firebase Auth integration
-        // In a real implementation: return await firebase.auth().currentUser.getIdToken();
+        if (typeof window.getFirebaseAuthToken === 'function') {
+            const token = await window.getFirebaseAuthToken();
+            if (token) return token;
+        }
+
         const storedToken = localStorage.getItem('MULTI_MAP_AUTH_TOKEN');
         if (storedToken) return storedToken;
 
-        // Placeholder behavior for development without auth backend
         console.warn("No Auth Token found. Cloud Agent will likely reject this request unless running in unauthenticated dev mode.");
         return "dev-placeholder-token";
     }

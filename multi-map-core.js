@@ -42,6 +42,7 @@ class MultiMapKernel {
         
         this.listeners = [];
         this.history = [];
+        this.portalHistory = [];
         this.linkingMode = false;
         this.linkingSourceId = null;
 
@@ -50,7 +51,7 @@ class MultiMapKernel {
         this.lastSaveState = JSON.stringify(this.state);
 
         if (this.state.nodes.length === 0) {
-            this.addNode({ type: "root", title: "Universe Root", data: { x: 0, y: 0, isCore: true } });
+            this.addNode({ type: "root", title: "Root", data: { x: 0, y: 0, isCore: true } });
         }
 
         setInterval(() => this.checkAutoSave(), this.config.autoSaveInterval);
@@ -62,10 +63,29 @@ class MultiMapKernel {
     getEmptyState() {
         return {
             map_id: this.generateId(),
-            meta: { title: "New Map", created: new Date().toISOString() },
-            nodes: [], connections: [], submaps: [],
-            session: { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null, remoteTemplates: [] }
+            meta: { title: "New Map", type: "generic", created: new Date().toISOString() },
+            nodes: [], connections: [],
+            session: { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null, remoteTemplates: [], layoutMode: 'organic' }
         };
+    }
+
+    createSubmap(type = 'generic', title = 'New Submap') {
+        const id = this.generateId();
+        const rootType = (typeof MultiMapSchema !== 'undefined' && MultiMapSchema.mapTypes && MultiMapSchema.mapTypes[type]) ? MultiMapSchema.mapTypes[type].rootNode : 'root';
+        const rootTitle = (typeof MultiMapSchema !== 'undefined') ? MultiMapSchema.getDefinition(rootType).label : "Root";
+        
+        const newState = {
+            map_id: id,
+            meta: { title: title, type: type, created: new Date().toISOString(), shared: false },
+            nodes: [{ id: this.generateId(), type: rootType, title: rootTitle, data: { x: 0, y: 0, isCore: true } }],
+            connections: [],
+            session: { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null, remoteTemplates: [], layoutMode: 'organic' }
+        };
+        
+        const lib = this.getLibrary();
+        lib.push(newState);
+        this.saveLibrary(lib);
+        return id;
     }
 
     ensureSchema(state) {
@@ -73,12 +93,62 @@ class MultiMapKernel {
         if (!Array.isArray(state.nodes)) state.nodes = [];
         if (!Array.isArray(state.connections)) state.connections = state.edges || [];
         delete state.edges;
-        if (!state.session) state.session = { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null, remoteTemplates: [] };
+        if (!state.meta) state.meta = { title: "Imported Map", type: "generic", created: new Date().toISOString() };
+        if (!state.meta.type) state.meta.type = "generic";
+        if (!state.session) state.session = { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null, remoteTemplates: [], layoutMode: 'organic' };
         if (!state.session.remoteTemplates) state.session.remoteTemplates = []; 
+        if (!state.session.layoutMode) state.session.layoutMode = 'organic';
         state.nodes.forEach(n => {
             if (!n.data) n.data = { x: 0, y: 0 };
             if (n.data.collapsed === undefined) n.data.collapsed = false;
         });
+
+        // Ensure only one root node exists in the map and matches state.meta.type
+        if (state.nodes.length > 0) {
+            const isRootType = (type) => type && (type === 'root' || type.endsWith('-root'));
+            const roots = state.nodes.filter(n => isRootType(n.type));
+            
+            let coreRoot = roots.find(n => n.data && n.data.isCore);
+            if (!coreRoot) {
+                // Find node with no parent or fallback to the first root
+                coreRoot = roots.find(n => !state.connections.some(c => c.to === n.id && c.type === 'structural'));
+            }
+            if (!coreRoot) coreRoot = roots[0] || state.nodes[0];
+
+            if (coreRoot) {
+                // Ensure the core root is a root type matching state.meta.type
+                const mapType = state.meta.type || 'generic';
+                const expectedRootType = (typeof MultiMapSchema !== 'undefined' && MultiMapSchema.mapTypes && MultiMapSchema.mapTypes[mapType]) 
+                    ? MultiMapSchema.mapTypes[mapType].rootNode 
+                    : 'root';
+                
+                if (coreRoot.type !== expectedRootType) {
+                    coreRoot.type = expectedRootType;
+                }
+                
+                if (!coreRoot.data) coreRoot.data = { x: 0, y: 0 };
+                coreRoot.data.isCore = true;
+
+                // Sync map type to root type (in case the root type changed)
+                if (typeof MultiMapSchema !== 'undefined' && MultiMapSchema.mapTypes) {
+                    const matchedMapType = Object.keys(MultiMapSchema.mapTypes).find(
+                        m => MultiMapSchema.mapTypes[m].rootNode === coreRoot.type
+                    );
+                    if (matchedMapType && state.meta.type !== matchedMapType) {
+                        state.meta.type = matchedMapType;
+                    }
+                }
+
+                // Convert all other roots to 'hub'
+                state.nodes.forEach(n => {
+                    if (n.id !== coreRoot.id && isRootType(n.type)) {
+                        n.type = 'hub';
+                        if (n.data) n.data.isCore = false;
+                    }
+                });
+            }
+        }
+
         return state;
     }
 
@@ -125,7 +195,7 @@ class MultiMapKernel {
         this.notify();
     }
 
-    autoLayout() { this.resolveOverlaps(150, 0.15, 0.08); } 
+    autoLayoutOrganic() { this.resolveOverlaps(150, 0.15, 0.08); } 
 
     getDownstreamNodes(startId) {
         const result = new Set([startId]);
@@ -144,6 +214,11 @@ class MultiMapKernel {
     }
 
     deleteNode(id) {
+        const n = this.state.nodes.find(x => x.id === id);
+        if (n && (n.type === 'root' || n.type.endsWith('-root') || (n.data && n.data.isCore))) {
+            alert("The root node of a map cannot be deleted.");
+            return;
+        }
         this.saveHistory();
         const toDelete = this.getDownstreamNodes(id);
         this.state.nodes = this.state.nodes.filter(n => !toDelete.has(n.id));
@@ -175,13 +250,13 @@ class MultiMapKernel {
     addNode(data, pid = null) {
         data = data || {};
         
-        // SINGLETON PROFILE CHECK
-        if (data.type === 'profile') {
-            const existingProfile = this.state.nodes.find(n => n.type === 'profile');
-            if (existingProfile) {
-                alert("A User Profile already exists in this map. Focus shifted.");
-                this.selectNode(existingProfile.id);
-                return existingProfile;
+        // SINGLETON PERSON CHECK
+        if (data.type === 'person-root') {
+            const existingPerson = this.state.nodes.find(n => n.type === 'person-root');
+            if (existingPerson) {
+                alert("A Person node already exists in this map. Focus shifted.");
+                this.selectNode(existingPerson.id);
+                return existingPerson;
             }
         }
 
@@ -190,7 +265,10 @@ class MultiMapKernel {
         let posX = data.x, posY = data.y;
         
         if (this.state.nodes.length === 0) {
-            data.type = 'root'; data.title = 'Universe Root'; data.isCore = true; posX = 0; posY = 0;
+            const mapType = this.state.meta ? this.state.meta.type : 'generic';
+            const rootType = (typeof MultiMapSchema !== 'undefined' && MultiMapSchema.mapTypes && MultiMapSchema.mapTypes[mapType]) ? MultiMapSchema.mapTypes[mapType].rootNode : 'root';
+            const rootTitle = (typeof MultiMapSchema !== 'undefined') ? MultiMapSchema.getDefinition(rootType).label : "Root";
+            data.type = rootType; data.title = rootTitle; data.isCore = true; posX = 0; posY = 0;
         } else if (posX === undefined && pid) {
             const pos = this.findSmartPosition(pid);
             posX = pos.x; posY = pos.y;
@@ -198,7 +276,7 @@ class MultiMapKernel {
 
         const node = { 
             id: id, type: data.type || 'note', title: data.title || (data.type ? data.type.toUpperCase() : 'NODE'), 
-            content: data.content || '', data: { x: posX || 0, y: posY || 0, isCore: data.isCore || false, collapsed: false }, submaps: [] 
+            content: data.content || '', data: { x: posX || 0, y: posY || 0, isCore: data.isCore || false, collapsed: false }
         };
         
         this.state.nodes.push(node);
@@ -209,14 +287,17 @@ class MultiMapKernel {
 
     addConnection(f, t, connType = 'structural') {
         if (f === t || this.state.connections.find(c => c.from === f && c.to === t)) return { success: false };
+        let s, tg;
         if (typeof MultiMapSchema !== 'undefined') {
-            const s = this.state.nodes.find(n => n.id === f), tg = this.state.nodes.find(n => n.id === t);
+            s = this.state.nodes.find(n => n.id === f);
+            tg = this.state.nodes.find(n => n.id === t);
             if (s && tg && !MultiMapSchema.canConnect(s.type, tg.type)) return { success: false };
         }
         this.saveHistory();
         this.state.connections.push({ id: this.generateId(), from: f, to: t, type: connType });
         if (connType === 'structural') setTimeout(() => this.resolveOverlaps(40), 10);
         this.notify();
+        
         return { success: true };
     }
 
@@ -224,20 +305,80 @@ class MultiMapKernel {
         const n = this.state.nodes.find(x => x.id === id); 
         if (!n) return; 
         
-        if (up.type === 'profile') {
-            const existingProfile = this.state.nodes.find(x => x.type === 'profile' && x.id !== id);
-            if (existingProfile) {
-                alert("Only one User Profile node is permitted per constellation.");
+        if (up.type === 'person-root') {
+            const existingPerson = this.state.nodes.find(x => x.type === 'person-root' && x.id !== id);
+            if (existingPerson) {
+                alert("Only one Person node is permitted per constellation.");
                 return;
             }
+        }
+
+        // If the core/root node's type is being updated, automatically sync the map's metadata type
+        const isRootType = (type) => type && (type.endsWith('-root') || type === 'root');
+        const hasParent = this.state.connections.some(c => c.to === id && c.type === 'structural');
+        const isRootNode = n.data && (n.data.isCore || (!hasParent && isRootType(n.type)));
+
+        if (up.type && isRootNode && isRootType(up.type) && up.type !== n.type) {
+            if (typeof MultiMapSchema !== 'undefined' && MultiMapSchema.mapTypes) {
+                const matchedMapType = Object.keys(MultiMapSchema.mapTypes).find(
+                    m => MultiMapSchema.mapTypes[m].rootNode === up.type
+                );
+                if (matchedMapType) {
+                    const allowedNodes = MultiMapSchema.mapTypes[matchedMapType].allowedNodes || [];
+                    // Find any existing nodes that are not allowed in the target map type (excluding the root node itself)
+                    const incompatibleNodes = this.state.nodes.filter(node => node.id !== id && !allowedNodes.includes(node.type));
+                    if (incompatibleNodes.length > 0) {
+                        const incompatibleTypes = [...new Set(incompatibleNodes.map(node => node.type))];
+                        const shouldConvert = confirm(`Cannot change root type to "${up.type}" (map type "${matchedMapType}") because this map contains incompatible downstream nodes: ${incompatibleTypes.join(', ')}.\n\nWould you like to automatically convert these incompatible nodes to "note" nodes? Warning: some content/functionality might be lost.`);
+                        if (shouldConvert) {
+                            incompatibleNodes.forEach(node => {
+                                const oldType = node.type;
+                                node.type = 'note';
+                                if (node.title === `New ${oldType}` || node.title === oldType.toUpperCase() || node.title.startsWith("New ")) {
+                                    node.title = `Converted Note (${oldType})`;
+                                }
+                            });
+                        } else {
+                            return; // Block the update
+                        }
+                    }
+                    
+                    if (!this.state.meta) this.state.meta = {};
+                    this.state.meta.type = matchedMapType;
+                }
+            }
+        }
+
+        if (up.content && n.type === 'person-root') {
+            try {
+                const pData = JSON.parse(up.content);
+                const childConns = this.state.connections.filter(c => c.from === id && c.type === 'structural');
+                const children = childConns.map(c => this.state.nodes.find(node => node.id === c.to)).filter(node => node);
+                
+                Object.keys(pData).forEach(field => {
+                    const value = pData[field];
+                    let fieldNode = children.find(node => node.title === field);
+                    if (fieldNode) {
+                        fieldNode.content = value;
+                    } else {
+                        const childId = this.generateId();
+                        const pos = this.findSmartPosition(id);
+                        this.state.nodes.push({
+                            id: childId, type: 'note', title: field, content: value,
+                            data: { x: pos.x, y: pos.y, isCore: false, collapsed: false }, submaps: []
+                        });
+                        this.state.connections.push({ id: this.generateId(), from: id, to: childId, type: 'structural' });
+                    }
+                });
+            } catch(e) {}
         }
 
         Object.keys(up).forEach(k => { if (k === 'x' || k === 'y') n.data[k] = up[k]; else n[k] = up[k]; }); 
         this.notify(); 
     }
 
-    // CMS Field Auto-Child Generator
-    updateProfileField(nodeId, field, value) {
+    // Person Profile Field Auto-Child Generator
+    updatePersonField(nodeId, field, value) {
         const node = this.state.nodes.find(n => n.id === nodeId);
         if (!node) return;
 
@@ -291,7 +432,7 @@ class MultiMapKernel {
             if (n.id === root.id) {
                 idMap[n.id] = targetNodeId;
                 // If template root has JSON payload and target doesn't, inherit it.
-                if (targetNode.type === 'profile' && !targetNode.content && n.content) {
+                if (targetNode.type === 'person-root' && !targetNode.content && n.content) {
                     targetNode.content = n.content;
                 }
             } else {
@@ -351,6 +492,7 @@ class MultiMapKernel {
             const linkTarget = (validSub.meta && validSub.meta.original_root && idMap[validSub.meta.original_root]) ? idMap[validSub.meta.original_root] : newNodes[0].id;
             this.addConnection(portalId, linkTarget);
         }
+        this.state = this.ensureSchema(this.state);
         this.resolveOverlaps(150); 
         this.notify();
     }
@@ -363,8 +505,7 @@ class MultiMapKernel {
             map_id: this.generateId(),
             meta: { title: root.title + " (Submap)", original_root: rootId, notes: "", shared: false },
             nodes: this.state.nodes.filter(n => included.has(n.id)),
-            connections: this.state.connections.filter(c => included.has(c.from) && included.has(c.to)),
-            submaps: []
+            connections: this.state.connections.filter(c => included.has(c.from) && included.has(c.to))
         };
     }
 
@@ -384,18 +525,52 @@ class MultiMapKernel {
     saveHistory() { try { this.history.push(JSON.stringify(this.state)); if(this.history.length > 50) this.history.shift(); } catch(e){} }
     undo() { if(this.history.length > 0) { this.state = this.ensureSchema(JSON.parse(this.history.pop())); this.notify(); } }
     
-    saveConstellationToLibrary(data) { let lib = this.getLibrary(); lib.push(data); localStorage.setItem("mm_constellation_lib", JSON.stringify(lib)); }
+    saveLibrary(lib) { localStorage.setItem("mm_constellation_lib", JSON.stringify(lib)); }
+    saveConstellationToLibrary(data) { let lib = this.getLibrary(); lib.push(data); this.saveLibrary(lib); }
     getLibrary() { try { return JSON.parse(localStorage.getItem("mm_constellation_lib")) || []; } catch(e) { return []; } }
-    deleteFromLibrary(id) { let lib = this.getLibrary().filter(x => x.map_id !== id); localStorage.setItem("mm_constellation_lib", JSON.stringify(lib)); }
+    deleteFromLibrary(id) { let lib = this.getLibrary().filter(x => x.map_id !== id); this.saveLibrary(lib); }
     updateLibraryItem(id, metaUpdates) {
         let lib = this.getLibrary();
         const idx = lib.findIndex(x => x.map_id === id);
         if (idx !== -1) {
             lib[idx].meta = { ...lib[idx].meta, ...metaUpdates };
-            localStorage.setItem("mm_constellation_lib", JSON.stringify(lib));
+            this.saveLibrary(lib);
             this.notify();
         }
     }
     loadMapState(data) { this.saveHistory(); this.state = this.ensureSchema(data); this.notify(); }
+    
+    // --- Portal Navigation ---
+    enterPortal(mapData) {
+        this.portalHistory.push(JSON.parse(JSON.stringify(this.state)));
+        this.history = []; // Clear undo history for new map
+        this.state = this.ensureSchema(mapData);
+        this.notify();
+    }
+    
+    saveCurrentMapToLibrary() {
+        if (!this.state || !this.state.map_id) return;
+        const lib = this.getLibrary();
+        const idx = lib.findIndex(x => x.map_id === this.state.map_id);
+        const snapshot = JSON.parse(JSON.stringify(this.state));
+        if (idx !== -1) {
+            lib[idx] = snapshot;
+        } else {
+            lib.push(snapshot);
+        }
+        this.saveLibrary(lib);
+    }
+
+    exitPortal() {
+        if (this.portalHistory.length > 0) {
+            this.saveCurrentMapToLibrary(); // Persist submap edits before leaving
+            this.state = this.ensureSchema(this.portalHistory.pop());
+            this.history = []; // Clear undo history
+            this.notify();
+            return true;
+        }
+        return false;
+    }
+
     selectNode(id) { this.state.session.selectedId = id; this.notify(); }
 }
