@@ -8,7 +8,7 @@ class MultiMapAI {
         this.kernel = kernel;
         this.sandbox = sandbox;
         this.isOpen = false;
-        this.selectedModel = 'native-mock';
+        this.selectedModel = 'gemini-2.5-flash';
         this.chatHistory = [];
         this.pendingMapData = null; // Holds the generated JSON until assigned
         this.env = {};
@@ -19,9 +19,6 @@ class MultiMapAI {
 
         this.promptsLoaded = false;
         this.basePrompt = "You are an expert System Architect for the Multi-Map Platform. Output valid MapState JSON.";
-        this.webPrompt = "";
-        this.analyzePrompt = "";
-        this.editPrompt = "";
 
         this.initDOM();
     }
@@ -50,8 +47,8 @@ class MultiMapAI {
                             <span class="text-[12px]">🎓</span> <span id="ai-tutorial-status">Learn</span>
                         </button>
                         <select id="ai-model-select" class="bg-slate-800 border border-slate-700 text-xs text-slate-300 rounded px-2 py-1 outline-none focus:border-indigo-500">
-                            <option value="native-mock">Native (Mock)</option>
-                            <option value="gemini-api">Gemini 2.5 (API Key)</option>
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                         </select>
                     </div>
                 </div>
@@ -313,35 +310,28 @@ class MultiMapAI {
         msgs.scrollTop = msgs.scrollHeight;
 
         try {
-            if (!this.promptsLoaded) {
-                await this.loadPrompts();
-            }
+
 
             let jsonString = '';
 
             const contextStr = this.buildContextString();
             const contextualPrompt = text + (contextStr ? "\n\n" + contextStr : "");
 
-            let currentSystemPrompt = this.basePrompt;
-            const textLower = text.toLowerCase();
-
             let mode = 'generate';
-            if (textLower.includes('update') || textLower.includes('edit') || textLower.includes('add') || textLower.includes('delete') || textLower.includes('change')) {
-                mode = 'edit';
-                currentSystemPrompt = this.editPrompt;
-            } else if (textLower.includes('summarize') || textLower.includes('analyze') || textLower.includes('what') || textLower.includes('explain')) {
-                mode = 'analyze';
-                currentSystemPrompt = this.analyzePrompt;
-            }
-
-            if (mode === 'generate' && (textLower.includes('web') || textLower.includes('site') || textLower.includes('dashboard') || textLower.includes('ui'))) {
-                currentSystemPrompt += '\n\n' + this.webPrompt;
-            }
 
             if (this.selectedModel === 'native-mock') {
+                // Keep local keyword matching for the mock
+                const textLower = text.toLowerCase();
+                if (textLower.includes('update') || textLower.includes('edit') || textLower.includes('add') || textLower.includes('delete') || textLower.includes('change')) {
+                    mode = 'edit';
+                } else if (textLower.includes('summarize') || textLower.includes('analyze') || textLower.includes('what') || textLower.includes('explain')) {
+                    mode = 'analyze';
+                }
                 jsonString = await this.mockAIGeneration(contextualPrompt, mode);
             } else {
-                jsonString = await this.geminiAPIGeneration(contextualPrompt, currentSystemPrompt);
+                const aiResult = await this.geminiAPIGeneration(text, contextStr);
+                jsonString = aiResult.text;
+                mode = aiResult.mode;
             }
 
             // Clean markdown JSON wrapping if present
@@ -666,7 +656,7 @@ class MultiMapAI {
         return "dev-placeholder-token";
     }
 
-    async geminiAPIGeneration(prompt, systemPrompt) {
+    async geminiAPIGeneration(prompt, contextStr) {
         // --- CLOUD AGENT ARCHITECTURE ---
         // We no longer query Google APIs directly from the client.
         // Instead, we hit our Serverless Cloud Function (Firebase/Cloudflare).
@@ -690,7 +680,8 @@ class MultiMapAI {
             },
             body: JSON.stringify({
                 prompt: prompt,
-                systemPrompt: systemPrompt // In a fully secure setup, the systemPrompt lives entirely on the server.
+                contextStr: contextStr,
+                model: this.selectedModel
             })
         });
 
@@ -706,6 +697,6 @@ class MultiMapAI {
             throw new Error("Invalid response format from Cloud Agent");
         }
 
-        return outputText;
+        return { text: outputText, mode: data.mode || 'generate' };
     }
 }
