@@ -1256,6 +1256,16 @@ class SandboxController {
                     el.classList.add('animate-pulse');
                 }
             }
+
+            // Smart-action halo: breathing glow for nodes with button actions
+            const halo = this.getSmartActionHalo(node.type);
+            if (halo && dist !== -1 && !this.aiImportMode) {
+                el.classList.add('smart-action-halo');
+                el.style.setProperty('--halo-color', halo);
+            } else {
+                el.classList.remove('smart-action-halo');
+                el.style.removeProperty('--halo-color');
+            }
             if (node.data.collapsed) el.classList.add('collapsed');
             
             const bp = this.kernel.getBlueprint(node.type);
@@ -1359,6 +1369,17 @@ class SandboxController {
         });
         
         this.updateTransform();
+    }
+
+    // Returns the halo colour (rgba string) for node types that spawn a smart button action,
+    // or null for types that don't.
+    getSmartActionHalo(type) {
+        if (type === 'portal' || type === 'smart-portal') return 'rgba(16,185,129,0.5)';  // emerald
+        if (type === 'person-root')                       return 'rgba(99,102,241,0.5)';  // indigo
+        if (type === 'web-root' || type.startsWith('web-')) return 'rgba(14,165,233,0.5)'; // sky
+        if (type === 'prompt-root')                       return 'rgba(217,119,6,0.5)';   // amber
+        if (type === 'agent-root')                        return 'rgba(225,29,72,0.5)';   // rose
+        return null;
     }
 
     updatePhaseButtons() {
