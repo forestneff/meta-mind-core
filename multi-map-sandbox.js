@@ -1435,7 +1435,7 @@ class SandboxController {
         }
 
         if (action) {
-            btn.className = `absolute bottom-8 left-1/2 -translate-x-1/2 z-[100] text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-full border shadow-lg transition-all flex items-center gap-2 ${themeClasses}`;
+            btn.className = `absolute bottom-6 left-1/2 -translate-x-1/2 z-[100] text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-full border shadow-lg transition-all flex items-center gap-2 ${themeClasses}`;
             btn.innerHTML = text;
             btn.onclick = (e) => {
                 e.stopPropagation();
