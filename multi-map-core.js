@@ -45,6 +45,7 @@ class MultiMapKernel {
         this.portalHistory = [];
         this.linkingMode = false;
         this.linkingSourceId = null;
+        this.firestoreLibrary = [];
 
         const rawState = this.loadFromStorage();
         this.state = this.ensureSchema(rawState);
@@ -52,6 +53,10 @@ class MultiMapKernel {
 
         if (this.state.nodes.length === 0) {
             this.addNode({ type: "root", title: "Root", data: { x: 0, y: 0, isCore: true } });
+        }
+
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            this.syncWithFirestore(window.FirebaseAuth.currentUser.uid);
         }
 
         setInterval(() => this.checkAutoSave(), this.config.autoSaveInterval);
@@ -82,9 +87,7 @@ class MultiMapKernel {
             session: { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null, remoteTemplates: [], layoutMode: 'organic' }
         };
         
-        const lib = this.getLibrary();
-        lib.push(newState);
-        this.saveLibrary(lib);
+        this.saveMapToLibrary(newState);
         return id;
     }
 
@@ -514,28 +517,165 @@ class MultiMapKernel {
     notify() { this.listeners.forEach(fn => fn(this.state)); this.bridge.sync(this.state); }
     exportMapState() { return JSON.stringify(this.state, null, 2); }
     loadFromStorage() { try { const data = localStorage.getItem("mm_core_state"); return data ? JSON.parse(data) : null; } catch (e) { return null; } }
-    checkAutoSave() { 
-        const c = JSON.stringify(this.state); 
-        if (c !== this.lastSaveState) { 
-            localStorage.setItem("mm_core_state", c); this.lastSaveState = c; 
-            const e = document.getElementById('save-status'); 
-            if (e) { e.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span> Saving...'; setTimeout(() => e.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Local', 500); } 
-        } 
+    
+    checkAutoSave() {
+        const c = JSON.stringify(this.state);
+        if (c !== this.lastSaveState) {
+            this.lastSaveState = c;
+            
+            const e = document.getElementById('save-status');
+            if (e) {
+                e.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span> Saving...';
+            }
+            
+            if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+                const uid = window.FirebaseAuth.currentUser.uid;
+                const mapId = this.state.map_id;
+                
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", mapId);
+                const sessionRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "sessions", "active");
+                
+                const snapshot = JSON.parse(c);
+                
+                Promise.all([
+                    window.Firestore.setDoc(mapRef, snapshot),
+                    window.Firestore.setDoc(sessionRef, {
+                        activeMapId: mapId,
+                        portalHistory: this.portalHistory
+                    })
+                ]).then(() => {
+                    if (e) {
+                        e.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Cloud';
+                    }
+                }).catch(err => {
+                    console.error("Firestore autosave failed:", err);
+                    if (e) {
+                        e.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Error';
+                    }
+                });
+            } else {
+                localStorage.setItem("mm_core_state", c);
+                if (e) {
+                    setTimeout(() => {
+                        e.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Local';
+                    }, 500);
+                }
+            }
+        }
     }
+
     saveHistory() { try { this.history.push(JSON.stringify(this.state)); if(this.history.length > 50) this.history.shift(); } catch(e){} }
     undo() { if(this.history.length > 0) { this.state = this.ensureSchema(JSON.parse(this.history.pop())); this.notify(); } }
     
     saveLibrary(lib) { localStorage.setItem("mm_constellation_lib", JSON.stringify(lib)); }
-    saveConstellationToLibrary(data) { let lib = this.getLibrary(); lib.push(data); this.saveLibrary(lib); }
-    getLibrary() { try { return JSON.parse(localStorage.getItem("mm_constellation_lib")) || []; } catch(e) { return []; } }
-    deleteFromLibrary(id) { let lib = this.getLibrary().filter(x => x.map_id !== id); this.saveLibrary(lib); }
-    updateLibraryItem(id, metaUpdates) {
-        let lib = this.getLibrary();
-        const idx = lib.findIndex(x => x.map_id === id);
-        if (idx !== -1) {
-            lib[idx].meta = { ...lib[idx].meta, ...metaUpdates };
+    
+    async saveMapToLibrary(mapState) {
+        const snapshot = JSON.parse(JSON.stringify(mapState));
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            const uid = window.FirebaseAuth.currentUser.uid;
+            try {
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", snapshot.map_id);
+                await window.Firestore.setDoc(mapRef, snapshot);
+                
+                const idx = this.firestoreLibrary.findIndex(x => x.map_id === snapshot.map_id);
+                if (idx !== -1) {
+                    this.firestoreLibrary[idx] = snapshot;
+                } else {
+                    this.firestoreLibrary.push(snapshot);
+                }
+                this.notify();
+            } catch (err) {
+                console.error("Firestore saveMapToLibrary failed:", err);
+            }
+        } else {
+            let lib = this.getLibrary();
+            const idx = lib.findIndex(x => x.map_id === snapshot.map_id);
+            if (idx !== -1) {
+                lib[idx] = snapshot;
+            } else {
+                lib.push(snapshot);
+            }
             this.saveLibrary(lib);
             this.notify();
+        }
+    }
+
+    saveConstellationToLibrary(data) {
+        this.saveMapToLibrary(data);
+    }
+
+    getLibrary() {
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            return this.firestoreLibrary || [];
+        }
+        try { return JSON.parse(localStorage.getItem("mm_constellation_lib")) || []; } catch(e) { return []; }
+    }
+
+    async deleteFromLibrary(id) {
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            const uid = window.FirebaseAuth.currentUser.uid;
+            try {
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", id);
+                await window.Firestore.deleteDoc(mapRef);
+                this.firestoreLibrary = this.firestoreLibrary.filter(x => x.map_id !== id);
+                
+                if (this.state.map_id === id) {
+                    if (this.firestoreLibrary.length > 0) {
+                        this.loadMapState(this.firestoreLibrary[0]);
+                    } else {
+                        this.state = this.getEmptyState();
+                        this.notify();
+                    }
+                } else {
+                    this.notify();
+                }
+            } catch (err) {
+                console.error("Firestore delete failed:", err);
+            }
+        } else {
+            let lib = this.getLibrary().filter(x => x.map_id !== id);
+            this.saveLibrary(lib);
+            if (this.state.map_id === id) {
+                if (lib.length > 0) {
+                    this.loadMapState(lib[0]);
+                } else {
+                    this.state = this.getEmptyState();
+                    this.notify();
+                }
+            } else {
+                this.notify();
+            }
+        }
+    }
+
+    async updateLibraryItem(id, metaUpdates) {
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            const uid = window.FirebaseAuth.currentUser.uid;
+            try {
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", id);
+                const idx = this.firestoreLibrary.findIndex(x => x.map_id === id);
+                if (idx !== -1) {
+                    this.firestoreLibrary[idx].meta = { ...this.firestoreLibrary[idx].meta, ...metaUpdates };
+                    await window.Firestore.setDoc(mapRef, this.firestoreLibrary[idx]);
+                    if (this.state.map_id === id) {
+                        this.state.meta = { ...this.state.meta, ...metaUpdates };
+                    }
+                    this.notify();
+                }
+            } catch (err) {
+                console.error("Firestore updateLibraryItem failed:", err);
+            }
+        } else {
+            let lib = this.getLibrary();
+            const idx = lib.findIndex(x => x.map_id === id);
+            if (idx !== -1) {
+                lib[idx].meta = { ...lib[idx].meta, ...metaUpdates };
+                this.saveLibrary(lib);
+                if (this.state.map_id === id) {
+                    this.state.meta = { ...this.state.meta, ...metaUpdates };
+                }
+                this.notify();
+            }
         }
     }
     loadMapState(data) { this.saveHistory(); this.state = this.ensureSchema(data); this.notify(); }
@@ -550,15 +690,7 @@ class MultiMapKernel {
     
     saveCurrentMapToLibrary() {
         if (!this.state || !this.state.map_id) return;
-        const lib = this.getLibrary();
-        const idx = lib.findIndex(x => x.map_id === this.state.map_id);
-        const snapshot = JSON.parse(JSON.stringify(this.state));
-        if (idx !== -1) {
-            lib[idx] = snapshot;
-        } else {
-            lib.push(snapshot);
-        }
-        this.saveLibrary(lib);
+        this.saveMapToLibrary(this.state);
     }
 
     exitPortal() {
@@ -570,6 +702,158 @@ class MultiMapKernel {
             return true;
         }
         return false;
+    }
+
+    async migrateGuestData(uid) {
+        try {
+            const localLib = JSON.parse(localStorage.getItem("mm_constellation_lib")) || [];
+            const localState = JSON.parse(localStorage.getItem("mm_core_state"));
+            
+            if (localLib.length === 0 && !localState) return;
+            
+            console.log(`Migrating ${localLib.length} guest maps to Firestore...`);
+            
+            for (const map of localLib) {
+                if (map && map.map_id) {
+                    const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", map.map_id);
+                    await window.Firestore.setDoc(mapRef, map);
+                }
+            }
+            
+            let activeMapId = null;
+            if (localState && localState.map_id) {
+                activeMapId = localState.map_id;
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", activeMapId);
+                await window.Firestore.setDoc(mapRef, localState);
+            } else if (localLib.length > 0) {
+                activeMapId = localLib[0].map_id;
+            }
+            
+            if (activeMapId) {
+                const sessionRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "sessions", "active");
+                await window.Firestore.setDoc(sessionRef, {
+                    activeMapId: activeMapId,
+                    portalHistory: []
+                });
+            }
+            
+            localStorage.removeItem("mm_constellation_lib");
+            localStorage.removeItem("mm_core_state");
+            console.log("Migration complete.");
+        } catch (err) {
+            console.error("Migration failed:", err);
+        }
+    }
+
+    async syncWithFirestore(uid) {
+        try {
+            console.log("Syncing with Firestore for user:", uid);
+            
+            // 1. Check/Migrate guest data first
+            await this.migrateGuestData(uid);
+            
+            // 2. Load all maps in the library from Firestore
+            const mapsCol = window.Firestore.collection(window.FirebaseDb, "users", uid, "maps");
+            const mapsSnapshot = await window.Firestore.getDocs(mapsCol);
+            
+            this.firestoreLibrary = [];
+            mapsSnapshot.forEach(doc => {
+                this.firestoreLibrary.push(doc.data());
+            });
+            
+            // 3. Load active session
+            const sessionRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "sessions", "active");
+            const sessionSnap = await window.Firestore.getDoc(sessionRef);
+            
+            let activeMapId = null;
+            let portalHistory = [];
+            
+            if (sessionSnap.exists()) {
+                const sessionData = sessionSnap.data();
+                activeMapId = sessionData.activeMapId;
+                portalHistory = sessionData.portalHistory || [];
+            }
+            
+            // 4. If no maps exist in library, provision a default map!
+            if (this.firestoreLibrary.length === 0) {
+                console.log("No maps found in Firestore. Provisioning default map...");
+                const defaultMapId = this.generateId();
+                const defaultMap = {
+                    map_id: defaultMapId,
+                    meta: { 
+                        title: "Personal Workspace", 
+                        type: "generic", 
+                        created: new Date().toISOString(),
+                        shared: false 
+                    },
+                    nodes: [{ id: this.generateId(), type: "root", title: "My Space", data: { x: 0, y: 0, isCore: true } }],
+                    connections: [],
+                    session: { 
+                        viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, 
+                        selectedId: null, 
+                        remoteTemplates: [], 
+                        layoutMode: 'organic' 
+                    }
+                };
+                
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", defaultMapId);
+                await window.Firestore.setDoc(mapRef, defaultMap);
+                this.firestoreLibrary.push(defaultMap);
+                activeMapId = defaultMapId;
+                
+                await window.Firestore.setDoc(sessionRef, {
+                    activeMapId: defaultMapId,
+                    portalHistory: []
+                });
+            }
+            
+            // 5. Load the active map state
+            if (!activeMapId && this.firestoreLibrary.length > 0) {
+                activeMapId = this.firestoreLibrary[0].map_id;
+            }
+            
+            if (activeMapId) {
+                const activeMap = this.firestoreLibrary.find(m => m.map_id === activeMapId);
+                if (activeMap) {
+                    this.state = this.ensureSchema(activeMap);
+                    this.portalHistory = portalHistory;
+                    this.lastSaveState = JSON.stringify(this.state);
+                } else {
+                    this.state = this.ensureSchema(this.firestoreLibrary[0]);
+                    this.portalHistory = [];
+                    this.lastSaveState = JSON.stringify(this.state);
+                }
+            }
+            
+            this.notify();
+            console.log("Firestore sync complete.");
+            
+            const e = document.getElementById('save-status');
+            if (e) {
+                e.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Cloud';
+            }
+        } catch (err) {
+            console.error("Error syncing with Firestore:", err);
+        }
+    }
+
+    disconnectFirestore() {
+        console.log("Disconnecting from Firestore, falling back to LocalStorage.");
+        this.firestoreLibrary = [];
+        const rawState = this.loadFromStorage();
+        this.state = this.ensureSchema(rawState);
+        this.portalHistory = [];
+        this.lastSaveState = JSON.stringify(this.state);
+        
+        if (this.state.nodes.length === 0) {
+            this.addNode({ type: "root", title: "Root", data: { x: 0, y: 0, isCore: true } });
+        }
+        this.notify();
+        
+        const e = document.getElementById('save-status');
+        if (e) {
+            e.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Local';
+        }
     }
 
     selectNode(id) { this.state.session.selectedId = id; this.notify(); }

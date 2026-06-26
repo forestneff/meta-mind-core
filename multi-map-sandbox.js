@@ -861,20 +861,14 @@ class SandboxController {
                 if (confirm(msg)) {
                     if (target === 'template') MultiMapLibrary.saveCustomTemplate(newMap);
                     else {
-                        let lib = this.kernel.getLibrary();
-                        let idx = lib.findIndex(m => m.map_id === newMap.map_id);
-                        if (idx > -1) lib[idx] = newMap;
-                        else lib.push(newMap);
-                        localStorage.setItem("mm_constellation_lib", JSON.stringify(lib));
+                        await this.kernel.saveMapToLibrary(newMap);
                     }
                     overwritten++;
                 } else { skipped++; }
             } else {
                 if (target === 'template') MultiMapLibrary.saveCustomTemplate(newMap);
                 else {
-                    let lib = this.kernel.getLibrary();
-                    lib.push(newMap);
-                    localStorage.setItem("mm_constellation_lib", JSON.stringify(lib));
+                    await this.kernel.saveMapToLibrary(newMap);
                 }
                 added++;
             }
