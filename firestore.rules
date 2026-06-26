@@ -38,9 +38,28 @@ service cloud.firestore {
       match /maps/{mapId} {
         allow read, write: if isOwner(uid);
       }
+      match /projects/{projectId} {
+        allow read, write: if isOwner(uid);
+        match /pages/{mapId} {
+          allow read, write: if isOwner(uid);
+        }
+      }
       match /sessions/active {
         allow read, write: if isOwner(uid);
       }
+      match /quota/{document} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+    }
+
+    match /ai_logs/{logId} {
+      allow read, write: if false;
+    }
+
+    match /anon_quotas/{sessionId} {
+      allow read, write: if false;
     }
   }
 }
+

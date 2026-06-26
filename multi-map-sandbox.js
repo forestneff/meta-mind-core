@@ -843,6 +843,11 @@ class SandboxController {
         for (let newMap of maps) {
             if (!newMap.map_id || !newMap.nodes) continue;
 
+            if (target !== 'template') {
+                if (!newMap.meta) newMap.meta = {};
+                newMap.meta.project_id = this.kernel.activeProjectId;
+            }
+
             let existingMaps = [];
             if (target === 'template') {
                 existingMaps = typeof MultiMapLibrary !== 'undefined' ? MultiMapLibrary.getCustomTemplates() : [];
@@ -956,7 +961,225 @@ class SandboxController {
     actionLoadFromLibrary(id) {
         const lib = this.kernel.getLibrary();
         const map = lib.find(m => m.map_id === id);
-        if(map) { this.kernel.loadMapState(map); this.setView('map'); }
+        if (map) { 
+            this.kernel.activeProjectId = map.meta?.project_id || 'default_project';
+            this.kernel.loadMapState(map); 
+            this.setView('map'); 
+        }
+    }
+
+    actionSetActiveProject(projId) {
+        this.kernel.activeProjectId = projId;
+        const pages = this.kernel.getPages(projId);
+        if (pages.length > 0) {
+            const hasActivePage = pages.some(p => p.map_id === this.kernel.state.map_id);
+            if (!hasActivePage) {
+                this.kernel.loadMapState(pages[0]);
+            }
+        } else {
+            this.kernel.state = this.kernel.getEmptyState();
+            this.kernel.state.meta.project_id = projId;
+            this.kernel.notify();
+        }
+        this.render();
+    }
+
+    actionCreateProject() {
+        const name = prompt("Enter Project Name:", "New Project");
+        if (name) {
+            const desc = prompt("Enter Project Description:", "");
+            this.kernel.createProject(name, desc);
+        }
+    }
+
+    actionPromptRenameProject(projId) {
+        const projects = this.kernel.getProjects();
+        const proj = projects.find(p => p.project_id === projId);
+        if (proj) {
+            const name = prompt("Rename Project:", proj.meta.title);
+            if (name) {
+                const desc = prompt("Update Description:", proj.meta.description || "");
+                this.kernel.renameProject(projId, name, desc, proj.meta.icon, proj.meta.color);
+            }
+        }
+    }
+
+    actionDeleteProject(projId) {
+        if (confirm("Are you sure you want to delete this project and all its pages? This action cannot be undone.")) {
+            this.kernel.deleteProject(projId);
+        }
+    }
+
+    actionCreatePage() {
+        const title = prompt("Enter Page Name:", "New Space");
+        if (title) {
+            const type = prompt("Enter Page Type (generic, web, person, prompt, agent):", "generic");
+            this.kernel.createPage(this.kernel.activeProjectId, title, type).then(page => {
+                this.kernel.loadMapState(page);
+                this.setView('map');
+            });
+        }
+    }
+
+    actionPromptRenamePage(pageId) {
+        const lib = this.kernel.getLibrary();
+        const page = lib.find(p => p.map_id === pageId);
+        if (page) {
+            const newTitle = prompt("Rename Page:", page.meta?.title || "");
+            if (newTitle) {
+                this.kernel.updateLibraryItem(pageId, { title: newTitle });
+            }
+        }
+    }
+
+    async actionPromptCopyPage(pageId) {
+        const lib = this.kernel.getLibrary();
+        const page = lib.find(p => p.map_id === pageId);
+        if (page) {
+            const pageTitle = page.meta?.title || "Page";
+            const defaultProjName = `${pageTitle} Project`;
+            const newProjName = prompt("Enter a title for the new project to copy this page into:", defaultProjName);
+            if (newProjName) {
+                await this.kernel.clonePage(pageId, 'new', null, newProjName);
+                this.render();
+                alert(`Page copied into new project "${newProjName}"!`);
+            }
+        }
+    }
+
+
+    actionMovePageToProject(event, targetProjId) {
+        event.preventDefault();
+        const pageId = event.dataTransfer.getData("text/plain");
+        if (!pageId) return;
+        
+        const projects = this.kernel.getProjects();
+        let fromProjId = null;
+        for (const p of projects) {
+            if (p.page_ids && p.page_ids.includes(pageId)) {
+                fromProjId = p.project_id;
+                break;
+            }
+        }
+        
+        if (!fromProjId) {
+            const lib = this.kernel.getLibrary();
+            const page = lib.find(p => p.map_id === pageId);
+            if (page) fromProjId = page.meta?.project_id || 'default_project';
+        }
+        
+        if (fromProjId && fromProjId !== targetProjId) {
+            this.kernel.movePage(pageId, fromProjId, targetProjId);
+        }
+    }
+
+    actionDownloadProject() {
+        const activeProjId = this.kernel.activeProjectId;
+        const proj = this.kernel.getProjects().find(p => p.project_id === activeProjId);
+        if (!proj) return;
+        
+        const pages = this.kernel.getPages(activeProjId);
+        const payload = {
+            type: "multimap_project",
+            project: proj,
+            pages: pages
+        };
+        
+        const json = JSON.stringify(payload, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        let safeTitle = proj.meta.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        a.download = `multi_map_project_${safeTitle}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    actionUploadProjectOrPageFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                if (parsed.type === "multimap_project") {
+                    await this.processProjectImport(parsed);
+                } else {
+                    await this.processMapImport(parsed, 'constellation');
+                }
+            } catch (err) {
+                alert("Invalid JSON format.");
+                console.error(err);
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    async processProjectImport(parsedData) {
+        const { project, pages } = parsedData;
+        if (!project || !project.project_id || !Array.isArray(pages)) {
+            alert("Invalid project file format.");
+            return;
+        }
+        
+        let targetProjId = project.project_id;
+        const existingProjects = this.kernel.getProjects();
+        const conflict = existingProjects.some(p => p.project_id === targetProjId);
+        
+        if (conflict) {
+            if (confirm(`Project "${project.meta.title}" already exists. Overwrite?`)) {
+                await this.kernel.deleteProject(targetProjId);
+            } else {
+                targetProjId = this.kernel.generateId();
+                project.project_id = targetProjId;
+                project.meta.title += " (Copy)";
+            }
+        }
+        
+        project.page_ids = pages.map(p => p.map_id);
+        project.created_at = new Date().toISOString();
+        project.updated_at = new Date().toISOString();
+        
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            const uid = window.FirebaseAuth.currentUser.uid;
+            try {
+                const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", targetProjId);
+                await window.Firestore.setDoc(projRef, project);
+                this.kernel.firestoreProjects.push(project);
+                this.kernel.firestorePagesByProject[targetProjId] = [];
+                
+                for (const page of pages) {
+                    if (!page.meta) page.meta = {};
+                    page.meta.project_id = targetProjId;
+                    const pageRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", targetProjId, "pages", page.map_id);
+                    await window.Firestore.setDoc(pageRef, page);
+                    this.kernel.firestorePagesByProject[targetProjId].push(page);
+                }
+            } catch(e) {
+                console.error("Firestore project import failed:", e);
+            }
+        } else {
+            this.kernel.projects.push(project);
+            localStorage.setItem("mm_projects", JSON.stringify(this.kernel.projects));
+            
+            let lib = this.kernel.getLibrary();
+            for (const page of pages) {
+                if (!page.meta) page.meta = {};
+                page.meta.project_id = targetProjId;
+                lib.push(page);
+            }
+            this.kernel.saveLibrary(lib);
+        }
+        
+        this.kernel.activeProjectId = targetProjId;
+        if (pages.length > 0) {
+            this.kernel.loadMapState(pages[0]);
+        }
+        alert(`Project "${project.meta.title}" imported successfully!`);
+        this.render();
     }
     
     actionDeleteFromLibrary(id) {
@@ -1055,8 +1278,29 @@ class SandboxController {
     render() {
         this.updatePhaseButtons();
         this.updateSmartActionButton();
+        
+        // Update breadcrumbs in navbar
+        const mapTitleEl = document.getElementById('map-title');
+        if (mapTitleEl) {
+            const activeProjId = this.kernel.activeProjectId;
+            const projects = this.kernel.getProjects();
+            const proj = projects.find(p => p.project_id === activeProjId) || { meta: { title: "My Project" } };
+            const projTitle = proj.meta?.title || "My Project";
+            const pageTitle = this.kernel.state.meta?.title || "Untitled Space";
+            mapTitleEl.innerHTML = `<span class="opacity-65 hover:text-purple-400 cursor-pointer transition-colors" onclick="toggleDrawer('data-manager-drawer')">${this.escapeHTML(projTitle)}</span> <span class="mx-1 text-slate-500">›</span> <span class="text-white">${this.escapeHTML(pageTitle)}</span>`;
+        }
+
         const inspector = this.registry.get('inspector');
         if (inspector && this.dom.panelProperties) inspector.render(this.dom.panelProperties, this.kernel.state);
+
+        // Auto-update Data Manager drawer if it is currently open
+        const dataDrawer = document.getElementById('data-manager-drawer');
+        if (dataDrawer && !dataDrawer.classList.contains('translate-x-full')) {
+            const dmContent = document.getElementById('data-manager-content');
+            if (dmContent && window.Auth) {
+                window.Auth.renderDataManager(dmContent);
+            }
+        }
 
         if (this.viewMode === 'map') {
             this.dom.viewMap.style.display = 'block';

@@ -11,6 +11,7 @@ class MultiMapAI {
         this.selectedModel = 'gemini-2.5-flash';
         this.chatHistory = [];
         this.pendingMapData = null; // Holds the generated JSON until assigned
+        this.pendingProjectData = null; // Holds the generated project JSON
         this.env = {};
         this.envLoaded = false;
 
@@ -376,13 +377,9 @@ class MultiMapAI {
         msgs.scrollTop = msgs.scrollHeight;
 
         try {
-
-
             let jsonString = '';
-
             const contextStr = this.buildContextString();
             const contextualPrompt = text + (contextStr ? "\n\n" + contextStr : "");
-
             let mode = 'generate';
 
             if (this.selectedModel === 'native-mock') {
@@ -415,7 +412,24 @@ class MultiMapAI {
                 throw new Error("Invalid JSON structure returned by AI.");
             }
 
-            if (aiData.map_id && aiData.nodes) {
+            if (aiData.type === "multimap_project" || (aiData.project && aiData.pages)) {
+                // Project Generation Mode
+                aiData.type = "multimap_project";
+                this.pendingProjectData = aiData;
+
+                const actionHtml = `
+                    <div class="mt-3 flex flex-col gap-2 border-t border-indigo-500/30 pt-3">
+                        <button onclick="window.AI.importPendingProject()" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold shadow transition-colors flex justify-center items-center gap-2">
+                            🚀 Import as New Project
+                        </button>
+                    </div>
+                `;
+
+                if (document.getElementById('ai-loading')) {
+                    document.getElementById('ai-loading').remove();
+                }
+                this.addMessage('system', `Project generated: **${aiData.project.meta?.title || 'Project'}** with ${aiData.pages.length} pages. How would you like to deploy it?`, actionHtml);
+            } else if (aiData.map_id && aiData.nodes) {
                 // Legacy Map Generation Mode
                 aiData.map_id = "ai_" + this.kernel.generateId();
                 this.pendingMapData = aiData;
@@ -440,11 +454,15 @@ class MultiMapAI {
                     </div>
                 `;
 
-                document.getElementById('ai-loading').remove();
+                if (document.getElementById('ai-loading')) {
+                    document.getElementById('ai-loading').remove();
+                }
                 this.addMessage('system', `Map generated: **${aiData.meta?.title || 'Map'}** (${aiData.nodes.length} nodes). How would you like to deploy it?`, actionHtml);
             } else if (aiData.message) {
                 // New Analyze or Edit Mode
-                document.getElementById('ai-loading').remove();
+                if (document.getElementById('ai-loading')) {
+                    document.getElementById('ai-loading').remove();
+                }
 
                 // Print Message
                 this.addMessage('system', aiData.message);
@@ -460,6 +478,18 @@ class MultiMapAI {
                                 this.kernel.addConnection(edit.parentId, newNode.id);
                             } else if (edit.action === 'delete' && edit.nodeId) {
                                 this.kernel.deleteNode(edit.nodeId);
+                            } else if (edit.action === 'project-update' && edit.projectId) {
+                                await this.kernel.renameProject(edit.projectId, edit.data.title, edit.data.description, edit.data.icon, edit.data.color);
+                            } else if (edit.action === 'page-add' && edit.projectId) {
+                                await this.kernel.createPage(edit.projectId, edit.data.title, edit.data.type || 'generic');
+                            } else if (edit.action === 'page-rename' && edit.pageId) {
+                                await this.kernel.updateLibraryItem(edit.pageId, { title: edit.data.title });
+                            } else if (edit.action === 'page-delete' && edit.pageId) {
+                                await this.kernel.deleteFromLibrary(edit.pageId);
+                            } else if (edit.action === 'page-move' && edit.pageId) {
+                                await this.kernel.movePage(edit.pageId, edit.fromProjectId, edit.toProjectId);
+                            } else if (edit.action === 'page-copy' && edit.pageId) {
+                                await this.kernel.clonePage(edit.pageId, edit.toProjectId || 'new', edit.data?.title, edit.data?.projectName);
                             }
                         } catch (err) {
                             console.error("Failed to apply edit:", edit, err);
@@ -472,8 +502,36 @@ class MultiMapAI {
             }
 
         } catch (e) {
-            document.getElementById('ai-loading').remove();
-            this.addMessage('system', `Error: Failed to generate valid MapState. ${e.message}`);
+            if (document.getElementById('ai-loading')) {
+                document.getElementById('ai-loading').remove();
+            }
+            
+            if (e.message === "RATE_LIMIT_EXCEEDED" && e.quota) {
+                const isUserAnon = window.FirebaseAuth && window.FirebaseAuth.currentUser && window.FirebaseAuth.currentUser.isAnonymous;
+                const isGuest = !window.FirebaseAuth || !window.FirebaseAuth.currentUser;
+                
+                let limitMsg = '';
+                let actionHtml = '';
+                
+                if (isUserAnon || isGuest) {
+                    limitMsg = `**Quota reached (5/5 requests).** You've used your free AI credits for today. Create a free account to get 25/day!`;
+                    actionHtml = `
+                        <div class="mt-3 border-t border-indigo-500/30 pt-3 flex justify-center">
+                            <button onclick="toggleDrawer('profile-drawer'); window.AI.toggleChat();" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold shadow transition-colors text-[11px] uppercase tracking-wider">
+                                🔑 Create Free Account
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    const resetDate = new Date(e.quota.reset_at);
+                    const localResetStr = resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    limitMsg = `**Rate limit reached (25/25 requests).** Your daily quota resets at ${localResetStr}.`;
+                }
+                
+                this.addMessage('system', limitMsg, actionHtml);
+            } else {
+                this.addMessage('system', `Error: Failed to generate valid MapState. ${e.message}`);
+            }
         }
     }
 
@@ -596,18 +654,42 @@ class MultiMapAI {
         this.pendingMapData = null;
     }
 
+    async importPendingProject() {
+        if (!this.pendingProjectData) return;
+        await this.sandbox.processProjectImport(this.pendingProjectData);
+        this.pendingProjectData = null;
+        this.toggleChat();
+    }
+
     // --- Context Building ---
 
     buildContextString() {
+        const activeProjId = this.kernel.activeProjectId;
+        const projects = this.kernel.getProjects ? this.kernel.getProjects() : [];
+        const activeProj = projects.find(p => p.project_id === activeProjId) || { meta: { title: "Untitled Project", description: "" } };
+        const activeProjPages = this.kernel.getPages ? this.kernel.getPages(activeProjId) : [];
+
+        let ctx = "--- PROJECT CONTEXT ---\n" +
+            `Active Project ID: ${activeProjId || 'default_project'}\n` +
+            `Active Project Title: ${activeProj.meta?.title || "Untitled"}\n` +
+            `Active Project Description: ${activeProj.meta?.description || "None"}\n` +
+            `Pages in Active Project:\n` +
+            activeProjPages.map(p => `  - [Page ID: ${p.map_id}] "${p.meta?.title || "Untitled"}" (${p.meta?.type || "generic"} type, ${(p.nodes || []).length} nodes)`).join("\n") +
+            "\n" +
+            `All Workspace Projects:\n` +
+            projects.map(p => `  - [Project ID: ${p.project_id}] "${p.meta?.title || "Untitled"}" (${(p.page_ids || []).length} pages)`).join("\n") +
+            "\n---------------------------\n";
+
         const selectedId = this.kernel.state.session.selectedId;
         if (!selectedId) {
-            return "--- FULL MAP OVERVIEW ---\n" +
+            ctx += "--- FULL MAP OVERVIEW ---\n" +
                 JSON.stringify(this.kernel.state.nodes.map(n => ({ id: n.id, title: n.title, type: n.type }))) +
                 "\n---------------------------\n";
+            return ctx;
         }
 
         const state = this.kernel.state;
-        let ctx = "--- CURRENT MAP CONTEXT ---\n";
+        ctx += "--- CURRENT MAP CONTEXT ---\n";
 
         // Helper to get connected nodes recursively
         const getConnected = (nodeId, direction, maxDepth, currentDepth = 0, visited = new Set()) => {
@@ -722,14 +804,18 @@ class MultiMapAI {
     async getAuthToken() {
         if (typeof window.getFirebaseAuthToken === 'function') {
             const token = await window.getFirebaseAuthToken();
-            if (token) return token;
+            if (token) {
+                return { scheme: 'Bearer', value: token };
+            }
         }
 
-        const storedToken = localStorage.getItem('MULTI_MAP_AUTH_TOKEN');
-        if (storedToken) return storedToken;
-
-        console.warn("No Auth Token found. Cloud Agent will likely reject this request unless running in unauthenticated dev mode.");
-        return "dev-placeholder-token";
+        // Guest / Anonymous fallback
+        let anonSessionId = localStorage.getItem('mm_anon_session_id');
+        if (!anonSessionId) {
+            anonSessionId = 'anon-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('mm_anon_session_id', anonSessionId);
+        }
+        return { scheme: 'Anonymous', value: anonSessionId };
     }
 
     async geminiAPIGeneration(prompt, contextStr) {
@@ -740,26 +826,35 @@ class MultiMapAI {
         let CLOUD_AGENT_URL = "https://us-central1-mm-multi-map.cloudfunctions.net/generateMapState";
 
         // Auto-detect local development
-        if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-            // Change this to match your Firebase project ID (e.g., multimap-app)
-            const projectId = "mm-multi-map"; // Update if your project ID is different!
-            CLOUD_AGENT_URL = `http://127.0.0.1:5001/${projectId}/us-central1/generateMapState`;
+        if (window.location.hostname !== "mm.forestneff.com") {
+            const projectId = "mm-multi-map";
+            const host = (window.location.hostname === "0.0.0.0" || window.location.hostname === "[::1]" || !window.location.hostname) ? "127.0.0.1" : window.location.hostname;
+            CLOUD_AGENT_URL = `http://${host}:5001/${projectId}/us-central1/generateMapState`;
         }
 
-        const authToken = await this.getAuthToken();
+        const auth = await this.getAuthToken();
+        const authHeaderValue = `${auth.scheme} ${auth.value}`;
 
         const response = await fetch(CLOUD_AGENT_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': authHeaderValue
             },
             body: JSON.stringify({
                 prompt: prompt,
                 contextStr: contextStr,
-                model: this.selectedModel
+                model: this.selectedModel,
+                mapId: this.kernel?.state?.map_id || 'unknown'
             })
         });
+
+        if (response.status === 429) {
+            const errorData = await response.json().catch(() => ({}));
+            const err = new Error("RATE_LIMIT_EXCEEDED");
+            err.quota = errorData;
+            throw err;
+        }
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));

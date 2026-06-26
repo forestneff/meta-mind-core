@@ -46,9 +46,17 @@ class MultiMapKernel {
         this.linkingMode = false;
         this.linkingSourceId = null;
         this.firestoreLibrary = [];
+        
+        this.projects = [];
+        this.activeProjectId = 'default_project';
+        this.firestoreProjects = [];
+        this.firestorePagesByProject = {};
+
+        this.migrateLocalGuestData();
 
         const rawState = this.loadFromStorage();
         this.state = this.ensureSchema(rawState);
+        this.activeProjectId = this.state.meta.project_id || 'default_project';
         this.lastSaveState = JSON.stringify(this.state);
 
         if (this.state.nodes.length === 0) {
@@ -61,6 +69,457 @@ class MultiMapKernel {
 
         setInterval(() => this.checkAutoSave(), this.config.autoSaveInterval);
     }
+
+    migrateLocalGuestData() {
+        try {
+            const rawLib = localStorage.getItem("mm_constellation_lib");
+            const lib = rawLib ? JSON.parse(rawLib) : [];
+            const rawProjects = localStorage.getItem("mm_projects");
+            let projects = rawProjects ? JSON.parse(rawProjects) : [];
+            
+            if (lib.length > 0 && projects.length === 0) {
+                console.log("Migrating local guest library to Project + Pages architecture...");
+                const defaultProj = {
+                    project_id: "default_project",
+                    meta: {
+                        title: "My Project",
+                        description: "Default guest project",
+                        icon: "📁",
+                        color: "#8b5cf6"
+                    },
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    page_ids: lib.map(m => m.map_id)
+                };
+                projects = [defaultProj];
+                
+                lib.forEach(m => {
+                    if (!m.meta) m.meta = {};
+                    m.meta.project_id = "default_project";
+                });
+                
+                localStorage.setItem("mm_projects", JSON.stringify(projects));
+                localStorage.setItem("mm_constellation_lib", JSON.stringify(lib));
+                
+                const rawState = localStorage.getItem("mm_core_state");
+                if (rawState) {
+                    try {
+                        const state = JSON.parse(rawState);
+                        if (!state.meta) state.meta = {};
+                        state.meta.project_id = "default_project";
+                        localStorage.setItem("mm_core_state", JSON.stringify(state));
+                    } catch(e) {}
+                }
+            } else if (projects.length === 0) {
+                const defaultProj = {
+                    project_id: "default_project",
+                    meta: {
+                        title: "My Project",
+                        description: "Default guest project",
+                        icon: "📁",
+                        color: "#8b5cf6"
+                    },
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    page_ids: []
+                };
+                projects = [defaultProj];
+                localStorage.setItem("mm_projects", JSON.stringify(projects));
+            }
+            this.projects = projects;
+        } catch(e) {
+            console.error("Local migration error:", e);
+        }
+    }
+
+    getProjects() {
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            return this.firestoreProjects || [];
+        }
+        return this.projects || [];
+    }
+
+    getPages(projectId) {
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            return this.firestorePagesByProject[projectId] || [];
+        }
+        return this.getLibrary().filter(p => p.meta?.project_id === projectId || (!p.meta?.project_id && projectId === 'default_project'));
+    }
+
+    getAllPages() {
+        return this.getLibrary();
+    }
+
+    async createProject(title, description = "", icon = "📁", color = "#8b5cf6") {
+        const projectId = this.generateId();
+        const newProj = {
+            project_id: projectId,
+            meta: { title, description, icon, color },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            page_ids: []
+        };
+        
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            const uid = window.FirebaseAuth.currentUser.uid;
+            try {
+                const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projectId);
+                await window.Firestore.setDoc(projRef, newProj);
+                this.firestoreProjects.push(newProj);
+                this.firestorePagesByProject[projectId] = [];
+            } catch (err) {
+                console.error("Firestore createProject failed:", err);
+            }
+        } else {
+            this.projects.push(newProj);
+            localStorage.setItem("mm_projects", JSON.stringify(this.projects));
+        }
+        
+        const defaultPageId = this.generateId();
+        const defaultPage = {
+            map_id: defaultPageId,
+            meta: { 
+                title: "Personal Workspace", 
+                type: "generic", 
+                created: new Date().toISOString(),
+                shared: false,
+                project_id: projectId
+            },
+            nodes: [{ id: this.generateId(), type: "root", title: "My Space", data: { x: 0, y: 0, isCore: true } }],
+            connections: [],
+            session: { 
+                viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, 
+                selectedId: null, 
+                remoteTemplates: [], 
+                layoutMode: 'organic' 
+            }
+        };
+        
+        newProj.page_ids.push(defaultPageId);
+        
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            const uid = window.FirebaseAuth.currentUser.uid;
+            try {
+                const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projectId);
+                await window.Firestore.setDoc(projRef, newProj);
+                
+                const pageRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projectId, "pages", defaultPageId);
+                await window.Firestore.setDoc(pageRef, defaultPage);
+                
+                this.firestorePagesByProject[projectId].push(defaultPage);
+            } catch (err) {
+                console.error("Firestore createProject default page failed:", err);
+            }
+        } else {
+            let lib = this.getLibrary();
+            lib.push(defaultPage);
+            this.saveLibrary(lib);
+            localStorage.setItem("mm_projects", JSON.stringify(this.projects));
+        }
+        
+        this.activeProjectId = projectId;
+        this.loadMapState(defaultPage);
+        this.notify();
+        return projectId;
+    }
+
+    async deleteProject(projectId) {
+        const projects = this.getProjects();
+        if (projects.length <= 1) {
+            alert("Cannot delete the only remaining project. Create another project first.");
+            return;
+        }
+        
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            const uid = window.FirebaseAuth.currentUser.uid;
+            try {
+                const pages = this.firestorePagesByProject[projectId] || [];
+                for (const p of pages) {
+                    const pageRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projectId, "pages", p.map_id);
+                    await window.Firestore.deleteDoc(pageRef);
+                }
+                const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projectId);
+                await window.Firestore.deleteDoc(projRef);
+                
+                this.firestoreProjects = this.firestoreProjects.filter(p => p.project_id !== projectId);
+                delete this.firestorePagesByProject[projectId];
+            } catch (err) {
+                console.error("Firestore deleteProject failed:", err);
+            }
+        } else {
+            this.projects = this.projects.filter(p => p.project_id !== projectId);
+            localStorage.setItem("mm_projects", JSON.stringify(this.projects));
+            
+            let lib = this.getLibrary().filter(p => p.meta?.project_id !== projectId);
+            this.saveLibrary(lib);
+        }
+        
+        if (this.activeProjectId === projectId) {
+            const remainingProjects = this.getProjects();
+            this.activeProjectId = remainingProjects[0].project_id;
+            const remainingPages = this.getPages(this.activeProjectId);
+            if (remainingPages.length > 0) {
+                this.loadMapState(remainingPages[0]);
+            } else {
+                this.state = this.getEmptyState();
+                this.notify();
+            }
+        } else {
+            this.notify();
+        }
+    }
+
+    async renameProject(projectId, title, description = "", icon = "📁", color = "#8b5cf6") {
+        const projects = this.getProjects();
+        const proj = projects.find(p => p.project_id === projectId);
+        if (proj) {
+            proj.meta.title = title;
+            proj.meta.description = description;
+            proj.meta.icon = icon;
+            proj.meta.color = color;
+            proj.updated_at = new Date().toISOString();
+            
+            if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+                const uid = window.FirebaseAuth.currentUser.uid;
+                try {
+                    const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projectId);
+                    await window.Firestore.setDoc(projRef, proj);
+                } catch (err) {
+                    console.error("Firestore renameProject failed:", err);
+                }
+            } else {
+                localStorage.setItem("mm_projects", JSON.stringify(this.projects));
+            }
+            this.notify();
+        }
+    }
+
+    async createPage(projectId, title = "New Space", type = "generic") {
+        const pageId = this.generateId();
+        const rootType = (typeof MultiMapSchema !== 'undefined' && MultiMapSchema.mapTypes && MultiMapSchema.mapTypes[type]) ? MultiMapSchema.mapTypes[type].rootNode : 'root';
+        const rootTitle = (typeof MultiMapSchema !== 'undefined') ? MultiMapSchema.getDefinition(rootType).label : "Root";
+        
+        const newPage = {
+            map_id: pageId,
+            meta: { 
+                title: title, 
+                type: type, 
+                created: new Date().toISOString(), 
+                shared: false,
+                project_id: projectId
+            },
+            nodes: [{ id: this.generateId(), type: rootType, title: rootTitle, data: { x: 0, y: 0, isCore: true } }],
+            connections: [],
+            session: { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null, remoteTemplates: [], layoutMode: 'organic' }
+        };
+        
+        const projects = this.getProjects();
+        const proj = projects.find(p => p.project_id === projectId);
+        if (proj) {
+            if (!proj.page_ids.includes(pageId)) {
+                proj.page_ids.push(pageId);
+            }
+            proj.updated_at = new Date().toISOString();
+            
+            if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+                const uid = window.FirebaseAuth.currentUser.uid;
+                try {
+                    const pageRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projectId, "pages", pageId);
+                    await window.Firestore.setDoc(pageRef, newPage);
+                    
+                    const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projectId);
+                    await window.Firestore.setDoc(projRef, proj);
+                    
+                    if (!this.firestorePagesByProject[projectId]) this.firestorePagesByProject[projectId] = [];
+                    this.firestorePagesByProject[projectId].push(newPage);
+                } catch (err) {
+                    console.error("Firestore createPage failed:", err);
+                }
+            } else {
+                let lib = this.getLibrary();
+                lib.push(newPage);
+                this.saveLibrary(lib);
+                localStorage.setItem("mm_projects", JSON.stringify(this.projects));
+            }
+            
+            this.notify();
+        }
+        return newPage;
+    }
+
+    async movePage(pageId, fromProjectId, toProjectId) {
+        if (fromProjectId === toProjectId) return;
+        
+        const projects = this.getProjects();
+        const fromProj = projects.find(p => p.project_id === fromProjectId);
+        const toProj = projects.find(p => p.project_id === toProjectId);
+        
+        if (!fromProj || !toProj) return;
+        
+        fromProj.page_ids = fromProj.page_ids.filter(id => id !== pageId);
+        fromProj.updated_at = new Date().toISOString();
+        
+        if (!toProj.page_ids.includes(pageId)) {
+            toProj.page_ids.push(pageId);
+        }
+        toProj.updated_at = new Date().toISOString();
+        
+        let pageState = null;
+        
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            const uid = window.FirebaseAuth.currentUser.uid;
+            try {
+                const oldPageRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", fromProjectId, "pages", pageId);
+                const pageSnap = await window.Firestore.getDoc(oldPageRef);
+                if (pageSnap.exists()) {
+                    pageState = pageSnap.data();
+                    pageState.meta.project_id = toProjectId;
+                    
+                    const newPageRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", toProjectId, "pages", pageId);
+                    await window.Firestore.setDoc(newPageRef, pageState);
+                    await window.Firestore.deleteDoc(oldPageRef);
+                }
+                
+                const fromProjRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", fromProjectId);
+                await window.Firestore.setDoc(fromProjRef, fromProj);
+                
+                const toProjRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", toProjectId);
+                await window.Firestore.setDoc(toProjRef, toProj);
+                
+                if (this.firestorePagesByProject[fromProjectId]) {
+                    this.firestorePagesByProject[fromProjectId] = this.firestorePagesByProject[fromProjectId].filter(p => p.map_id !== pageId);
+                }
+                if (pageState) {
+                    if (!this.firestorePagesByProject[toProjectId]) this.firestorePagesByProject[toProjectId] = [];
+                    this.firestorePagesByProject[toProjectId].push(pageState);
+                }
+            } catch (err) {
+                console.error("Firestore movePage failed:", err);
+            }
+        } else {
+            let lib = this.getLibrary();
+            const page = lib.find(p => p.map_id === pageId);
+            if (page) {
+                page.meta.project_id = toProjectId;
+                this.saveLibrary(lib);
+            }
+            localStorage.setItem("mm_projects", JSON.stringify(this.projects));
+        }
+        
+        if (this.state.map_id === pageId) {
+            this.activeProjectId = toProjectId;
+            this.state.meta.project_id = toProjectId;
+        }
+        
+        this.notify();
+    }
+
+    async clonePage(pageId, targetProjectId, newTitle = null, newProjectTitle = null) {
+        let sourcePage = null;
+        if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+            for (const projId in this.firestorePagesByProject) {
+                const found = this.firestorePagesByProject[projId].find(p => p.map_id === pageId);
+                if (found) {
+                    sourcePage = JSON.parse(JSON.stringify(found));
+                    break;
+                }
+            }
+        } else {
+            const lib = this.getLibrary();
+            const found = lib.find(p => p.map_id === pageId);
+            if (found) {
+                sourcePage = JSON.parse(JSON.stringify(found));
+            }
+        }
+        
+        if (!sourcePage) {
+            console.error("Source page not found for copying:", pageId);
+            return null;
+        }
+
+        let finalProjectId = targetProjectId;
+        
+        if (targetProjectId === 'new' || !targetProjectId) {
+            const projId = this.generateId();
+            const projTitle = newProjectTitle || `${sourcePage.meta.title} Project`;
+            const newProj = {
+                project_id: projId,
+                meta: {
+                    title: projTitle,
+                    description: `Created from copy of page "${sourcePage.meta.title}"`,
+                    icon: sourcePage.meta.icon || "📁",
+                    color: "#10b981"
+                },
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                page_ids: []
+            };
+            
+            if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+                const uid = window.FirebaseAuth.currentUser.uid;
+                try {
+                    const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projId);
+                    await window.Firestore.setDoc(projRef, newProj);
+                    this.firestoreProjects.push(newProj);
+                    this.firestorePagesByProject[projId] = [];
+                } catch (err) {
+                    console.error("Firestore create project for clone failed:", err);
+                }
+            } else {
+                this.projects.push(newProj);
+                localStorage.setItem("mm_projects", JSON.stringify(this.projects));
+            }
+            finalProjectId = projId;
+        }
+
+        const newPageId = this.generateId();
+        const clonedPage = {
+            ...sourcePage,
+            map_id: newPageId,
+            meta: {
+                ...sourcePage.meta,
+                title: newTitle || (targetProjectId === 'new' ? sourcePage.meta.title : `${sourcePage.meta.title} (Copy)`),
+                created: new Date().toISOString(),
+                project_id: finalProjectId
+            }
+        };
+
+        const projects = this.getProjects();
+        const targetProj = projects.find(p => p.project_id === finalProjectId);
+        if (targetProj) {
+            if (!targetProj.page_ids.includes(newPageId)) {
+                targetProj.page_ids.push(newPageId);
+            }
+            targetProj.updated_at = new Date().toISOString();
+
+            if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
+                const uid = window.FirebaseAuth.currentUser.uid;
+                try {
+                    const pageRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", finalProjectId, "pages", newPageId);
+                    await window.Firestore.setDoc(pageRef, clonedPage);
+                    
+                    const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", finalProjectId);
+                    await window.Firestore.setDoc(projRef, targetProj);
+                    
+                    if (!this.firestorePagesByProject[finalProjectId]) this.firestorePagesByProject[finalProjectId] = [];
+                    this.firestorePagesByProject[finalProjectId].push(clonedPage);
+                } catch (err) {
+                    console.error("Firestore clonePage failed:", err);
+                }
+            } else {
+                let lib = this.getLibrary();
+                lib.push(clonedPage);
+                this.saveLibrary(lib);
+                localStorage.setItem("mm_projects", JSON.stringify(this.projects));
+            }
+            
+            this.activeProjectId = finalProjectId;
+            this.loadMapState(clonedPage);
+            this.notify();
+        }
+        return newPageId;
+    }
+
 
     getBlueprint(type) { return typeof MultiMapSchema !== 'undefined' ? MultiMapSchema.getDefinition(type) : { label: type, icon: "⚪" }; }
     getSmartChildType(pid) { const p = this.state.nodes.find(x => x.id === pid); return p && typeof MultiMapSchema !== 'undefined' ? MultiMapSchema.getDefaultChild(p.type) : 'note'; }
@@ -98,6 +557,7 @@ class MultiMapKernel {
         delete state.edges;
         if (!state.meta) state.meta = { title: "Imported Map", type: "generic", created: new Date().toISOString() };
         if (!state.meta.type) state.meta.type = "generic";
+        if (!state.meta.project_id) state.meta.project_id = this.activeProjectId || 'default_project';
         if (!state.session) state.session = { viewport: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }, selectedId: null, remoteTemplates: [], layoutMode: 'organic' };
         if (!state.session.remoteTemplates) state.session.remoteTemplates = []; 
         if (!state.session.layoutMode) state.session.layoutMode = 'organic';
@@ -532,7 +992,7 @@ class MultiMapKernel {
                 const uid = window.FirebaseAuth.currentUser.uid;
                 const mapId = this.state.map_id;
                 
-                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", mapId);
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", this.activeProjectId, "pages", mapId);
                 const sessionRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "sessions", "active");
                 
                 const snapshot = JSON.parse(c);
@@ -540,6 +1000,7 @@ class MultiMapKernel {
                 Promise.all([
                     window.Firestore.setDoc(mapRef, snapshot),
                     window.Firestore.setDoc(sessionRef, {
+                        activeProjectId: this.activeProjectId,
                         activeMapId: mapId,
                         portalHistory: this.portalHistory
                     })
@@ -571,17 +1032,29 @@ class MultiMapKernel {
     
     async saveMapToLibrary(mapState) {
         const snapshot = JSON.parse(JSON.stringify(mapState));
+        if (!snapshot.meta.project_id) snapshot.meta.project_id = this.activeProjectId;
+        
         if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
             const uid = window.FirebaseAuth.currentUser.uid;
             try {
-                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", snapshot.map_id);
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", this.activeProjectId, "pages", snapshot.map_id);
                 await window.Firestore.setDoc(mapRef, snapshot);
                 
-                const idx = this.firestoreLibrary.findIndex(x => x.map_id === snapshot.map_id);
+                if (!this.firestorePagesByProject[this.activeProjectId]) {
+                    this.firestorePagesByProject[this.activeProjectId] = [];
+                }
+                const idx = this.firestorePagesByProject[this.activeProjectId].findIndex(x => x.map_id === snapshot.map_id);
                 if (idx !== -1) {
-                    this.firestoreLibrary[idx] = snapshot;
+                    this.firestorePagesByProject[this.activeProjectId][idx] = snapshot;
                 } else {
-                    this.firestoreLibrary.push(snapshot);
+                    this.firestorePagesByProject[this.activeProjectId].push(snapshot);
+                    
+                    const proj = this.firestoreProjects.find(p => p.project_id === this.activeProjectId);
+                    if (proj && !proj.page_ids.includes(snapshot.map_id)) {
+                        proj.page_ids.push(snapshot.map_id);
+                        const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", this.activeProjectId);
+                        await window.Firestore.setDoc(projRef, proj);
+                    }
                 }
                 this.notify();
             } catch (err) {
@@ -596,6 +1069,13 @@ class MultiMapKernel {
                 lib.push(snapshot);
             }
             this.saveLibrary(lib);
+            
+            const proj = this.projects.find(p => p.project_id === this.activeProjectId);
+            if (proj && !proj.page_ids.includes(snapshot.map_id)) {
+                proj.page_ids.push(snapshot.map_id);
+                localStorage.setItem("mm_projects", JSON.stringify(this.projects));
+            }
+            
             this.notify();
         }
     }
@@ -606,7 +1086,7 @@ class MultiMapKernel {
 
     getLibrary() {
         if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
-            return this.firestoreLibrary || [];
+            return Object.values(this.firestorePagesByProject).flat() || [];
         }
         try { return JSON.parse(localStorage.getItem("mm_constellation_lib")) || []; } catch(e) { return []; }
     }
@@ -615,13 +1095,32 @@ class MultiMapKernel {
         if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
             const uid = window.FirebaseAuth.currentUser.uid;
             try {
-                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", id);
+                let projId = this.activeProjectId;
+                for (const [pId, pages] of Object.entries(this.firestorePagesByProject)) {
+                    if (pages.some(p => p.map_id === id)) {
+                        projId = pId;
+                        break;
+                    }
+                }
+                
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projId, "pages", id);
                 await window.Firestore.deleteDoc(mapRef);
-                this.firestoreLibrary = this.firestoreLibrary.filter(x => x.map_id !== id);
+                
+                if (this.firestorePagesByProject[projId]) {
+                    this.firestorePagesByProject[projId] = this.firestorePagesByProject[projId].filter(x => x.map_id !== id);
+                }
+                
+                const proj = this.firestoreProjects.find(p => p.project_id === projId);
+                if (proj) {
+                    proj.page_ids = proj.page_ids.filter(x => x !== id);
+                    const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projId);
+                    await window.Firestore.setDoc(projRef, proj);
+                }
                 
                 if (this.state.map_id === id) {
-                    if (this.firestoreLibrary.length > 0) {
-                        this.loadMapState(this.firestoreLibrary[0]);
+                    const allPages = this.getLibrary();
+                    if (allPages.length > 0) {
+                        this.loadMapState(allPages[0]);
                     } else {
                         this.state = this.getEmptyState();
                         this.notify();
@@ -635,6 +1134,12 @@ class MultiMapKernel {
         } else {
             let lib = this.getLibrary().filter(x => x.map_id !== id);
             this.saveLibrary(lib);
+            
+            this.projects.forEach(p => {
+                p.page_ids = p.page_ids.filter(x => x !== id);
+            });
+            localStorage.setItem("mm_projects", JSON.stringify(this.projects));
+            
             if (this.state.map_id === id) {
                 if (lib.length > 0) {
                     this.loadMapState(lib[0]);
@@ -652,15 +1157,24 @@ class MultiMapKernel {
         if (window.FirebaseAuth && window.FirebaseAuth.currentUser && !window.FirebaseAuth.currentUser.isAnonymous) {
             const uid = window.FirebaseAuth.currentUser.uid;
             try {
-                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", id);
-                const idx = this.firestoreLibrary.findIndex(x => x.map_id === id);
-                if (idx !== -1) {
-                    this.firestoreLibrary[idx].meta = { ...this.firestoreLibrary[idx].meta, ...metaUpdates };
-                    await window.Firestore.setDoc(mapRef, this.firestoreLibrary[idx]);
-                    if (this.state.map_id === id) {
-                        this.state.meta = { ...this.state.meta, ...metaUpdates };
+                let projId = this.activeProjectId;
+                for (const [pId, pages] of Object.entries(this.firestorePagesByProject)) {
+                    if (pages.some(p => p.map_id === id)) {
+                        projId = pId;
+                        break;
                     }
-                    this.notify();
+                }
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", projId, "pages", id);
+                if (this.firestorePagesByProject[projId]) {
+                    const idx = this.firestorePagesByProject[projId].findIndex(x => x.map_id === id);
+                    if (idx !== -1) {
+                        this.firestorePagesByProject[projId][idx].meta = { ...this.firestorePagesByProject[projId][idx].meta, ...metaUpdates };
+                        await window.Firestore.setDoc(mapRef, this.firestorePagesByProject[projId][idx]);
+                        if (this.state.map_id === id) {
+                            this.state.meta = { ...this.state.meta, ...metaUpdates };
+                        }
+                        this.notify();
+                    }
                 }
             } catch (err) {
                 console.error("Firestore updateLibraryItem failed:", err);
@@ -706,37 +1220,49 @@ class MultiMapKernel {
 
     async migrateGuestData(uid) {
         try {
-            const localLib = JSON.parse(localStorage.getItem("mm_constellation_lib")) || [];
-            const localState = JSON.parse(localStorage.getItem("mm_core_state"));
+            const rawLib = localStorage.getItem("mm_constellation_lib");
+            const localLib = rawLib ? JSON.parse(rawLib) : [];
+            const rawProjects = localStorage.getItem("mm_projects");
+            const localProjects = rawProjects ? JSON.parse(rawProjects) : [];
             
-            if (localLib.length === 0 && !localState) return;
+            if (localProjects.length === 0 && localLib.length === 0) return;
             
-            console.log(`Migrating ${localLib.length} guest maps to Firestore...`);
+            console.log(`Migrating guest projects and maps to Firestore...`);
             
-            for (const map of localLib) {
-                if (map && map.map_id) {
-                    const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", map.map_id);
-                    await window.Firestore.setDoc(mapRef, map);
-                }
-            }
-            
-            let activeMapId = null;
-            if (localState && localState.map_id) {
-                activeMapId = localState.map_id;
-                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", activeMapId);
-                await window.Firestore.setDoc(mapRef, localState);
-            } else if (localLib.length > 0) {
-                activeMapId = localLib[0].map_id;
-            }
-            
-            if (activeMapId) {
-                const sessionRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "sessions", "active");
-                await window.Firestore.setDoc(sessionRef, {
-                    activeMapId: activeMapId,
-                    portalHistory: []
+            let migratedProjects = [...localProjects];
+            let migratedLib = [...localLib];
+            if (migratedLib.length > 0 && migratedProjects.length === 0) {
+                const defaultProj = {
+                    project_id: "default_project",
+                    meta: {
+                        title: "My Project",
+                        description: "Migrated guest project",
+                        icon: "📁",
+                        color: "#8b5cf6"
+                    },
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    page_ids: migratedLib.map(m => m.map_id)
+                };
+                migratedProjects = [defaultProj];
+                migratedLib.forEach(m => {
+                    if (!m.meta) m.meta = {};
+                    m.meta.project_id = "default_project";
                 });
             }
             
+            for (const proj of migratedProjects) {
+                const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", proj.project_id);
+                await window.Firestore.setDoc(projRef, proj);
+                
+                const projPages = migratedLib.filter(m => m.meta?.project_id === proj.project_id || (!m.meta?.project_id && proj.project_id === 'default_project'));
+                for (const page of projPages) {
+                    const pageRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", proj.project_id, "pages", page.map_id);
+                    await window.Firestore.setDoc(pageRef, page);
+                }
+            }
+            
+            localStorage.removeItem("mm_projects");
             localStorage.removeItem("mm_constellation_lib");
             localStorage.removeItem("mm_core_state");
             console.log("Migration complete.");
@@ -749,34 +1275,77 @@ class MultiMapKernel {
         try {
             console.log("Syncing with Firestore for user:", uid);
             
-            // 1. Check/Migrate guest data first
             await this.migrateGuestData(uid);
             
-            // 2. Load all maps in the library from Firestore
+            // Always check for legacy flat maps to migrate
             const mapsCol = window.Firestore.collection(window.FirebaseDb, "users", uid, "maps");
             const mapsSnapshot = await window.Firestore.getDocs(mapsCol);
             
-            this.firestoreLibrary = [];
-            mapsSnapshot.forEach(doc => {
-                this.firestoreLibrary.push(doc.data());
-            });
+            const legacyMaps = [];
+            mapsSnapshot.forEach(doc => legacyMaps.push(doc.data()));
             
-            // 3. Load active session
-            const sessionRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "sessions", "active");
-            const sessionSnap = await window.Firestore.getDoc(sessionRef);
-            
-            let activeMapId = null;
-            let portalHistory = [];
-            
-            if (sessionSnap.exists()) {
-                const sessionData = sessionSnap.data();
-                activeMapId = sessionData.activeMapId;
-                portalHistory = sessionData.portalHistory || [];
+            if (legacyMaps.length > 0) {
+                console.log(`Migrating ${legacyMaps.length} legacy flat maps to projects...`);
+                const defaultProjId = "default_project";
+                
+                const defaultProjRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", defaultProjId);
+                const defaultProjSnap = await window.Firestore.getDoc(defaultProjRef);
+                let defaultProj;
+                if (defaultProjSnap.exists()) {
+                    defaultProj = defaultProjSnap.data();
+                } else {
+                    defaultProj = {
+                        project_id: defaultProjId,
+                        meta: {
+                            title: "My Project",
+                            description: "Migrated workspace project",
+                            icon: "📁",
+                            color: "#8b5cf6"
+                        },
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        page_ids: []
+                    };
+                }
+                
+                for (const map of legacyMaps) {
+                    if (!map.meta) map.meta = {};
+                    map.meta.project_id = defaultProjId;
+                    if (!defaultProj.page_ids.includes(map.map_id)) {
+                        defaultProj.page_ids.push(map.map_id);
+                    }
+                    
+                    const pageRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", defaultProjId, "pages", map.map_id);
+                    await window.Firestore.setDoc(pageRef, map);
+                    
+                    const oldMapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", map.map_id);
+                    await window.Firestore.deleteDoc(oldMapRef);
+                }
+                
+                await window.Firestore.setDoc(defaultProjRef, defaultProj);
             }
             
-            // 4. If no maps exist in library, provision a default map!
-            if (this.firestoreLibrary.length === 0) {
-                console.log("No maps found in Firestore. Provisioning default map...");
+            const projectsCol = window.Firestore.collection(window.FirebaseDb, "users", uid, "projects");
+            const projectsSnapshot = await window.Firestore.getDocs(projectsCol);
+            
+            this.firestoreProjects = [];
+            this.firestorePagesByProject = {};
+            
+            if (projectsSnapshot.empty) {
+                console.log("No projects found after migration. Provisioning default project and page...");
+                const defaultProjId = "default_project";
+                const defaultProj = {
+                    project_id: defaultProjId,
+                    meta: {
+                        title: "Personal Workspace",
+                        description: "My default workspace",
+                        icon: "📁",
+                        color: "#8b5cf6"
+                    },
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    page_ids: []
+                };
                 const defaultMapId = this.generateId();
                 const defaultMap = {
                     map_id: defaultMapId,
@@ -784,7 +1353,8 @@ class MultiMapKernel {
                         title: "Personal Workspace", 
                         type: "generic", 
                         created: new Date().toISOString(),
-                        shared: false 
+                        shared: false,
+                        project_id: defaultProjId
                     },
                     nodes: [{ id: this.generateId(), type: "root", title: "My Space", data: { x: 0, y: 0, isCore: true } }],
                     connections: [],
@@ -795,34 +1365,86 @@ class MultiMapKernel {
                         layoutMode: 'organic' 
                     }
                 };
+                defaultProj.page_ids.push(defaultMapId);
                 
-                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "maps", defaultMapId);
-                await window.Firestore.setDoc(mapRef, defaultMap);
-                this.firestoreLibrary.push(defaultMap);
-                activeMapId = defaultMapId;
+                const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", defaultProjId);
+                await window.Firestore.setDoc(projRef, defaultProj);
                 
+                const pageRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", defaultProjId, "pages", defaultMapId);
+                await window.Firestore.setDoc(pageRef, defaultMap);
+                
+                this.firestoreProjects.push(defaultProj);
+                this.firestorePagesByProject[defaultProjId] = [defaultMap];
+                
+                const sessionRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "sessions", "active");
                 await window.Firestore.setDoc(sessionRef, {
+                    activeProjectId: defaultProjId,
                     activeMapId: defaultMapId,
                     portalHistory: []
                 });
+            } else {
+                projectsSnapshot.forEach(doc => {
+                    this.firestoreProjects.push(doc.data());
+                });
+                
+                const pagePromises = this.firestoreProjects.map(async (proj) => {
+                    const pagesCol = window.Firestore.collection(window.FirebaseDb, "users", uid, "projects", proj.project_id, "pages");
+                    const pagesSnapshot = await window.Firestore.getDocs(pagesCol);
+                    const pages = [];
+                    pagesSnapshot.forEach(doc => pages.push(doc.data()));
+                    this.firestorePagesByProject[proj.project_id] = pages;
+                });
+                
+                await Promise.all(pagePromises);
             }
             
-            // 5. Load the active map state
-            if (!activeMapId && this.firestoreLibrary.length > 0) {
-                activeMapId = this.firestoreLibrary[0].map_id;
+            const sessionRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "sessions", "active");
+            const sessionSnap = await window.Firestore.getDoc(sessionRef);
+            
+            let activeProjectId = "default_project";
+            let activeMapId = null;
+            let portalHistory = [];
+            
+            if (sessionSnap.exists()) {
+                const sessionData = sessionSnap.data();
+                activeProjectId = sessionData.activeProjectId || "default_project";
+                activeMapId = sessionData.activeMapId;
+                portalHistory = sessionData.portalHistory || [];
             }
             
-            if (activeMapId) {
-                const activeMap = this.firestoreLibrary.find(m => m.map_id === activeMapId);
-                if (activeMap) {
-                    this.state = this.ensureSchema(activeMap);
-                    this.portalHistory = portalHistory;
-                    this.lastSaveState = JSON.stringify(this.state);
-                } else {
-                    this.state = this.ensureSchema(this.firestoreLibrary[0]);
-                    this.portalHistory = [];
-                    this.lastSaveState = JSON.stringify(this.state);
+            this.activeProjectId = activeProjectId;
+            
+            let activePage = null;
+            if (activeMapId && this.firestorePagesByProject[activeProjectId]) {
+                activePage = this.firestorePagesByProject[activeProjectId].find(p => p.map_id === activeMapId);
+            }
+            
+            if (!activePage) {
+                const currentProj = this.firestoreProjects.find(p => p.project_id === activeProjectId) || this.firestoreProjects[0];
+                if (currentProj) {
+                    this.activeProjectId = currentProj.project_id;
+                    const projPages = this.firestorePagesByProject[this.activeProjectId] || [];
+                    activePage = projPages[0];
                 }
+            }
+            
+            if (activePage) {
+                this.state = this.ensureSchema(activePage);
+                this.portalHistory = portalHistory;
+                this.lastSaveState = JSON.stringify(this.state);
+                
+                if (!sessionSnap.exists()) {
+                    await window.Firestore.setDoc(sessionRef, {
+                        activeProjectId: this.activeProjectId,
+                        activeMapId: activePage.map_id,
+                        portalHistory: []
+                    });
+                }
+            } else {
+                console.warn("Active page not found after sync. Initializing empty state.");
+                this.state = this.getEmptyState();
+                this.portalHistory = [];
+                this.lastSaveState = JSON.stringify(this.state);
             }
             
             this.notify();
@@ -840,6 +1462,9 @@ class MultiMapKernel {
     disconnectFirestore() {
         console.log("Disconnecting from Firestore, falling back to LocalStorage.");
         this.firestoreLibrary = [];
+        this.projects = [];
+        this.activeProjectId = 'default_project';
+        this.migrateLocalGuestData();
         const rawState = this.loadFromStorage();
         this.state = this.ensureSchema(rawState);
         this.portalHistory = [];
