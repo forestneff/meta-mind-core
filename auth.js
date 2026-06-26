@@ -12,9 +12,12 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
-    connectAuthEmulator(auth, "http://127.0.0.1:9099");
-    connectFirestoreEmulator(db, "127.0.0.1", 8080);
+const isProduction = location.hostname === "mm.forestneff.com";
+if (!isProduction) {
+    const devHost = location.hostname || "127.0.0.1";
+    const cleanHost = (devHost === "0.0.0.0" || devHost === "[::1]" || !devHost) ? "127.0.0.1" : devHost;
+    connectAuthEmulator(auth, `http://${cleanHost}:9099`);
+    connectFirestoreEmulator(db, cleanHost, 8080);
 }
 
 window.FirebaseAuth = auth;
