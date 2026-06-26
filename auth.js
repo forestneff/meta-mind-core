@@ -4,8 +4,11 @@ import { getFirestore, connectFirestoreEmulator, doc, getDoc, setDoc, updateDoc,
 
 const firebaseConfig = {
     projectId: "mm-multi-map",
-    apiKey: "dummy-api-key-for-emulator",
-    authDomain: "mm-multi-map.firebaseapp.com"
+    apiKey: "AIzaSyCOk-1fCUVX6dEPqToSCMGGHoG6YJx231o",
+    authDomain: "mm-multi-map.firebaseapp.com",
+    storageBucket: "mm-multi-map.firebasestorage.app",
+    messagingSenderId: "372970140042",
+    appId: "1:372970140042:web:32b8e5223af72853df1873"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -121,7 +124,7 @@ window.Auth = {
         } else {
             html += `
             <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow flex flex-col gap-4">
-                <h3 class="text-sm font-bold text-white text-center">Sign In to Multi-Map</h3>
+                <h3 class="text-sm font-bold text-white text-center">Sign In to Multi Map</h3>
                 
                 <div id="auth-error" class="hidden text-xs text-rose-500 bg-rose-950/40 border border-rose-800 rounded p-2.5 leading-normal"></div>
                 
