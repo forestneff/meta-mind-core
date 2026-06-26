@@ -99,6 +99,33 @@ window.Auth = {
         }
         
         container.innerHTML = html;
+
+        // Append Map Settings Block
+        const settingsDiv = document.createElement('div');
+        settingsDiv.className = "bg-slate-900 border border-slate-800 rounded-xl p-4 shadow flex flex-col gap-3 mt-4";
+        settingsDiv.innerHTML = `
+            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800 pb-2">
+                <span>⚙️</span> Map Workspace Settings
+            </h3>
+            <div class="flex items-center justify-between gap-4 mt-1">
+                <label for="settings-auto-collapse-depth" class="text-xs text-slate-400">Auto-Collapse Depth</label>
+                <input type="number" id="settings-auto-collapse-depth" min="1" max="10" 
+                    class="w-16 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 outline-none focus:border-indigo-500 text-center" 
+                    value="${window.Kernel ? window.Kernel.config.autoCollapseDepth || 3 : 3}">
+            </div>
+        `;
+        container.appendChild(settingsDiv);
+
+        const depthInput = settingsDiv.querySelector('#settings-auto-collapse-depth');
+        if (depthInput) {
+            depthInput.addEventListener('change', (e) => {
+                const val = parseInt(e.target.value, 10);
+                if (window.Kernel && !isNaN(val)) {
+                    window.Kernel.config.autoCollapseDepth = val;
+                    if (window.SC) window.SC.render();
+                }
+            });
+        }
     },
 
     renderDataManager: function(container) {

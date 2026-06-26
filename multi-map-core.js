@@ -37,7 +37,7 @@ class HostBridge {
 
 class MultiMapKernel {
     constructor() {
-        this.config = { autoSaveInterval: 2000, autoFocus: true };
+        this.config = { autoSaveInterval: 2000, autoFocus: true, autoCollapseDepth: 3 };
         this.bridge = new HostBridge();
         
         this.listeners = [];

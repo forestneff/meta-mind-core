@@ -1082,25 +1082,28 @@ class SandboxController {
 
         const selId = state.session.selectedId;
 
-        const visibleNodes = new Set();
-        state.nodes.forEach(n => visibleNodes.add(n.id));
-
-        state.nodes.forEach(n => {
-            if (n.data.collapsed) {
-                const queue = [n.id];
-                while(queue.length > 0) {
-                    const curr = queue.shift();
-                    const kids = state.connections.filter(c => c.from === curr && c.type === 'structural').map(c => c.to);
-                    kids.forEach(k => { visibleNodes.delete(k); queue.push(k); });
-                }
-            }
-        });
-
         const structuralEdges = state.connections.filter(c => c.type === 'structural');
         // True roots = nodes with no incoming structural edges (used for root highlight in selection mode)
         const hasIncomingEdge = new Set(structuralEdges.map(e => e.to));
         const trueRootIds = new Set(state.nodes.filter(n => !hasIncomingEdge.has(n.id)).map(n => n.id));
 
+        // Compute absolute depth of each node from the root node(s) for depth auto-collapse
+        const depth = new Map();
+        trueRootIds.forEach(id => depth.set(id, 0));
+        let depthQueue = [...trueRootIds];
+        while (depthQueue.length > 0) {
+            const curr = depthQueue.shift();
+            const currDepth = depth.get(curr);
+            const kids = structuralEdges.filter(c => c.from === curr).map(c => c.to);
+            for (const kid of kids) {
+                if (!depth.has(kid)) {
+                    depth.set(kid, currDepth + 1);
+                    depthQueue.push(kid);
+                }
+            }
+        }
+
+        // Active focal nodes calculation
         let focalNodes = [];
         if (state.session.selectedId) {
             focalNodes = [state.session.selectedId];
@@ -1132,6 +1135,77 @@ class SandboxController {
                 }
             }
         }
+
+        // Path Nodes calculation (ancestors + selected/highlighted node)
+        const pathNodes = new Set();
+        const highlightNodeId = this.activeSearchHighlight ? this.activeSearchHighlight.nodeId : null;
+        const activeFocalId = state.session.selectedId || highlightNodeId;
+
+        if (activeFocalId) {
+            let currId = activeFocalId;
+            while (currId) {
+                pathNodes.add(currId);
+                const parentEdge = structuralEdges.find(e => e.to === currId);
+                currId = parentEdge ? parentEdge.from : null;
+            }
+        }
+
+        const autoCollapseDepth = this.kernel.config.autoCollapseDepth || 3;
+
+        // Auto-collapse logic matching TODO specs
+        const isNodeCollapsed = (nid) => {
+            const n = state.nodes.find(node => node.id === nid);
+            if (!n) return false;
+            
+            // 1. Manual collapse takes precedence
+            if (n.data.collapsed === true) return true;
+            
+            // 2. Selection-driven collapse/re-expansion if a selection/highlight is active
+            if (activeFocalId) {
+                if (pathNodes.has(nid)) {
+                    return false; // fully expanded path node
+                }
+                
+                // Downstream of selection
+                if (distances.has(nid)) {
+                    const distVal = distances.get(nid);
+                    if (distVal >= autoCollapseDepth) {
+                        return !n.data.expanded; // collapsed beyond threshold unless explicitly expanded
+                    }
+                    return false;
+                }
+                
+                // Sibling branch (neither on path nor downstream of selection)
+                return true; // collapsed
+            }
+            
+            // 3. Depth-based auto-collapse if no selection is active
+            const depthVal = depth.has(nid) ? depth.get(nid) : 0;
+            if (depthVal >= autoCollapseDepth) {
+                return !n.data.expanded;
+            }
+            return false;
+        };
+
+        const visibleNodes = new Set();
+        state.nodes.forEach(n => visibleNodes.add(n.id));
+
+        state.nodes.forEach(n => {
+            if (isNodeCollapsed(n.id)) {
+                // Sibling branch nodes are collapsed (fade to 20% opacity), but they do NOT prune their subtrees
+                const isSiblingBranch = activeFocalId && !pathNodes.has(n.id) && !distances.has(n.id) && n.data.collapsed !== true;
+                if (isSiblingBranch) {
+                    return;
+                }
+                
+                const queue = [n.id];
+                while(queue.length > 0) {
+                    const curr = queue.shift();
+                    const kids = state.connections.filter(c => c.from === curr && c.type === 'structural').map(c => c.to);
+                    kids.forEach(k => { visibleNodes.delete(k); queue.push(k); });
+                }
+            }
+        });
 
         let structuredCoords = null;
         if (state.session.layoutMode === 'structured') {
@@ -1187,7 +1261,13 @@ class SandboxController {
                     const isLinking = this.kernel.linkingMode;
                     const distS = distances.has(s.id) ? distances.get(s.id) : -1;
                     const distT = distances.has(t.id) ? distances.get(t.id) : -1;
-                    if (!isLinking && (distS === -1 || distT === -1)) {
+                    
+                    const onPathOrDownstreamS = pathNodes.has(s.id) || distances.has(s.id);
+                    const onPathOrDownstreamT = pathNodes.has(t.id) || distances.has(t.id);
+                    
+                    if (!isLinking && activeFocalId && (!onPathOrDownstreamS || !onPathOrDownstreamT)) {
+                        l.style.strokeOpacity = "0.2"; // Sibling branch edges are faded to 20%
+                    } else if (!isLinking && (distS === -1 || distT === -1)) {
                         l.style.strokeOpacity = "0.48";
                     }
                     this.dom.edgeSvg.appendChild(l);
@@ -1224,17 +1304,25 @@ class SandboxController {
             } else if (dist === -1) {
                 // Background (upstream / unrelated) nodes
                 const isRoot = trueRootIds.has(node.id) && state.session.selectedId;
+                const isSibling = activeFocalId && !pathNodes.has(node.id);
+                
                 if (isRoot) {
                     // Root node gets a slightly bigger, brighter treatment so it stays findable
                     scale = 0.85;
                     color = '#e2e8f0';
                     el.style.opacity = '0.85';
                     el.style.backgroundColor = `rgba(30, 41, 59, 0.75)`;
-                } else {
+                } else if (isSibling) {
+                    // Sibling branches fade to 20% opacity
                     scale = 0.5;
                     color = '#475569';
-                    el.style.opacity = '0.6';
-                    el.style.backgroundColor = `rgba(30, 41, 59, 0.45)`;
+                    el.style.opacity = '0.2';
+                    el.style.backgroundColor = `rgba(30, 41, 59, 0.2)`;
+                } else {
+                    scale = 0.8;
+                    color = '#cbd5e1';
+                    el.style.opacity = '0.9';
+                    el.style.backgroundColor = `rgba(30, 41, 59, 0.7)`;
                 }
             } else {
                 scale = Math.max(0.3, 1.4 * Math.pow(0.7, dist));
@@ -1260,10 +1348,13 @@ class SandboxController {
                 el.style.boxShadow = `0 0 10px ${color}40`;
             } else {
                 const isRoot = trueRootIds.has(node.id) && state.session.selectedId;
+                const isSibling = activeFocalId && !pathNodes.has(node.id);
                 if (isRoot) {
                     el.style.boxShadow = `0 0 12px ${color}60`;
-                } else {
+                } else if (isSibling) {
                     el.style.boxShadow = 'none';
+                } else {
+                    el.style.boxShadow = `0 0 8px ${color}30`;
                 }
             }
             
@@ -1285,7 +1376,10 @@ class SandboxController {
                 el.classList.remove('smart-action-halo');
                 el.style.removeProperty('--halo-color');
             }
-            if (node.data.collapsed) el.classList.add('collapsed');
+            
+            const collapsed = isNodeCollapsed(node.id);
+            if (collapsed) el.classList.add('collapsed');
+            else el.classList.remove('collapsed');
             
             const bp = this.kernel.getBlueprint(node.type);
             let labelEl = el.querySelector('.node-label');
@@ -1301,7 +1395,7 @@ class SandboxController {
 
             el.querySelectorAll('.moon-btn').forEach(m => m.remove());
 
-            if (node.data.collapsed) {
+            if (collapsed) {
                 const children = state.connections
                     .filter(c => c.from === node.id && c.type === 'structural')
                     .map(c => state.nodes.find(n => n.id === c.to));
@@ -1321,7 +1415,7 @@ class SandboxController {
                     moon.innerHTML = this.kernel.getBlueprint(child.type).icon;
                     moon.onpointerdown = (e) => {
                         e.stopPropagation();
-                        this.kernel.updateNode(node.id, { data: { ...node.data, collapsed: false }});
+                        this.kernel.updateNode(node.id, { data: { ...node.data, collapsed: false, expanded: true }});
                         this.kernel.selectNode(child.id);
                         this.render();
                     };

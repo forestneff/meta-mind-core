@@ -177,6 +177,8 @@
                     <button id="btn-arrange-organic" class="w-9 h-9 bg-slate-800 border border-slate-700 text-slate-300 rounded-full flex items-center justify-center shadow hover:bg-slate-700 hover:text-white transition-all tooltip-btn" title="Organic Arrange">🌳</button>
                     <!-- Arrange Structured -->
                     <button id="btn-arrange-tree" class="w-9 h-9 bg-slate-800 border border-slate-700 text-slate-300 rounded-full flex items-center justify-center shadow hover:bg-slate-700 hover:text-white transition-all tooltip-btn" title="Structured Arrange">🖧</button>
+                    <!-- Expand All -->
+                    <button id="btn-expand-all" class="w-9 h-9 bg-slate-800 border border-slate-700 text-slate-300 rounded-full flex items-center justify-center shadow hover:bg-slate-700 hover:text-white transition-all tooltip-btn" title="Expand All">🔆</button>
                     <!-- Add Node -->
                     <button id="btn-add" class="w-9 h-9 bg-indigo-900 border border-indigo-500 text-indigo-200 rounded-full flex items-center justify-center shadow hover:bg-indigo-600 hover:text-white transition-all tooltip-btn" title="Add Node">➕</button>
                 </div>
@@ -280,6 +282,9 @@
                 document.getElementById('btn-arrange-tree').onclick = () => { 
                     Kernel.state.session.layoutMode = 'structured';
                     Kernel.notify();
+                };
+                document.getElementById('btn-expand-all').onclick = () => {
+                    SC.actionExpandAll();
                 };
 
                 document.getElementById('btn-add').onclick = () => {
