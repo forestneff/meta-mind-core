@@ -22,6 +22,7 @@ class MultiMapAI {
         this.basePrompt = "You are an expert System Architect for the Multi-Map Platform. Output valid MapState JSON.";
 
         this.initDOM();
+        this.initAutocomplete();
     }
 
     initDOM() {
@@ -68,7 +69,10 @@ class MultiMapAI {
                 </div>
 
                 <!-- Input Area -->
-                <div class="p-3 border-t border-slate-800 bg-slate-950/50 shrink-0">
+                <div class="p-3 border-t border-slate-800 bg-slate-950/50 shrink-0 relative">
+                    <!-- Autocomplete Popover -->
+                    <div id="ai-autocomplete-popover" class="absolute bottom-full mb-2 left-3 right-3 bg-slate-900 border border-indigo-500/40 rounded-xl shadow-2xl z-[120] hidden flex flex-col overflow-hidden max-h-48 custom-scrollbar">
+                    </div>
                     <div class="relative flex items-end gap-2">
                         <textarea id="ai-input" rows="1" placeholder="Generate a map for..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-indigo-500 resize-none custom-scrollbar max-h-32" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
                         <button id="ai-send-btn" class="shrink-0 w-9 h-9 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full flex items-center justify-center transition-colors shadow">
@@ -97,6 +101,12 @@ class MultiMapAI {
 
         const input = document.getElementById('ai-input');
         input.addEventListener('keydown', (e) => {
+            if (this.autocompleteActive) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === 'Escape') {
+                    this.handleAutocompleteKeydown(e);
+                    return;
+                }
+            }
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this.handleSend();
@@ -142,6 +152,124 @@ class MultiMapAI {
             window.visualViewport.addEventListener('resize', () => this.handleResize());
             window.visualViewport.addEventListener('scroll', () => this.handleResize());
         }
+    }
+
+    initAutocomplete() {
+        this.autocompleteActive = false;
+        this.filteredCommands = [];
+        this.activeCommandIdx = 0;
+        this.allCommands = [
+            { key: '/generate', label: 'Generate Map', desc: 'Generate a new map or submap' },
+            { key: '/edit', label: 'Edit Map', desc: 'Modify or extend the current map' },
+            { key: '/refine', label: 'Refine Selected', desc: 'Modify selected node(s)/subgraph' },
+            { key: '/explain', label: 'Explain Map', desc: 'Narrate what this map represents' },
+            { key: '/project', label: 'Generate Project', desc: 'Generate a multi-page project' }
+        ];
+
+        const input = document.getElementById('ai-input');
+        if (!input) return;
+
+        input.addEventListener('input', () => this.handleAutocompleteInput());
+    }
+
+    handleAutocompleteInput() {
+        const input = document.getElementById('ai-input');
+        const val = input.value;
+
+        if (val.startsWith('/') && !val.includes(' ')) {
+            const filterText = val.toLowerCase();
+            this.filteredCommands = this.allCommands.filter(c => c.key.startsWith(filterText));
+
+            if (this.filteredCommands.length > 0) {
+                this.showAutocompletePopover();
+            } else {
+                this.hideAutocompletePopover();
+            }
+        } else {
+            this.hideAutocompletePopover();
+        }
+    }
+
+    handleAutocompleteKeydown(e) {
+        if (!this.autocompleteActive) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.activeCommandIdx = (this.activeCommandIdx + 1) % this.filteredCommands.length;
+            this.renderAutocompletePopover();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.activeCommandIdx = (this.activeCommandIdx - 1 + this.filteredCommands.length) % this.filteredCommands.length;
+            this.renderAutocompletePopover();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            this.selectActiveCommand();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            this.hideAutocompletePopover();
+        }
+    }
+
+    showAutocompletePopover() {
+        this.autocompleteActive = true;
+        const popover = document.getElementById('ai-autocomplete-popover');
+        if (popover) {
+            popover.classList.remove('hidden');
+        }
+        this.activeCommandIdx = 0;
+        this.renderAutocompletePopover();
+    }
+
+    hideAutocompletePopover() {
+        this.autocompleteActive = false;
+        const popover = document.getElementById('ai-autocomplete-popover');
+        if (popover) {
+            popover.classList.add('hidden');
+        }
+    }
+
+    renderAutocompletePopover() {
+        const popover = document.getElementById('ai-autocomplete-popover');
+        if (!popover) return;
+
+        popover.innerHTML = '';
+        this.filteredCommands.forEach((cmd, idx) => {
+            const isSelected = idx === this.activeCommandIdx;
+            const item = document.createElement('div');
+            item.className = `p-2 px-3 text-xs flex justify-between items-center cursor-pointer transition-colors border-b border-slate-800 last:border-0 ${
+                isSelected ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800/80 text-slate-300'
+            }`;
+            item.innerHTML = `
+                <div class="flex flex-col">
+                    <span class="font-bold">${cmd.key}</span>
+                    <span class="text-[10px] ${isSelected ? 'text-slate-200' : 'text-slate-400'}">${cmd.desc}</span>
+                </div>
+                <span class="text-[10px] opacity-65 uppercase font-black tracking-wider">${cmd.label}</span>
+            `;
+            item.onclick = (e) => {
+                e.stopPropagation();
+                this.activeCommandIdx = idx;
+                this.selectActiveCommand();
+            };
+            popover.appendChild(item);
+        });
+    }
+
+    selectActiveCommand() {
+        const cmd = this.filteredCommands[this.activeCommandIdx];
+        if (!cmd) return;
+
+        const input = document.getElementById('ai-input');
+        if (!input) return;
+
+        const tag = `[${cmd.key.substring(1)}] `;
+        input.value = tag;
+        
+        this.hideAutocompletePopover();
+        input.focus();
+        
+        input.style.height = '';
+        input.style.height = input.scrollHeight + 'px';
     }
 
     handleResize() {
