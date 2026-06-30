@@ -640,11 +640,14 @@ class SandboxController {
         this.render(); // Remove halos
     }
 
-    actionResolveAiImport(nodeId) {
+    async actionResolveAiImport(nodeId) {
         if (!this.aiPendingData) return;
         
         // Save the map to the library natively so the portal can reference it!
-        this.kernel.saveConstellationToLibrary(this.aiPendingData);
+        const saved = await this.kernel.saveConstellationToLibrary(this.aiPendingData);
+        if (saved === false) {
+            throw new Error("Guest map limit (25) exceeded.");
+        }
         
         // Update the smart portal's payload to link to this new map
         this.kernel.updateNode(nodeId, { content: this.aiPendingData.map_id });
@@ -810,10 +813,13 @@ class SandboxController {
         }
     }
 
-    actionSaveConstellation(id) {
+    async actionSaveConstellation(id) {
         const tgt = id || this.kernel.state.session.selectedId;
         const json = this.kernel.extractConstellation(tgt);
-        if (json) { this.kernel.saveConstellationToLibrary(json); alert("Saved to Library."); }
+        if (json) { 
+            const saved = await this.kernel.saveConstellationToLibrary(json); 
+            if (saved !== false) alert("Saved to Library.");
+        }
     }
 
     actionLoadRemoteTemplates() {
@@ -864,18 +870,30 @@ class SandboxController {
 
                 let msg = `Conflict: A map titled "${newMap.meta?.title || newMap.map_id}" already exists.\nOverwrite existing map?`;
                 if (confirm(msg)) {
-                    if (target === 'template') MultiMapLibrary.saveCustomTemplate(newMap);
-                    else {
-                        await this.kernel.saveMapToLibrary(newMap);
+                    if (target === 'template') {
+                        MultiMapLibrary.saveCustomTemplate(newMap);
+                        overwritten++;
+                    } else {
+                        const saved = await this.kernel.saveMapToLibrary(newMap);
+                        if (saved !== false) {
+                            overwritten++;
+                        } else {
+                            break; // Stop importing further if quota exceeded
+                        }
                     }
-                    overwritten++;
                 } else { skipped++; }
             } else {
-                if (target === 'template') MultiMapLibrary.saveCustomTemplate(newMap);
-                else {
-                    await this.kernel.saveMapToLibrary(newMap);
+                if (target === 'template') {
+                    MultiMapLibrary.saveCustomTemplate(newMap);
+                    added++;
+                } else {
+                    const saved = await this.kernel.saveMapToLibrary(newMap);
+                    if (saved !== false) {
+                        added++;
+                    } else {
+                        break; // Stop importing further if quota exceeded
+                    }
                 }
-                added++;
             }
         }
 
@@ -931,31 +949,476 @@ class SandboxController {
         }
     }
 
-    async actionSpawnTemplate(tplId) {
+    async actionSpawnAssetAsPortal(tplId) {
         try {
             const tplData = await this.kernel.bridge.fetchTemplateData(tplId);
-            this.kernel.saveConstellationToLibrary(tplData);
             
+            // Clone the template map, give it a new map_id, and assign to current project
+            const newMapId = this.kernel.generateId();
+            const clonedMap = JSON.parse(JSON.stringify(tplData));
+            clonedMap.map_id = newMapId;
+            clonedMap.meta.project_id = this.kernel.activeProjectId;
+            clonedMap.meta.title = tplData.meta.title || "Cloned Space";
+            
+            const saved = await this.kernel.saveConstellationToLibrary(clonedMap);
+            if (saved === false) {
+                throw new Error("Storage limit exceeded.");
+            }
+            
+            // Add the portal node to the current map pointing to newMapId
             const vp = this.kernel.state.session.viewport;
             const rect = this.dom.viewport.getBoundingClientRect();
-            const center_x = (rect.width / 2 - vp.x) / vp.scale;
-            const center_y = (rect.height / 2 - vp.y) / vp.scale;
-
-            const portal = this.kernel.addNode({ type: 'portal', title: tplData.meta.title, content: tplData.map_id, x: center_x, y: center_y });
-            this.kernel.importSubmap(portal.id, tplData);
-            alert(`Template imported successfully!`);
+            
+            // If there's a selected node, position near it, otherwise center of viewport
+            const selectedId = this.kernel.state.session.selectedId;
+            let posX = undefined;
+            let posY = undefined;
+            if (!selectedId) {
+                posX = (rect.width / 2 - vp.x) / vp.scale;
+                posY = (rect.height / 2 - vp.y) / vp.scale;
+            }
+            
+            const portalNode = this.kernel.addNode({
+                type: 'portal',
+                title: clonedMap.meta.title,
+                content: newMapId,
+                x: posX,
+                y: posY
+            }, selectedId);
+            
+            // Link portal node to selected node or root
+            let parentId = selectedId;
+            if (!parentId) {
+                // Find a core or root node
+                const rootNode = this.kernel.state.nodes.find(n => n.data && n.data.isCore) || 
+                                 this.kernel.state.nodes.find(n => n.type === 'root' || n.type === 'file-root') || 
+                                 this.kernel.state.nodes[0];
+                if (rootNode) parentId = rootNode.id;
+            }
+            
+            if (parentId && portalNode) {
+                this.kernel.addConnection(parentId, portalNode.id);
+            }
+            
             this.setView('map');
-            this.kernel.selectNode(portal.id);
-        } catch (e) { alert("Failed to spawn template."); }
+            this.kernel.selectNode(portalNode.id);
+            const drawer = document.getElementById('data-manager-drawer');
+            if (drawer) drawer.classList.add('translate-x-full');
+        } catch (e) {
+            console.error(e);
+            alert("Failed to spawn asset as portal: " + e.message);
+        }
     }
 
-    actionSaveCurrentToLibrary() {
+    /** Shared implementation: clone asset template into a specific project */
+    async _importAssetToProject(tplId, targetProjectId) {
+        const tplData = await this.kernel.bridge.fetchTemplateData(tplId);
+        const projects = this.kernel.getProjects();
+
+        const newMapId = this.kernel.generateId();
+        const clonedMap = JSON.parse(JSON.stringify(tplData));
+        clonedMap.map_id = newMapId;
+        clonedMap.meta.project_id = targetProjectId;
+        clonedMap.meta.title = tplData.meta.title || 'Imported Page';
+
+        // Library templates use meta.target_type (e.g. "web-root") instead of meta.type.
+        // Reverse-map it to the schema's mapType key so ensureSchema never falls back to "generic".
+        if (!clonedMap.meta.type && clonedMap.meta.target_type) {
+            const targetRootType = clonedMap.meta.target_type;
+            if (typeof MultiMapSchema !== 'undefined' && MultiMapSchema.mapTypes) {
+                const matchedType = Object.keys(MultiMapSchema.mapTypes).find(
+                    m => MultiMapSchema.mapTypes[m].rootNode === targetRootType
+                );
+                if (matchedType) clonedMap.meta.type = matchedType;
+            }
+        }
+
+        const saved = await this.kernel.saveConstellationToLibrary(clonedMap);
+        if (saved === false) throw new Error('Storage limit exceeded.');
+
+        // Register the page under its project
+        const proj = projects.find(p => p.project_id === targetProjectId)
+            || (this.kernel.firestoreProjects || []).find(p => p.project_id === targetProjectId);
+        if (proj && !proj.page_ids.includes(newMapId)) {
+            proj.page_ids.push(newMapId);
+            if (this.kernel.isUsingCloudVault()) {
+                const uid = window.FirebaseAuth.currentUser.uid;
+                const projRef = window.Firestore.doc(window.FirebaseDb, 'users', uid, 'projects', targetProjectId);
+                await window.Firestore.setDoc(projRef, proj);
+            } else {
+                localStorage.setItem('mm_projects', JSON.stringify(this.kernel.projects));
+            }
+        }
+
+        return { clonedMap, projTitle: proj ? proj.meta.title : targetProjectId };
+    }
+
+    /** Called by the dropdown when the user picks an existing project */
+    async actionImportAssetToProjectId(tplId, projectId) {
+        // Close any open dropdown for this asset before doing async work
+        const ddKey = 'asset_dd_' + tplId;
+        const engine = this.registry.get('data');
+        if (engine && engine.ui.openItems[ddKey]) engine.toggleItem(ddKey);
+
+        try {
+            const { clonedMap, projTitle } = await this._importAssetToProject(tplId, projectId);
+            const openNow = confirm(`"${clonedMap.meta.title}" added to "${projTitle}". Open it now?`);
+            if (openNow) {
+                this.kernel.activeProjectId = projectId;
+                this.kernel.loadMapState(clonedMap);
+                this.setView('map');
+                const drawer = document.getElementById('data-manager-drawer');
+                if (drawer) drawer.classList.add('translate-x-full');
+            } else {
+                this.render();
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to import asset: ' + e.message);
+        }
+    }
+
+    /** Called by the dropdown when the user chooses "+ New Project…" */
+    async actionImportAssetToNewProject(tplId) {
+        const ddKey = 'asset_dd_' + tplId;
+        const engine = this.registry.get('data');
+        if (engine && engine.ui.openItems[ddKey]) engine.toggleItem(ddKey);
+
+        const tplData = await this.kernel.bridge.fetchTemplateData(tplId).catch(() => null);
+        const defaultName = tplData ? `${tplData.meta.title} Project` : 'New Project';
+        const newProjName = prompt('New project name:', defaultName);
+        if (!newProjName) return;
+
+        try {
+            const newProjId = await this.kernel.createProject(newProjName, '', '📁', '#6366f1', false);
+            if (!newProjId) throw new Error('Could not create project.');
+            const { clonedMap } = await this._importAssetToProject(tplId, newProjId);
+            const openNow = confirm(`Project "${newProjName}" created with page "${clonedMap.meta.title}". Open it now?`);
+            if (openNow) {
+                this.kernel.activeProjectId = newProjId;
+                this.kernel.loadMapState(clonedMap);
+                this.setView('map');
+                const drawer = document.getElementById('data-manager-drawer');
+                if (drawer) drawer.classList.add('translate-x-full');
+            } else {
+                this.render();
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to create project or import asset: ' + e.message);
+        }
+    }
+
+    /** @deprecated — kept in case anything still references the old single-method flow */
+    async actionImportAssetToPage(tplId) {
+        return this.actionImportAssetToProjectId(tplId, this.kernel.activeProjectId);
+    }
+
+    /**
+     * Renders a body-level fixed dropdown anchored to the "New Page" button.
+     * Avoids overflow-hidden clipping from the asset card / scrollable list.
+     */
+    showAssetProjectDropdown(event, tplId) {
+        // Remove any existing dropdown
+        const existing = document.getElementById('mm-asset-proj-dd');
+        if (existing) {
+            existing.remove();
+            // If same button was clicked again, just close (toggle off)
+            if (existing.dataset.tplId === tplId) return;
+        }
+
+        const btn = event.currentTarget;
+        const rect = btn.getBoundingClientRect();
+        const projects = this.kernel.getProjects();
+
+        const panel = document.createElement('div');
+        panel.id = 'mm-asset-proj-dd';
+        panel.dataset.tplId = tplId;
+        panel.style.cssText = `
+            position: fixed;
+            left: ${rect.left}px;
+            top: ${rect.bottom + 4}px;
+            min-width: ${Math.max(rect.width, 180)}px;
+            z-index: 99999;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: inherit;
+        `;
+
+        // Keep panel on-screen if it would overflow viewport bottom
+        const estimatedHeight = (projects.length + 1) * 32 + 8;
+        if (rect.bottom + 4 + estimatedHeight > window.innerHeight) {
+            panel.style.top = '';
+            panel.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+        }
+
+        const activeId = this.kernel.activeProjectId;
+
+        projects.forEach(proj => {
+            const b = document.createElement('button');
+            b.style.cssText = 'text-align:left;width:100%;padding:6px 12px;font-size:10px;font-weight:500;color:#cbd5e1;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;';
+            b.innerHTML = `<span>${proj.meta.icon || '📁'}</span><span style="flex:1">${proj.meta.title}</span>${proj.project_id === activeId ? '<span style="font-size:8px;color:#64748b">current</span>' : ''}`;
+            b.onmouseover = () => { b.style.background = '#2563eb'; b.style.color = '#fff'; };
+            b.onmouseout  = () => { b.style.background = 'transparent'; b.style.color = '#cbd5e1'; };
+            b.onclick = () => {
+                panel.remove();
+                this.actionImportAssetToProjectId(tplId, proj.project_id);
+            };
+            panel.appendChild(b);
+        });
+
+        // Divider
+        const hr = document.createElement('div');
+        hr.style.cssText = 'border-top:1px solid #334155;margin:2px 0;';
+        panel.appendChild(hr);
+
+        // + New Project
+        const newBtn = document.createElement('button');
+        newBtn.style.cssText = 'text-align:left;width:100%;padding:6px 12px;font-size:10px;font-weight:600;color:#34d399;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;';
+        newBtn.innerHTML = '＋ New Project…';
+        newBtn.onmouseover = () => { newBtn.style.background = '#059669'; newBtn.style.color = '#fff'; };
+        newBtn.onmouseout  = () => { newBtn.style.background = 'transparent'; newBtn.style.color = '#34d399'; };
+        newBtn.onclick = () => {
+            panel.remove();
+            this.actionImportAssetToNewProject(tplId);
+        };
+        panel.appendChild(newBtn);
+
+        document.body.appendChild(panel);
+
+        // Auto-close on outside click or scroll
+        const close = (e) => {
+            if (!panel.contains(e.target) && e.target !== btn) {
+                panel.remove();
+                document.removeEventListener('mousedown', close, true);
+                document.removeEventListener('scroll', close, true);
+            }
+        };
+        // Slight delay so the current click doesn't immediately close
+        setTimeout(() => {
+            document.addEventListener('mousedown', close, true);
+            document.addEventListener('scroll', close, { capture: true, passive: true });
+        }, 0);
+    }
+
+    // ─────────────────────────────────────────────
+    // MAP SHARING
+    // ─────────────────────────────────────────────
+
+    /** Generate a UUID v4 */
+    _generateToken() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    /**
+     * Share a page by writing its full payload to shared_maps/{token}.
+     * Cloud-vault only — local pages cannot be served publicly.
+     */
+    async actionSharePage(mapId) {
+        const lib = this.kernel.getLibrary();
+        const page = lib.find(p => p.map_id === mapId);
+        if (!page) return alert('Page not found in library.');
+
+        // Local vault pages can't be shared publicly
+        if (!this.kernel.isUsingCloudVault()) {
+            return alert('Sharing requires the Cloud (Firebase) vault. Switch your data vault to share pages.');
+        }
+
+        const user = window.FirebaseAuth?.currentUser;
+        if (!user || user.isAnonymous) {
+            return alert('You must be signed in to share maps.');
+        }
+
+        // Expiry prompt
+        const expiryChoice = prompt(
+            `Share "${page.meta?.title || 'Untitled'}":\n` +
+            `Choose link expiry:\n` +
+            `  1. No expiry\n` +
+            `  2. 7 days\n` +
+            `  3. 30 days\n` +
+            `  4. 90 days\n` +
+            `Enter 1–4:`, '1'
+        );
+        if (!expiryChoice) return;
+        const expiryDays = { '2': 7, '3': 30, '4': 90 }[expiryChoice.trim()] || null;
+        const shareExpires = expiryDays
+            ? new Date(Date.now() + expiryDays * 86400000).toISOString()
+            : null;
+
+        const token = this._generateToken();
+
+        // Deep clone without transient session data
+        const payload = JSON.parse(JSON.stringify(page));
+        delete payload.session;
+        payload.meta.shared = true;
+        payload.meta.share_token = token;
+        payload.meta.share_expires = shareExpires;
+        payload.owner_uid = user.uid;
+        payload.owner_display = user.displayName || user.email || 'Anonymous';
+
+        try {
+            const ref = window.Firestore.doc(window.FirebaseDb, 'shared_maps', token);
+            await window.Firestore.setDoc(ref, payload);
+
+            // Update the map's own metadata in the library
+            page.meta.shared = true;
+            page.meta.share_token = token;
+            page.meta.share_expires = shareExpires;
+            await this.kernel.saveConstellationToLibrary(page);
+
+            const shareUrl = `${window.location.origin}/view.html?token=${token}`;
+            this.showShareLinkPanel(shareUrl, page.meta?.title || 'Untitled');
+        } catch (e) {
+            console.error(e);
+            alert('Failed to share map: ' + e.message);
+        }
+    }
+
+    /**
+     * Revoke sharing — delete the shared_maps document and clear meta flags.
+     */
+    async actionRevokeShare(mapId) {
+        const lib = this.kernel.getLibrary();
+        const page = lib.find(p => p.map_id === mapId);
+        if (!page || !page.meta?.share_token) return;
+
+        if (!confirm(`Revoke the public link for "${page.meta?.title || 'Untitled'}"? The link will stop working immediately.`)) return;
+
+        try {
+            const ref = window.Firestore.doc(window.FirebaseDb, 'shared_maps', page.meta.share_token);
+            await window.Firestore.deleteDoc(ref);
+
+            page.meta.shared = false;
+            page.meta.share_token = '';
+            page.meta.share_expires = null;
+            await this.kernel.saveConstellationToLibrary(page);
+
+            this.render();
+        } catch (e) {
+            console.error(e);
+            alert('Failed to revoke share: ' + e.message);
+        }
+    }
+
+    /**
+     * Fork a shared map into the viewer's workspace.
+     * Guests fork to local browser storage; auth users fork to their active project.
+     */
+    async actionForkSharedMap(token) {
+        try {
+            const ref = window.Firestore.doc(window.FirebaseDb, 'shared_maps', token);
+            const snap = await window.Firestore.getDoc(ref);
+            if (!snap.exists()) return alert('This shared map no longer exists.');
+
+            const data = snap.data();
+            // Expiry check
+            if (data.meta?.share_expires && new Date(data.meta.share_expires) < new Date()) {
+                return alert('This shared link has expired.');
+            }
+
+            const cloned = JSON.parse(JSON.stringify(data));
+            const newMapId = this.kernel.generateId();
+            cloned.map_id = newMapId;
+            cloned.meta.shared = false;
+            cloned.meta.share_token = '';
+            cloned.meta.share_expires = null;
+            cloned.meta.title = (cloned.meta.title || 'Forked Map') + ' (fork)';
+            cloned.meta.project_id = this.kernel.activeProjectId || 'default_project';
+            delete cloned.owner_uid;
+            delete cloned.owner_display;
+
+            const saved = await this.kernel.saveConstellationToLibrary(cloned);
+            if (saved === false) {
+                // Guest hit local storage limit — prompt sign-up
+                return alert('Local storage is full. Sign in to get more space.');
+            }
+
+            // Register under active project if possible
+            const projects = this.kernel.getProjects();
+            const proj = projects.find(p => p.project_id === cloned.meta.project_id);
+            if (proj && !proj.page_ids.includes(newMapId)) {
+                proj.page_ids.push(newMapId);
+                if (!this.kernel.isUsingCloudVault()) {
+                    localStorage.setItem('mm_projects', JSON.stringify(this.kernel.projects));
+                }
+            }
+
+            alert(`"${cloned.meta.title}" forked to your workspace!`);
+        } catch (e) {
+            console.error(e);
+            alert('Fork failed: ' + e.message);
+        }
+    }
+
+    /**
+     * Body-level panel showing the share URL with a copy button.
+     * Dismisses on outside click.
+     */
+    showShareLinkPanel(url, title = 'Shared Map') {
+        document.getElementById('mm-share-panel')?.remove();
+
+        const panel = document.createElement('div');
+        panel.id = 'mm-share-panel';
+        panel.style.cssText = `
+            position: fixed; inset: 0; z-index: 99999;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+            font-family: inherit;
+        `;
+
+        panel.innerHTML = `
+            <div style="background:#0f172a;border:1px solid #334155;border-radius:16px;padding:24px;max-width:480px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,0.7);display:flex;flex-direction:column;gap:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-weight:700;font-size:14px;color:#e2e8f0;">🔗 Share Link</span>
+                    <button id="mm-share-close" style="background:transparent;border:none;color:#64748b;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
+                </div>
+                <div style="font-size:11px;color:#94a3b8;">"${title}" is now publicly accessible at:</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input id="mm-share-url" readonly value="${url}"
+                        style="flex:1;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 10px;font-size:11px;color:#cbd5e1;outline:none;font-family:monospace;">
+                    <button id="mm-share-copy" style="background:#2563eb;border:none;border-radius:8px;padding:8px 14px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap;">Copy</button>
+                </div>
+                <div style="font-size:10px;color:#475569;">Anyone with this link can view and fork the map.</div>
+            </div>
+        `;
+
+        document.body.appendChild(panel);
+
+        panel.querySelector('#mm-share-copy').onclick = () => {
+            navigator.clipboard.writeText(url).then(() => {
+                const btn = panel.querySelector('#mm-share-copy');
+                btn.textContent = 'Copied!';
+                btn.style.background = '#16a34a';
+                setTimeout(() => { btn.textContent = 'Copy'; btn.style.background = '#2563eb'; }, 2000);
+            });
+        };
+
+        const dismiss = (e) => {
+            if (!panel.querySelector('div > div').contains(e.target)) {
+                panel.remove();
+            }
+        };
+        panel.querySelector('#mm-share-close').onclick = () => panel.remove();
+        setTimeout(() => panel.addEventListener('mousedown', dismiss), 0);
+    }
+
+    async actionSaveCurrentToLibrary() {
         const copy = JSON.parse(JSON.stringify(this.kernel.state));
         copy.map_id = this.kernel.generateId();
         copy.meta.title = (copy.meta.title || "Untitled") + " (Copy)";
-        this.kernel.saveConstellationToLibrary(copy);
-        alert("Session saved to Library!");
-        this.render(); 
+        const saved = await this.kernel.saveConstellationToLibrary(copy);
+        if (saved !== false) {
+            alert("Session saved to Library!");
+            this.render(); 
+        }
     }
     
     actionLoadFromLibrary(id) {
@@ -964,7 +1427,9 @@ class SandboxController {
         if (map) { 
             this.kernel.activeProjectId = map.meta?.project_id || 'default_project';
             this.kernel.loadMapState(map); 
-            this.setView('map'); 
+            this.setView('map');
+            const drawer = document.getElementById('data-manager-drawer');
+            if (drawer) drawer.classList.add('translate-x-full');
         }
     }
 
@@ -984,11 +1449,30 @@ class SandboxController {
         this.render();
     }
 
+    async actionChangeVault(vault) {
+        await this.kernel.setVault(vault);
+        this.render();
+    }
+
     actionCreateProject() {
         const name = prompt("Enter Project Name:", "New Project");
         if (name) {
             const desc = prompt("Enter Project Description:", "");
-            this.kernel.createProject(name, desc);
+            this.kernel.createProject(name, desc, "📁", "#8b5cf6", false).then(projectId => {
+                if (!projectId) return;
+                if (confirm(`Open new project "${name}" now?`)) {
+                    this.kernel.activeProjectId = projectId;
+                    const pages = this.kernel.getPages(projectId);
+                    if (pages.length > 0) {
+                        this.kernel.loadMapState(pages[0]);
+                    }
+                    this.setView('map');
+                    const drawer = document.getElementById('data-manager-drawer');
+                    if (drawer) drawer.classList.add('translate-x-full');
+                } else {
+                    this.render();
+                }
+            });
         }
     }
 
@@ -1013,10 +1497,16 @@ class SandboxController {
     actionCreatePage() {
         const title = prompt("Enter Page Name:", "New Space");
         if (title) {
-            const type = prompt("Enter Page Type (generic, web, person, prompt, agent):", "generic");
+            const type = prompt("Enter Page Type (generic, web, person, prompt, agent, file-root, file-document):", "generic");
             this.kernel.createPage(this.kernel.activeProjectId, title, type).then(page => {
-                this.kernel.loadMapState(page);
-                this.setView('map');
+                if (confirm(`Open new page "${title}" now?`)) {
+                    this.kernel.loadMapState(page);
+                    this.setView('map');
+                    const drawer = document.getElementById('data-manager-drawer');
+                    if (drawer) drawer.classList.add('translate-x-full');
+                } else {
+                    this.render();
+                }
             });
         }
     }
@@ -1124,6 +1614,8 @@ class SandboxController {
             alert("Invalid project file format.");
             return;
         }
+        
+        if (!this.kernel.checkStorageLimit(1024 * pages.length)) return;
         
         let targetProjId = project.project_id;
         const existingProjects = this.kernel.getProjects();

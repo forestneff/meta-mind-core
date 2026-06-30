@@ -868,7 +868,7 @@ class MultiMapAI {
         this.toggleChat(); // Hide chat to focus on selection
     }
 
-    injectIntoNewSmartPortal() {
+    async injectIntoNewSmartPortal() {
         if (!this.pendingMapData) return;
 
         let parentId = this.kernel.state.session.selectedId;
@@ -884,7 +884,12 @@ class MultiMapAI {
         const child = this.kernel.addNode({ title: this.pendingMapData.meta.title || "AI Portal", type: "smart-portal" }, parentId);
         this.kernel.addConnection(parentId, child.id);
 
-        this.kernel.saveConstellationToLibrary(this.pendingMapData);
+        const saved = await this.kernel.saveConstellationToLibrary(this.pendingMapData);
+        if (saved === false) {
+            alert("Guest map limit (25) exceeded.");
+            return;
+        }
+        
         this.kernel.updateNode(child.id, { content: this.pendingMapData.map_id });
         this.kernel.importSubmap(child.id, this.pendingMapData);
 
@@ -896,7 +901,7 @@ class MultiMapAI {
         this.toggleChat();
     }
 
-    actionExpandSelected() {
+    async actionExpandSelected() {
         if (!this.pendingMapData) return;
         const parentId = this.kernel.state.session.selectedId;
         if (!parentId) {
@@ -904,7 +909,12 @@ class MultiMapAI {
             return;
         }
 
-        this.kernel.saveConstellationToLibrary(this.pendingMapData);
+        const saved = await this.kernel.saveConstellationToLibrary(this.pendingMapData);
+        if (saved === false) {
+            alert("Guest map limit (25) exceeded.");
+            return;
+        }
+
         // importSubmap links the imported roots to the parentId
         this.kernel.importSubmap(parentId, this.pendingMapData);
 
