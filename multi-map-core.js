@@ -1101,10 +1101,79 @@ class MultiMapKernel {
         const included = this.getDownstreamNodes(root.id);
         return {
             map_id: this.generateId(),
-            meta: { title: root.title + " (Submap)", original_root: rootId, notes: "", shared: false },
+            meta: { title: root.title + " (Clipped)", original_root: rootId, notes: "", shared: false },
             nodes: this.state.nodes.filter(n => included.has(n.id)),
             connections: this.state.connections.filter(c => included.has(c.from) && included.has(c.to))
         };
+    }
+
+    /**
+     * Clip: preserves the selected branch in a new page, replaces the node
+     * with a portal to that page, and removes the downstream subtree from
+     * the current map.  The node's title and position are preserved.
+     * Returns the new page's map_id or null on failure.
+     */
+    async clipBranch(nodeId, customTitle = null, customType = null) {
+        const node = this.state.nodes.find(n => n.id === nodeId);
+        if (!node) return null;
+
+        // Guard: don't clip roots, portals, or web-type nodes
+        const isRoot   = node.data.isCore || node.type === 'root' || node.type.endsWith('-root');
+        const isPortal = node.type === 'portal' || node.type === 'smart-portal';
+        const isWeb    = node.type.startsWith('web-');
+        if (isRoot || isPortal || isWeb) return null;
+
+        // 1. Extract the subtree snapshot
+        this.saveHistory();
+        const snapshot = this.extractConstellation(nodeId);
+        if (!snapshot) return null;
+
+        // 2. Re-root the snapshot: the clipped node becomes the root of the new page
+        const rootNode = snapshot.nodes.find(n => n.id === nodeId);
+        if (rootNode) {
+            rootNode.data.isCore = true;
+            // Derive a fitting root type from the node type
+            const finalType = customType || rootNode.type;
+            rootNode.type = finalType.endsWith('-root') ? finalType : (finalType + '-root');
+        }
+
+        // Remove any structural connection pointing INTO rootNode (there shouldn't be any
+        // in the extracted snapshot since we only took downstream, but be safe)
+        snapshot.connections = snapshot.connections.filter(c => c.to !== nodeId || c.type !== 'structural');
+
+        // Set the new page meta
+        snapshot.meta.title = customTitle || node.title || "Clipped Branch";
+        snapshot.meta.type  = customType || (rootNode && rootNode.type) || 'generic';
+
+        // 3. Persist the new page to the active project
+        const saved = await this.saveConstellationToLibrary(snapshot);
+        if (saved === false) return null;
+        const newMapId = snapshot.map_id;
+
+        // 4. In the current map: remove all downstream nodes EXCEPT the clipped node itself,
+        //    then morph the clipped node into a portal
+        const downstream = this.getDownstreamNodes(nodeId);
+        downstream.delete(nodeId); // keep the root node
+
+        this.state.nodes = this.state.nodes.filter(n => !downstream.has(n.id));
+        // Remove connections FROM or TO downstream nodes, but keep the structural
+        // connection TO the clipped node (parent → clipped node stays)
+        this.state.connections = this.state.connections.filter(c => {
+            if (downstream.has(c.from) || downstream.has(c.to)) return false;
+            return true;
+        });
+        // Also remove connections that were FROM the clipped node to its children
+        // (those children are gone now)
+        this.state.connections = this.state.connections.filter(c => c.from !== nodeId || c.type !== 'structural');
+
+        // Morph the node into a portal
+        node.type    = 'portal';
+        node.content = newMapId;
+        // Leave title, data.x, data.y, data.isCore intact
+
+        this.notify();
+        this.saveCurrentMapToLibrary();
+        return newMapId;
     }
 
     generateId() { return Math.random().toString(36).substr(2, 9); }
@@ -1170,11 +1239,18 @@ class MultiMapKernel {
             if (key === 'library' || key === 'projects' || key === 'schemaData' || key === 'remoteTemplates') return undefined;
             return value;
         }));
-        if (!snapshot.meta.project_id) snapshot.meta.project_id = this.activeProjectId;
         
+        const destProjectId = snapshot.meta.project_id || this.activeProjectId;
+        snapshot.meta.project_id = destProjectId;
+        
+        if (this.state && this.state.map_id === snapshot.map_id) {
+            if (!this.state.meta) this.state.meta = {};
+            this.state.meta.project_id = destProjectId;
+        }
+
         let exists = false;
         if (this.isUsingCloudVault()) {
-            exists = this.firestorePagesByProject[this.activeProjectId] && this.firestorePagesByProject[this.activeProjectId].some(x => x.map_id === snapshot.map_id);
+            exists = this.firestorePagesByProject[destProjectId] && this.firestorePagesByProject[destProjectId].some(x => x.map_id === snapshot.map_id);
         } else {
             exists = this.getLibrary().some(x => x.map_id === snapshot.map_id);
         }
@@ -1184,25 +1260,35 @@ class MultiMapKernel {
         if (this.isUsingCloudVault()) {
             const uid = window.FirebaseAuth.currentUser.uid;
             try {
-                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", this.activeProjectId, "pages", snapshot.map_id);
+                const mapRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", destProjectId, "pages", snapshot.map_id);
                 await window.Firestore.setDoc(mapRef, snapshot);
                 
-                if (!this.firestorePagesByProject[this.activeProjectId]) {
-                    this.firestorePagesByProject[this.activeProjectId] = [];
+                if (!this.firestorePagesByProject[destProjectId]) {
+                    this.firestorePagesByProject[destProjectId] = [];
                 }
-                const idx = this.firestorePagesByProject[this.activeProjectId].findIndex(x => x.map_id === snapshot.map_id);
+                const idx = this.firestorePagesByProject[destProjectId].findIndex(x => x.map_id === snapshot.map_id);
                 if (idx !== -1) {
-                    this.firestorePagesByProject[this.activeProjectId][idx] = snapshot;
+                    this.firestorePagesByProject[destProjectId][idx] = snapshot;
                 } else {
-                    this.firestorePagesByProject[this.activeProjectId].push(snapshot);
-                    
-                    const proj = this.firestoreProjects.find(p => p.project_id === this.activeProjectId);
-                    if (proj && !proj.page_ids.includes(snapshot.map_id)) {
-                        proj.page_ids.push(snapshot.map_id);
-                        const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", this.activeProjectId);
-                        await window.Firestore.setDoc(projRef, proj);
+                    this.firestorePagesByProject[destProjectId].push(snapshot);
+                }
+                
+                const proj = this.firestoreProjects.find(p => p.project_id === destProjectId);
+                if (proj && !proj.page_ids.includes(snapshot.map_id)) {
+                    proj.page_ids.push(snapshot.map_id);
+                    const projRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", destProjectId);
+                    await window.Firestore.setDoc(projRef, proj);
+                }
+                
+                // Clean from other projects in Firestore
+                for (const p of this.firestoreProjects) {
+                    if (p.project_id !== destProjectId && p.page_ids && p.page_ids.includes(snapshot.map_id)) {
+                        p.page_ids = p.page_ids.filter(id => id !== snapshot.map_id);
+                        const otherProjRef = window.Firestore.doc(window.FirebaseDb, "users", uid, "projects", p.project_id);
+                        await window.Firestore.setDoc(otherProjRef, p);
                     }
                 }
+                
                 this.notify();
             } catch (err) {
                 console.error("Firestore saveMapToLibrary failed:", err);
@@ -1217,12 +1303,19 @@ class MultiMapKernel {
             }
             this.saveLibrary(lib);
             
-            const proj = this.projects.find(p => p.project_id === this.activeProjectId);
+            const proj = this.projects.find(p => p.project_id === destProjectId);
             if (proj && !proj.page_ids.includes(snapshot.map_id)) {
                 proj.page_ids.push(snapshot.map_id);
-                localStorage.setItem("mm_projects", JSON.stringify(this.projects));
             }
             
+            // Clean from other projects in Local projects list
+            this.projects.forEach(p => {
+                if (p.project_id !== destProjectId && p.page_ids) {
+                    p.page_ids = p.page_ids.filter(id => id !== snapshot.map_id);
+                }
+            });
+            
+            localStorage.setItem("mm_projects", JSON.stringify(this.projects));
             this.notify();
         }
     }
@@ -1345,10 +1438,16 @@ class MultiMapKernel {
             }
         }
     }
-    loadMapState(data) { this.saveHistory(); this.state = this.ensureSchema(data); this.notify(); }
+    loadMapState(data) {
+        this.saveCurrentMapToLibrary();
+        this.saveHistory();
+        this.state = this.ensureSchema(data);
+        this.notify();
+    }
     
     // --- Portal Navigation ---
     enterPortal(mapData) {
+        this.saveCurrentMapToLibrary();
         this.portalHistory.push(JSON.parse(JSON.stringify(this.state)));
         this.history = []; // Clear undo history for new map
         this.state = this.ensureSchema(mapData);
@@ -1710,6 +1809,13 @@ class MultiMapKernel {
                 
                 this.notify();
                 console.log("Firestore sync complete.");
+                
+                // Refresh data manager panel if it's open
+                const dmDrawer = document.getElementById('data-manager-drawer');
+                const dmContainer = document.getElementById('data-manager-content');
+                if (dmDrawer && dmContainer && !dmDrawer.classList.contains('translate-x-full') && window.Auth) {
+                    window.Auth.renderDataManager(dmContainer);
+                }
                 
                 const e = document.getElementById('save-status');
                 if (e) {

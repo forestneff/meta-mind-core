@@ -71,21 +71,34 @@
 <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getFirestore, doc, getDoc, connectFirestoreEmulator } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getAuth, onAuthStateChanged, connectAuthEmulator } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
     const cfg = window.__MM_FIREBASE_CONFIG__ || {
-        apiKey: "REPLACE_WITH_API_KEY", authDomain: "REPLACE.firebaseapp.com",
-        projectId: "REPLACE_PROJECT_ID", storageBucket: "REPLACE.appspot.com",
-        messagingSenderId: "000000000000", appId: "1:000:web:000"
+        projectId: "mm-multi-map",
+        apiKey: "AIzaSyCOk-1fCUVX6dEPqToSCMGGHoG6YJx231o",
+        authDomain: "mm-multi-map.firebaseapp.com",
+        storageBucket: "mm-multi-map.firebasestorage.app",
+        messagingSenderId: "372970140042",
+        appId: "1:372970140042:web:32b8e5223af72853df1873"
     };
 
-    const app = initializeApp(cfg, 'mm-viewer');
+    const app = initializeApp(cfg);
     const db  = getFirestore(app);
+    const auth = getAuth(app);
 
     if (['localhost','127.0.0.1'].includes(window.location.hostname)) {
         try { connectFirestoreEmulator(db, 'localhost', 8080); } catch(_) {}
+        try { connectAuthEmulator(auth, 'http://localhost:9099'); } catch(_) {}
     }
 
     const $ = id => document.getElementById(id);
+
+    onAuthStateChanged(auth, user => {
+        const link = $('back-link');
+        if (link) {
+            link.href = user ? '/sandbox.html' : '/';
+        }
+    });
     let mapData = null;
 
     function showError(msg, icon = '⚠️') {

@@ -78,6 +78,14 @@ service cloud.firestore {
     match /anon_quotas/{sessionId} {
       allow read, write: if false;
     }
+
+    // Admin config — authenticated users can read to check admin status.
+    // All writes are server-side only (no client mutations).
+    // Collection: _admins/config  →  { admin_emails: ["forestneff@gmail.com"] }
+    match /_admins/{document} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
   }
 }
 

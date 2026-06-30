@@ -195,12 +195,16 @@ class DataPhaseEngine extends PhaseEngineBase {
                                 <div class="flex justify-between items-end">
                                     <div class="flex flex-col">
                                         <h2 class="text-sky-400 font-bold uppercase text-[10px] tracking-widest flex items-center gap-1.5">☁️ Data Vault</h2>
-                                        <select onchange="SC.actionChangeVault(this.value)" class="mt-1 bg-slate-950 border border-slate-700 rounded text-[9px] text-slate-300 p-0.5 outline-none cursor-pointer">
-                                            <option value="firebase" ${activeVault === 'firebase' ? 'selected' : ''} ${(!window.FirebaseAuth || !window.FirebaseAuth.currentUser || window.FirebaseAuth.currentUser.isAnonymous) ? 'disabled' : ''}>Target: Firebase (Cloud)</option>
-                                            <option value="local" ${activeVault === 'local' ? 'selected' : ''}>Target: Local Browser (Legacy)</option>
-                                            <option value="gdrive" disabled>Target: Google Drive (Coming Soon)</option>
-                                            <option value="local-os" disabled>Target: Local OS (Coming Soon)</option>
-                                        </select>
+                                        <div class="relative mt-1">
+                                            <button 
+                                                id="vault-selector-btn"
+                                                onclick="SC.showVaultSelectorDropdown(event)"
+                                                class="bg-slate-950 hover:bg-slate-800 text-[10px] text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                                            >
+                                                <span>Target: ${activeVault === 'firebase' ? 'Firebase (Cloud) ☁️' : 'Local Browser (Legacy) 📁'}</span>
+                                                <span class="text-[8px] opacity-60">▼</span>
+                                            </button>
+                                        </div>
                                     </div>
                                     <span class="text-[9px] font-mono ${isWarning ? 'text-rose-400 font-bold' : 'text-slate-400'}">${mbUsage} MB / ${mbLimit} MB</span>
                                 </div>
@@ -218,21 +222,24 @@ class DataPhaseEngine extends PhaseEngineBase {
                                     </div>
                                 </div>
                                 ` : `
-                                <div class="mt-1 flex gap-1.5">
-                                    <button onclick="alert('Google Drive integration coming in Phase 2!')" class="flex-1 border border-slate-700 hover:bg-slate-800 py-1 rounded-lg transition-colors text-[9px] text-slate-400 flex items-center justify-center gap-1"><span>Drive</span></button>
-                                    <button onclick="alert('Local OS integration coming in Phase 2!')" class="flex-1 border border-slate-700 hover:bg-slate-800 py-1 rounded-lg transition-colors text-[9px] text-slate-400 flex items-center justify-center gap-1"><span>Local OS</span></button>
+                                <div class="text-[9px] text-slate-500 flex justify-between px-1">
+                                    <span>Sync Status:</span>
+                                    <span class="font-bold flex items-center gap-1" id="save-status">
+                                        ${this.kernel.isUsingCloudVault() ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Cloud' : '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Local'}
+                                    </span>
                                 </div>
                                 `}
                             </div>
                             `;
                         })()}
                         
-                        <!-- 1. Workspace Library Collapsible Accordion -->
+                        
+                        <!-- 1. Workspace Library Accordion -->
                         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all flex flex-col shrink-0">
                             <div class="p-4 bg-slate-800/50 hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors select-none" onclick="SC.registry.get('data').toggle('library')">
-                                <h2 class="text-purple-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">📁 Workspace Library</h2>
+                                <h2 class="text-purple-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2 font-black">📚 Workspace Library</h2>
                                 <div class="flex items-center gap-3">
-                                    <span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded text-[10px] border border-slate-700">${projects.length} Projects</span>
+                                    <span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded text-[10px] border border-slate-700">${projects.length} Projects / ${pages.length} Pages</span>
                                     <span class="text-slate-500 text-xs">${this.ui.library ? '▼' : '▶'}</span>
                                 </div>
                             </div>
@@ -269,9 +276,8 @@ class DataPhaseEngine extends PhaseEngineBase {
                                                         <span style="color: ${color}">${icon}</span>
                                                         <span class="${isActive ? 'text-purple-300 font-bold' : 'text-slate-300 group-hover:text-slate-100'} truncate">${title}</span>
                                                     </span>
-                                                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                                        <button onclick="event.stopPropagation(); SC.actionPromptRenameProject('${proj.project_id}')" class="text-[9px] text-slate-400 hover:text-white" title="Rename Project">✏️</button>
-                                                        <button onclick="event.stopPropagation(); SC.actionDeleteProject('${proj.project_id}')" class="text-[9px] text-slate-400 hover:text-rose-400" title="Delete Project">🗑️</button>
+                                                    <div class="flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity shrink-0">
+                                                        <button onclick="event.stopPropagation(); SC.actionOpenProjectSettings('${proj.project_id}')" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-[9px] py-0.5 px-2 rounded border border-slate-800/80 shadow transition-all font-bold uppercase tracking-wider flex items-center gap-1" title="Project Settings">⚙️ settings</button>
                                                     </div>
                                                 </div>
                                                 <div class="text-[9px] text-slate-500 pl-5">
@@ -309,44 +315,35 @@ class DataPhaseEngine extends PhaseEngineBase {
                                             let storageIcon = '☁️'; // Default firebase
                                             if (meta.storage_target === 'google_drive') storageIcon = '🔺';
                                             else if (meta.storage_target === 'local_os') storageIcon = '📁';
-                                            
+
+                                            const activeBadge = isCurrentPage ? '<span class="text-[8px] bg-sky-950/60 border border-sky-600 text-sky-400 px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-widest font-extrabold">● Active</span>' : '';
+                                            const loadBtn = isCurrentPage 
+                                                ? `<button onclick="SC.actionCloseDataManager()" class="flex-1 bg-sky-950/40 hover:bg-sky-900/40 text-sky-450 hover:text-sky-350 text-[9px] py-1 rounded font-bold border border-sky-900/50 cursor-pointer transition-all shadow" title="Close Data Manager">Active Space</button>`
+                                                : `<button onclick="SC.actionLoadFromLibrary('${page.map_id}')" class="flex-1 bg-slate-900 hover:bg-sky-600 text-white text-[9px] py-1 rounded font-bold transition-all border border-slate-800/80 shadow">Load</button>`;
+
                                             return `
-                                            <div class="bg-slate-950/70 border rounded-xl overflow-hidden group relative hover:border-sky-500/40 transition-all shrink-0 ${isCurrentPage ? 'border-sky-500/70 shadow-lg shadow-sky-950/40 ring-1 ring-sky-500/10' : 'border-slate-800/80'}" 
+                                            <div class="bg-slate-950/70 border rounded-xl overflow-hidden group relative hover:border-sky-500/40 transition-all shrink-0 ${isCurrentPage ? 'bg-slate-900/50 border-sky-500 shadow-[0_0_15px_rgba(14,165,233,0.15)] ring-1 ring-sky-500/10' : 'border-slate-800/80'}" 
                                                  draggable="true" 
                                                  ondragstart="event.dataTransfer.setData('text/plain', '${page.map_id}')">
-                                                <div class="absolute left-0 top-0 bottom-0 w-1 bg-sky-500 ${isCurrentPage ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity"></div>
+                                                <div class="absolute left-0 top-0 bottom-0 w-1 bg-sky-500 rounded-l-xl ${isCurrentPage ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity"></div>
                                                 
                                                 <div class="p-3 flex flex-col gap-2">
-                                                    <div class="flex justify-between items-start gap-4">
-                                                        <div class="font-bold text-xs text-slate-200 truncate flex-1 flex items-center gap-1.5 cursor-grab active:cursor-grabbing">
-                                                            <span title="Storage Target">${storageIcon}</span> <span class="truncate">${title}</span>
+                                                    <!-- Title row -->
+                                                    <div class="flex justify-between items-start gap-2">
+                                                        <div class="font-bold text-xs text-slate-200 truncate flex-1 flex items-center gap-1.5 min-w-0 cursor-grab active:cursor-grabbing">
+                                                            <span title="Storage Target" class="shrink-0">${storageIcon}</span>
+                                                            <span class="truncate">${title}</span>
+                                                            ${activeBadge}
                                                             <span class="text-[8px] bg-slate-900 border border-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-widest">${type}</span>
                                                             ${meta.shared ? '<span class="text-[8px] bg-teal-900/50 border border-teal-700/50 text-teal-400 px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-widest">🔗 shared</span>' : ''}
                                                         </div>
                                                         <span class="text-[9px] text-slate-500 bg-slate-900/60 px-1.5 py-0.5 rounded border border-slate-800/60 shrink-0">${nodeCount} nodes</span>
                                                     </div>
                                                     
-                                                    <div class="flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                        <button onclick="SC.actionLoadFromLibrary('${page.map_id}')" class="flex-1 bg-slate-900 hover:bg-sky-600 text-white text-[9px] py-1 rounded font-bold transition-all border border-slate-800/80 shadow">Load</button>
-                                                        <button onclick="SC.actionDownloadSingleConstellation('${page.map_id}')" class="bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white text-[9px] py-1 px-2 rounded font-bold transition-all border border-slate-800/80 shadow" title="Download JSON">⬇️</button>
-                                                        <button onclick="SC.actionPromptRenamePage('${page.map_id}')" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-[9px] py-1 px-2 rounded font-bold transition-all border border-slate-800/80 shadow" title="Rename Page">✏️</button>
-                                                        <button onclick="SC.actionPromptCopyPage('${page.map_id}')" class="bg-slate-900 hover:bg-purple-900/60 text-slate-400 hover:text-purple-200 text-[9px] py-1 px-2 rounded font-bold transition-all border border-slate-800/80 shadow" title="Copy Page to New Project">📋</button>
-                                                        ${(() => {
-                                                            const isCloud = this.kernel.isUsingCloudVault();
-                                                            const isLoggedIn = window.FirebaseAuth?.currentUser && !window.FirebaseAuth.currentUser.isAnonymous;
-                                                            const canShare = isCloud && isLoggedIn;
-                                                            if (!canShare) {
-                                                                return '<button disabled class="bg-slate-900 text-slate-700 text-[9px] py-1 px-2 rounded font-bold border border-slate-800/40 shadow cursor-not-allowed" title="Sign in + use Cloud vault to share">🔗</button>';
-                                                            }
-                                                            if (meta.shared) {
-                                                                return `
-                                                                    <button onclick="SC.showShareLinkPanel('${window.location.origin}/view.html?token=${meta.share_token}','${title.replace(/'/g,"\\'")}'); " class="bg-teal-900/40 hover:bg-teal-700/60 text-teal-400 text-[9px] py-1 px-2 rounded font-bold transition-all border border-teal-800/60 shadow" title="View share link">🔗</button>
-                                                                    <button onclick="SC.actionRevokeShare('${page.map_id}')" class="bg-slate-900 hover:bg-rose-900/60 text-slate-400 hover:text-rose-300 text-[9px] py-1 px-2 rounded font-bold transition-all border border-slate-800/80 shadow" title="Revoke share link">✕</button>
-                                                                `;
-                                                            }
-                                                            return '<button onclick="SC.actionSharePage(\'' + page.map_id + '\')" class="bg-slate-900 hover:bg-teal-700/60 text-slate-400 hover:text-teal-300 text-[9px] py-1 px-2 rounded font-bold transition-all border border-slate-800/80 shadow" title="Share map publicly">🔗</button>';
-                                                        })()}
-                                                        <button onclick="SC.actionDeleteFromLibrary('${page.map_id}')" class="bg-slate-900 hover:bg-rose-900/60 text-slate-400 hover:text-rose-200 text-[9px] py-1 px-2 rounded font-bold transition-all border border-slate-800/80 shadow" title="Delete Page">🗑️</button>
+                                                    <!-- Action row: Load + Settings modal trigger -->
+                                                    <div class="flex gap-1.5 ${isCurrentPage ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'} transition-opacity">
+                                                        ${loadBtn}
+                                                        <button onclick="SC.actionOpenPageSettings('${page.map_id}')" class="bg-slate-900 hover:bg-slate-700 text-slate-300 hover:text-white text-[9px] py-1 px-2.5 rounded font-bold transition-all border border-slate-800/80 shadow" title="Settings & Sharing">⚙️ Settings</button>
                                                     </div>
                                                 </div>
                                             </div>
